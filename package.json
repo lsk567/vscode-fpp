@@ -1,0 +1,88 @@
+{
+    "name": "fpp",
+    "displayName": "FPP",
+    "description": "FPrime-Prime Language Support",
+    "publisher": "jet-propulsion-laboratory",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.78.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "activationEvents": [],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "fpp.parseFile",
+                "title": "Parse FPP File"
+            },
+            {
+                "command": "fpp.index",
+                "title": "Index all FPP files"
+            },
+            {
+                "command": "fpp.close",
+                "title": "FPP: Close Project"
+            },
+            {
+                "command": "fpp.open",
+                "title": "FPP: Open Project"
+            },
+            {
+                "command": "fpp.load",
+                "title": "FPP: Load Locs File as Project"
+            }
+        ],
+        "languages": [
+            {
+                "id": "fpp",
+                "aliases": [
+                    "FPrimePrime",
+                    "fpp"
+                ],
+                "extensions": [
+                    ".fpp"
+                ],
+                "configuration": "./syntax/language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "fpp",
+                "scopeName": "source.fpp",
+                "path": "./syntax/fpp.tmLanguage.json"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "yarn run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "yarn run compile && yarn run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js",
+        "antlr": "antlr4ts -visitor src/grammar/Fpp.g4"
+    },
+    "devDependencies": {
+        "@types/antlr4": "^4.11.2",
+        "@types/glob": "^8.0.0",
+        "@types/mocha": "^10.0.0",
+        "@types/node": "16.x",
+        "@types/vscode": "^1.78.0",
+        "@typescript-eslint/eslint-plugin": "^5.42.0",
+        "@typescript-eslint/parser": "^5.42.0",
+        "@vscode/test-electron": "^2.2.0",
+        "antlr4ts": "^0.5.0-alpha.4",
+        "antlr4ts-cli": "^0.5.0-alpha.4",
+        "eslint": "^8.26.0",
+        "glob": "^8.0.3",
+        "mocha": "^10.1.0",
+        "peggy": "^3.0.2",
+        "typescript": "^4.8.4"
+    },
+    "dependencies": {
+        "ts-node": "^10.9.1"
+    }
+}
