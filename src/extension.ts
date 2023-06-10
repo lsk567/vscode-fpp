@@ -1,25 +1,62 @@
 import * as vscode from 'vscode';
 
-import { TextDecoder, } from 'util';
-
 import { FppParser } from './grammar/FppParser';
 
 import * as Fpp from './parser/ast';
 import { FppAnnotator, MemberTraverser, fppLegend } from './fpp';
 
 import Signatures from "./signatures.json";
-import { FppErrorListener, declRules, exprRules, getCandidates, ignoreTokens, parseFpp } from './parser/parse';
-import { Token } from 'antlr4ts';
+import { FppErrorListener, declRules, exprRules, getCandidates, ignoreTokens } from './parser/parse';
 import { AstManager } from './parser/manager';
-
-const textDecoder = new TextDecoder();
+import { RuleContext } from 'antlr4ts';
 
 class FppProject implements vscode.Disposable {
     private locs = new Set<string>();
     private locsFile?: vscode.Uri;
-    private fsWatcher?: vscode.FileSystemWatcher;
 
     private projectStatus: vscode.StatusBarItem;
+
+    constructor(
+        readonly manager: AstManager,
+        readonly onCreate: (file: vscode.Uri) => Promise<void>,
+        readonly onDelete: (file: vscode.Uri) => void,
+        readonly onScanDone: (locs: Set<string>) => Promise<void>
+    ) {
+        this.projectStatus = vscode.window.createStatusBarItem(
+            'fpp.projectStatus',
+            vscode.StatusBarAlignment.Right,
+            2
+        );
+
+        this.projectStatus.command = "fpp.open";
+        this.locsTrav.parent = this;
+    }
+
+    private async scan() {
+        // Read the locsFile file
+        if (!this.locsFile) {
+            throw new Error('No locs loaded');
+        }
+
+        // Parse the locs file
+        const { ast } = await this.manager.parse(this.locsFile, undefined, true);
+
+        // Parse the locs file
+        this.locsTrav.pass(ast, this.locsFile.path);
+
+        // Wait for all files to finish
+        for (const prom of this.locsTrav.promises) {
+            try {
+                await prom;
+            } catch { }
+        }
+
+        // For reparse of all files to resolve declarations
+        await this.onScanDone(this.locs);
+
+        // Force reparse of locs
+        await this.manager.parse(this.locsFile, undefined, true);
+    }
 
     private locsTrav = new class extends MemberTraverser {
         parent!: FppProject;
@@ -66,54 +103,8 @@ class FppProject implements vscode.Disposable {
         this.locs = new Set<string>(locs);
     }
 
-    constructor(
-        private readonly syntaxListener: FppErrorListener,
-        readonly onCreate: (file: vscode.Uri) => Promise<void>,
-        readonly onDelete: (file: vscode.Uri) => void,
-        readonly onScanDone: (locs: Set<string>) => Promise<void>
-    ) {
-        this.projectStatus = vscode.window.createStatusBarItem(
-            'fpp.projectStatus',
-            vscode.StatusBarAlignment.Right,
-            2
-        );
-
-        this.projectStatus.command = "fpp.open";
-        this.locsTrav.parent = this;
-    }
-
-    private async scan() {
-        // Read the locsFile file
-        if (!this.locsFile) {
-            throw new Error('No locs loaded');
-        }
-
-        // Read and decode the locs file
-        const text = textDecoder.decode(await vscode.workspace.fs.readFile(this.locsFile));
-
-        // Parse the locs file
-        try {
-            // Parse this FPP inline
-            const locsAst = parseFpp(text, this.syntaxListener, this.locsFile);
-            this.locsTrav.pass(locsAst, this.locsFile.path);
-
-            // Wait for all files to finish
-            for (const prom of this.locsTrav.promises) {
-                try {
-                    await prom;
-                } catch { }
-            }
-
-            await this.onScanDone(this.locs);
-        } catch (e) {
-            vscode.window.showErrorMessage(`Failed to parse locs file: ${e}`);
-        }
-    }
-
     async set(locsFile: vscode.Uri | undefined) {
         if (!locsFile) {
-            this.fsWatcher?.dispose();
-            this.fsWatcher = undefined;
             this.locsFile = undefined;
 
             this.projectStatus.text = "Load locs.fpp";
@@ -121,20 +112,23 @@ class FppProject implements vscode.Disposable {
             this.projectStatus.show();
         } else {
             this.locsFile = locsFile;
-            this.fsWatcher?.dispose();
-            // this.fsWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(locsFile, '*'));
 
             this.projectStatus.text = "Loading...";
             this.projectStatus.backgroundColor = new vscode.ThemeColor('statusBarItem.prominentBackground');
             this.projectStatus.show();
 
-            await this.scan();
-            this.projectStatus.hide();
+            try {
+                await this.scan();
+                this.projectStatus.hide();
+            } catch (e) {
+                vscode.window.showErrorMessage(`Failed to load locs.fpp: ${e}`);
+                this.projectStatus.text = "Locs Failed";
+                this.projectStatus.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+            }
         }
     }
 
     dispose() {
-        this.fsWatcher?.dispose();
         this.locs.clear();
         this.projectStatus.dispose();
     }
@@ -144,6 +138,7 @@ interface ISignature {
     signature: string;
     description: string;
     parameters: Record<string, string | string[]>;
+    stateMap?: Record<string, number[]> | string[];
 }
 
 function generateSignature(signature: ISignature, activeParameter: string): vscode.SignatureInformation {
@@ -201,15 +196,14 @@ class FppExtension implements
         private readonly context: vscode.ExtensionContext
     ) {
         this.syntaxListeners = new FppErrorListener();
-        this.manager = new AstManager();
+        this.manager = new AstManager(this.syntaxListeners);
 
         const docSelector: vscode.DocumentSelector = { scheme: 'file', language: 'fpp' };
         this.project = new FppProject(
-            this.syntaxListeners,
+            this.manager,
             async (addUri) => {
                 // Refresh declarations created by this AST
                 await this.manager.parse(addUri);
-                this._onDidChangeSemanticTokens.fire();
             },
             (deleteUri) => {
                 this.manager.clear(deleteUri);
@@ -217,7 +211,11 @@ class FppExtension implements
             async (locs: Set<string>) => {
                 // Reindex all file to resolve declaration errors
                 for (const file of locs) {
-                    await this.manager.parse(vscode.Uri.file(file), undefined, true);
+                    try {
+                        await this.manager.parse(vscode.Uri.file(file), undefined, true);
+                    } catch {
+
+                    }
                 }
 
                 this._onDidChangeSemanticTokens.fire();
@@ -238,11 +236,12 @@ class FppExtension implements
                 }),
                 vscode.languages.registerDocumentLinkProvider(docSelector, this),
                 vscode.languages.registerHoverProvider(docSelector, this),
-                vscode.languages.registerCompletionItemProvider(docSelector, this, " ", "."),
-                vscode.languages.registerSignatureHelpProvider(docSelector, this, " ", ",", "[", "(", "{", "="),
+                vscode.languages.registerCompletionItemProvider(docSelector, this, " ", ".", ":"),
+                vscode.languages.registerSignatureHelpProvider(docSelector, this, " ", ",", "[", "(", "{", "=", ":"),
             ];
 
-            this.project.set(this.context.workspaceState.get("fpp.locsFile"));
+            const file = this.context.workspaceState.get<string>("fpp.locsFile");
+            this.setLocs(file ? vscode.Uri.file(file) : undefined);
         });
     }
 
@@ -251,7 +250,7 @@ class FppExtension implements
     }
 
     async setLocs(locsFile: vscode.Uri | undefined) {
-        this.context.workspaceState.update('fpp.locsFile', locsFile);
+        this.context.workspaceState.update('fpp.locsFile', locsFile?.path);
         await this.project.set(locsFile);
     }
 
@@ -413,13 +412,14 @@ class FppExtension implements
         token: vscode.CancellationToken,
         context: vscode.SignatureHelpContext
     ): Promise<vscode.SignatureHelp & { lastToken: vscode.Range } | undefined> {
+        const signaturesDefinitions = (Signatures as { [name: string]: ISignature });
 
         // Provide all signatures of candidate rules
         const signatures: vscode.SignatureInformation[] = [];
-        const matched = (await this.manager.parse(document, token)).ranges.getAssociation(position);
+        const matched = (await this.manager.parse(document)).ranges.getAssociation(position);
         if (matched) {
             const ruleName = FppParser.ruleNames[matched.value.rule];
-            const iSignature = (Signatures as { [name: string]: ISignature })[ruleName];
+            const iSignature = signaturesDefinitions[ruleName];
             if (iSignature) {
                 signatures.push(generateSignature(iSignature, matched.value.param));
             } else {
@@ -437,8 +437,55 @@ class FppExtension implements
             };
         }
 
-        const [candidates, _, parser, core] = getCandidates(document, position, declRules);
-        
+        const [candidates, syntaxErrorListener, parser, core] = getCandidates(document, new vscode.Position(position.line, position.character + 1), declRules);
+        const exception = syntaxErrorListener.getException(position);
+        if (exception) {
+            // We are currently writing a rule
+            // We must be at the end of the rule if the token is not matched yet
+            // This means the argument offset is the current child count
+
+            // Find the matching signature definition in the parsing rule context stack
+            // To do this we must traverse the parsing stack and find a signatured def
+            let currentState = exception.state;
+
+            for (
+                let ctx: RuleContext | undefined = exception.ctx;
+                ctx; currentState = ctx.invokingState, ctx = ctx.parent
+            ) {
+                const ruleName = FppParser.ruleNames[ctx.ruleIndex];
+                if (signaturesDefinitions[ruleName] && signaturesDefinitions[ruleName].stateMap) {
+                    // We found one that matches
+                    let paramName: string;
+                    if (Array.isArray(signaturesDefinitions[ruleName].stateMap)) {
+                        paramName = (signaturesDefinitions[ruleName].stateMap as string[])[ctx.childCount];
+                    } else {
+                        const map = new Map<number, string>();
+                        for (const [key, states] of Object.entries(signaturesDefinitions[ruleName].stateMap as Record<string, number[]>)) {
+                            for (const state of states) {
+                                map.set(state, key);
+                            }
+                        }
+
+                        const targetParam = map.get(currentState);
+                        if (!targetParam) {
+                            continue;
+                        }
+
+                        paramName = targetParam;
+                    }
+
+                    signatures.push(generateSignature(signaturesDefinitions[ruleName], paramName));
+                    break;
+                }
+            }
+
+            return {
+                signatures: signatures,
+                activeParameter: 0,
+                activeSignature: 0,
+                lastToken: new vscode.Range(position, position)
+            };
+        }
 
         return undefined;
     }
@@ -471,8 +518,9 @@ export function activate(context: vscode.ExtensionContext) {
             await extension.setLocs(undefined);
         }),
         vscode.commands.registerCommand('fpp.open', () => {
+            const locs = context.workspaceState.get<string>("fpp.locsFile");
             vscode.window.showOpenDialog({
-                defaultUri: context.workspaceState.get("fpp.locsFile"),
+                defaultUri: locs ? vscode.Uri.file(locs) : undefined,
                 openLabel: "Open locs",
                 canSelectFiles: true,
                 canSelectFolders: false,

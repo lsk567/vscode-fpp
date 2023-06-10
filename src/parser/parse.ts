@@ -8,6 +8,7 @@ import {
     ParserRuleContext,
     RecognitionException,
     Recognizer,
+    RuleContext,
     Token,
     TokenStream
 } from 'antlr4ts';
@@ -20,6 +21,7 @@ import { DiangosicManager } from '../fpp';
 import { AstVisitor } from './visitor';
 import { CandidatesCollection, CodeCompletionCore } from './completion';
 import { RangeAssociator } from '../associator';
+import { IntervalSet } from 'antlr4ts/misc/IntervalSet';
 
 
 export class FppErrorListener extends DiangosicManager implements ANTLRErrorListener<any> {
@@ -44,29 +46,32 @@ export class FppErrorListener extends DiangosicManager implements ANTLRErrorList
 export class FppCompletionListener implements ANTLRErrorListener<any> {
     exceptions: {
         position: vscode.Position;
-        exception: RecognitionException;
+        ctx: RuleContext;
+        state: number;
+        expectedTokens?: IntervalSet;
     }[] = [];
 
     syntaxError(
-        recognizer: Recognizer<any, any>,
+        recognizer: any,
         offendingSymbol: any,
         line: number,
         charPositionInLine: number,
         message: string,
         e: RecognitionException | undefined
     ): void {
-        if (e) {
-            this.exceptions.push({
-                position: new vscode.Position(line - 1, charPositionInLine),
-                exception: e
-            });
-        }
+        const parser = (recognizer as FppParserWithAnnotator);
+        this.exceptions.push({
+            position: new vscode.Position(line - 1, charPositionInLine),
+            ctx: parser.context,
+            state: parser.state,
+            expectedTokens: e?.expectedTokens
+        });
     }
 
-    getException(position: vscode.Position): RecognitionException | undefined {
+    getException(position: vscode.Position) {
         for (const exception of this.exceptions) {
             if (exception.position.isEqual(position)) {
-                return exception.exception;
+                return exception;
             }
         }
     }

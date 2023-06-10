@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
 
 import * as Fpp from './ast';
-import { DeclCollector, FppAnnotator } from '../fpp';
+import { DeclCollector, DiangosicManager, FppAnnotator } from '../fpp';
 import { IFppMessage, IRange } from './message';
 import { TextDecoder } from 'util';
 import path from 'path';
@@ -181,6 +181,9 @@ export class AstManager implements vscode.Disposable {
     private annotations = new Map<string, FppAnnotator>();
     private worker = new FppWorker();
 
+    constructor(private readonly syntaxListener: DiangosicManager) {
+    }
+
     ready(): Promise<void> {
         return this.worker.ready();
     }
@@ -207,7 +210,11 @@ export class AstManager implements vscode.Disposable {
         this.annotations.delete(uri.path);
     }
 
-    async parse(documentOrUri: vscode.TextDocument | vscode.Uri, token?: vscode.CancellationToken, forceReparse?: boolean): Promise<FppMessage> {
+    async parse(
+        documentOrUri: vscode.TextDocument | vscode.Uri,
+        token?: vscode.CancellationToken,
+        forceReparse?: boolean
+    ): Promise<FppMessage> {
         if (documentOrUri instanceof vscode.Uri) {
             // Read and decode the text file
             const text = textDecoder.decode(await vscode.workspace.fs.readFile(documentOrUri));
@@ -226,7 +233,7 @@ export class AstManager implements vscode.Disposable {
         }
     }
 
-    async parseImpl(document: DocumentOrFile, token?: vscode.CancellationToken, forceReparse?: boolean): Promise<FppMessage> {
+    private async parseImpl(document: DocumentOrFile, token?: vscode.CancellationToken, forceReparse?: boolean): Promise<FppMessage> {
         const key = document.path;
 
         // First check if the AST we have is good enough
@@ -251,6 +258,15 @@ export class AstManager implements vscode.Disposable {
         }
 
         annotator.pass(msg.ast, key);
+
+        this.syntaxListener.flush(key);
+        this.syntaxListener.flush(key);
+        const uri = vscode.Uri.file(key);
+        for (const err of msg.syntaxErrors) {
+            this.syntaxListener.emit(uri, err);
+        }
+        this.syntaxListener.flush(key);
+
         return msg;
     }
 }
