@@ -588,6 +588,20 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        this.associate(ctx.TELEMETRY()._symbol, ctx.ruleIndex, "telemetry");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._type, ctx.ruleIndex, "type");
+        this.associate(ctx.ID()?.symbol, ctx.ruleIndex, "id");
+        this.associate(ctx._id, ctx.ruleIndex, "idExpr");
+        this.associate(ctx.UPDATE()?.symbol, ctx.ruleIndex, "update");
+        this.associate(ctx._update, ctx.ruleIndex, "telemetry-update");
+        this.associate(ctx.FORMAT()?.symbol, ctx.ruleIndex, "format");
+        this.associate(ctx._format, ctx.ruleIndex, "formatLiteral");
+        this.associate(ctx.LOW()?.symbol, ctx.ruleIndex, "low");
+        this.associate(ctx._low, ctx.ruleIndex, "lowLimit");
+        this.associate(ctx.HIGH()?.symbol, ctx.ruleIndex, "high");
+        this.associate(ctx._high, ctx.ruleIndex, "highLimit");
+
         return {
             type: "TelemetryChannelDecl",
             location: this.loc(ctx),
@@ -672,6 +686,18 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         const format = ctx._format;
         const throttle = ctx._throttle;
 
+        this.associate(ctx.EVENT()._symbol, ctx.ruleIndex, "event");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._params, ctx.ruleIndex, "param-list");
+        this.associate(ctx.SEVERITY()._symbol, ctx.ruleIndex, "severity");
+        this.associate(ctx.eventSeverity(), ctx.ruleIndex, "severityKeyword");
+        this.associate(ctx.ID()?.symbol, ctx.ruleIndex, "id");
+        this.associate(ctx._id, ctx.ruleIndex, "idExpr");
+        this.associate(ctx.FORMAT()?._symbol, ctx.ruleIndex, "format");
+        this.associate(ctx._format, ctx.ruleIndex, "formatLiteral");
+        this.associate(ctx.THROTTLE()?.symbol, ctx.ruleIndex, "throttle");
+        this.associate(ctx._throttle, ctx.ruleIndex, "throttleExpr");
+
         return {
             type: "EventDecl",
             fppType: undefined,
@@ -690,6 +716,9 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        this.associate(ctx.INCLUDE().symbol, ctx.ruleIndex, "include");
+        this.associate(ctx._include, ctx.ruleIndex, "includeFile");
+
         return {
             type: "IncludeStmt",
             location: this.loc(ctx),
@@ -701,6 +730,11 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         if (!ctx) {
             return this.error();
         }
+
+        this.associate(ctx.MATCH().symbol, ctx.ruleIndex, "match");
+        this.associate(ctx._match, ctx.ruleIndex, "target");
+        this.associate(ctx.WITH().symbol, ctx.ruleIndex, "with");
+        this.associate(ctx._with_, ctx.ruleIndex, "source");
 
         return {
             type: "MatchStmt",
@@ -718,6 +752,14 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         const params = ctx._params;
         const priority = ctx._priority;
         const queueFullBehavior = ctx._queueFull;
+
+        this.associate(ctx.INTERNAL()._symbol, ctx.ruleIndex, "internal");
+        this.associate(ctx.PORT()._symbol, ctx.ruleIndex, "port");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._params, ctx.ruleIndex, "param-list");
+        this.associate(ctx.PRIORITY()?._symbol, ctx.ruleIndex, "priority");
+        this.associate(ctx._priority, ctx.ruleIndex, "priorityExpr");
+        this.associate(ctx._queueFull, ctx.ruleIndex, "queue-full-behavior");
 
         return {
             type: "InternalPortDecl",
@@ -815,6 +857,11 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        this.associate(ctx.PORT()._symbol, ctx.ruleIndex, "port");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._params, ctx.ruleIndex, "param-list");
+        this.associate(ctx._returnType, ctx.ruleIndex, "returnType");
+
         return {
             type: "PortDecl",
             fppType: undefined,
@@ -858,6 +905,9 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         if (!ctx) {
             return this.error();
         }
+
+        this.associate(ctx._source, ctx.ruleIndex, "output");
+        this.associate(ctx._destination, ctx.ruleIndex, "input");
 
         return {
             location: this.loc(ctx),

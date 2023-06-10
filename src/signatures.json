@@ -223,5 +223,118 @@
         "description": "These port instances correspond to the \"role ports\" in the F Prime XML model. Their types and other attributes are specified by F Prime. The identifier specifies the name of the port.",
         "parameters": {},
         "stateMap": ["specialPortKind", "port", "name"]
+    },
+    "telemetryChannelDecl": {
+        "signature": "telemetry name : type (id idExpr) (update telemetry-update)? (format formatLiteral)? ( low { telemetryLow } )? ( high { telemetryHigh } )?",
+        "description": "Defines a telemetry channel as part of a component definition.",
+        "parameters": {
+            "telemetry-update": "Specifies whether the telemetry channel is emitted always or on change. If the specifier is not present, the default behavior is always.",
+            "formatLiteral": "Specifies a format string. There is one argument to the format string, which is the channel value.",
+            "lowLimit": "Specifies the low limit for the channel",
+            "highLimit": "Specifies the high limit for the channel"
+        },
+        "stateMap": {
+            "telemetry": [333],
+            "name": [334],
+            ":": [335],
+            "type": [336],
+            "id": [339, 337],
+            "idExpr": [338],
+            "update": [343, 341],
+            "telemetry-update": [342],
+            "format": [347, 345],
+            "formatLiteral": [346],
+            "low": [351, 349],
+            "lowLimit": [350],
+            "high": [355, 353],
+            "highLimit": [354]
+        }
+    },
+    "eventDecl": {
+        "signature": "event name param-list? severity severityKeyword (id idExpr)? format formatLiteral (throttle throttleExpr)?",
+        "description": "",
+        "parameters": {
+            "severityKeyword": "Severity of the event",
+            "formatLiteral": "Format string that formats the event for display on the ground. The arguments to the format string are the values bound to the event parameters. A numeric format is allowed for any argument whose type is a numeric type.",
+            "throttleExpr": "Specifies the maximum number of times to emit the event before throttling it. The type of e must be convertible to Integer and must evaluate to an integer."
+        },
+        "stateMap": {
+            "event": [407],
+            "name": [408],
+            "param-list": [409, 410],
+            "severity": [412],
+            "severityKeyword": [413],
+            "id": [414],
+            "idExpr": [415],
+            "format": [416, 418],
+            "formatLiteral": [419],
+            "throttle": [420, 422],
+            "throttleExpr": [421]
+        }
+    },
+    "includeStmt": {
+        "signature": "include includeFile",
+        "description": "Specifies that a file should be included in a translation unit.",
+        "parameters": {
+            "includeFile": [
+                "The string literal specifies a file path relative to the location of the include specifier.",
+                "The suffix .fppi is conventional for included files, to distinguish them from files presented directly for analysis or translation."
+            ]
+        },
+        "stateMap": ["include", "includeFile"]
+    },
+    "matchStmt": {
+        "signature": "match target with source",
+        "description": "Specifies that when the component is instantiated and connected into a topology, the corresponding port numbers of two of its port instances should match. For example, a port matching specifier could specify that for a health monitoring component, any component connected to its ping output port at port number n should also be connected to its ping input port at the same port number n.",
+        "parameters": {
+            "target": "Identifier reference output port instance",
+            "source": "Identifier reference input port instance"
+        },
+        "stateMap": ["match", "target", "with", "source"]
+    },
+    "internalPortDecl": {
+        "signature": "internal port name param-list? (priority priorityExpr)? queue-full-behavior?",
+        "description": "Specifies a single-use port for use in handlers of the enclosing component. A component can use an internal port to send a message to itself.",
+        "parameters": {
+            "param-list": "Parameters sent as part of the internal message",
+            "queue-full-behavior": "Same as async input ports"
+        },
+        "stateMap": {
+            "internal": [432],
+            "port": [433],
+            "name": [434],
+            "param-list": [435, 436],
+            "priority": [438, 440],
+            "priorityExpr": [439],
+            "queue-full-behavior": [442, 443]
+        }
+    },
+    "portDecl": {
+        "signature": "port name param-list? (-> returnType)?",
+        "description": "Defines an F Prime port. A port is the endpoint of a connection between F Prime components.",
+        "parameters": {
+            "param-list": "Parameters sent as part of the message",
+            "returnType": "Return type used when port is invoked in a synchronous context"
+        },
+        "stateMap": {
+            "port": [550],
+            "name": [551],
+            "param-list": [553, 552],
+            "->": [557, 555],
+            "returnType": [556]
+        }
+    },
+    "connection": {
+        "signature": "output -> input",
+        "description": "Connects output port on a component instance to an input port",
+        "parameters": {
+            "output": "Reference to the an output port instance",
+            "input": "Reference to an input port instance"
+        },
+        "stateMap": {
+            "output": [572],
+            "->": [573],
+            "input": [574]
+        }
     }
 }
