@@ -23,6 +23,32 @@ interface PendingParse {
     reject: (err?: string) => void;
 }
 
+export interface ParsingOptions {
+    /**
+     * Parse even if the latest AST is up to date
+     * This could happen if we think that the version
+     * identifier for this document is incorrect
+     */
+    forceReparse?: boolean;
+
+    /**
+     * Normally, parsing a document will trigger open
+     * text documents to be re-annotated to give you
+     * live feedback on on errors and other rules
+     * 
+     * When indexing the entire project we push this back
+     * to the end of the indexing run since we only really need
+     * to do it once.
+     */
+    noAnnotationRefresh?: boolean;
+
+    /**
+     * Disables VSCode diagnostic emission so that initial parse
+     * looks clean to the user
+     */
+    disableDiagnostics?: boolean;
+}
+
 
 export class FppMessage {
     constructor(
@@ -214,12 +240,9 @@ export class AstManager implements vscode.Disposable {
         this.annotations.delete(uri.path);
     }
 
-    refreshAnnotations(alreadyDone?: string) {
+    refreshAnnotations(options?: ParsingOptions) {
         // Keep track of files we annotated
         const annotated = new Set<string>();
-        if (alreadyDone) {
-            annotated.add(alreadyDone);
-        }
 
         // Refresh annotations on open text files
         for (const textDocument of vscode.workspace.textDocuments) {
@@ -234,7 +257,12 @@ export class AstManager implements vscode.Disposable {
                     continue;
                 }
 
-                this.annotations.get(textDocument.uri.path)?.pass(ast.ast, textDocument.uri.path);
+                const annotations = this.annotations.get(textDocument.uri.path);
+                if (options?.disableDiagnostics) {
+                    annotations?.disable();
+                }
+                annotations?.pass(ast.ast, textDocument.uri.path);
+                annotations?.enable();
             }
         }
 
@@ -249,22 +277,26 @@ export class AstManager implements vscode.Disposable {
                 continue;
             }
 
-            this.annotations.get(needsRefreshUri)?.pass(ast.ast, needsRefreshUri);
+            const annotations = this.annotations.get(needsRefreshUri);
+            if (options?.disableDiagnostics) {
+                annotations?.disable();
+            }
+            annotations?.pass(ast.ast, needsRefreshUri);
+            annotations?.enable();
         }
     }
 
     async parse(
         documentOrUri: vscode.TextDocument | vscode.Uri,
         token?: vscode.CancellationToken,
-        forceReparse?: boolean,
-        noAnnotationRefresh?: boolean
+        options?: ParsingOptions
     ): Promise<FppMessage> {
-        const out = await this.parseImpl1(documentOrUri, token, forceReparse);
+        const out = await this.parseImpl1(documentOrUri, token, options);
 
-        if (noAnnotationRefresh) {
+        if (options?.noAnnotationRefresh) {
             // Skip annotation refresh for speed up
         } else {
-            this.refreshAnnotations();
+            this.refreshAnnotations(options);
         }
 
         return out;
@@ -273,7 +305,7 @@ export class AstManager implements vscode.Disposable {
     private async parseImpl1(
         documentOrUri: vscode.TextDocument | vscode.Uri,
         token?: vscode.CancellationToken,
-        forceReparse?: boolean
+        options?: ParsingOptions
     ): Promise<FppMessage> {
         if (documentOrUri instanceof vscode.Uri) {
             // Check if we already have this file open in the workspace
@@ -284,7 +316,7 @@ export class AstManager implements vscode.Disposable {
                     path: alreadyOpenDoc.uri.path,
                     version: alreadyOpenDoc.version,
                     getText: alreadyOpenDoc.getText.bind(documentOrUri)
-                }, token, forceReparse);
+                }, token, options);
             }
 
             // Read and decode the text file
@@ -293,23 +325,27 @@ export class AstManager implements vscode.Disposable {
             return await this.parseImpl2({
                 path: documentOrUri.path,
                 // Any changes in the text document will force a reparse
-                version: 0,
+                version: -1,
                 getText() { return text; }
-            }, token, forceReparse);
+            }, token, options);
         } else {
             return await this.parseImpl2({
                 path: documentOrUri.uri.path,
                 version: documentOrUri.version,
                 getText: documentOrUri.getText.bind(documentOrUri)
-            }, token, forceReparse);
+            }, token, options);
         }
     }
 
-    private async parseImpl2(document: DocumentOrFile, token?: vscode.CancellationToken, forceReparse?: boolean): Promise<FppMessage> {
+    private async parseImpl2(
+        document: DocumentOrFile,
+        token?: vscode.CancellationToken,
+        options?: ParsingOptions
+    ): Promise<FppMessage> {
         const key = document.path;
 
         // First check if the AST we have is good enough
-        if (!forceReparse && (this.asts.get(key)?.version ?? -10) >= document.version) {
+        if (!options?.forceReparse && (this.asts.get(key)?.version ?? -10) >= document.version) {
             return this.asts.get(key)!;
         }
 
@@ -319,8 +355,14 @@ export class AstManager implements vscode.Disposable {
         // Update our knowledge of the AST
         this.asts.set(key, msg);
 
+        if (options?.disableDiagnostics) {
+            this.decl.disable();
+        }
+
         // Update the project declarations
         this.decl.pass(msg.ast, key);
+
+        this.decl.enable();
 
         if (this.decl.hasComponentInstances) {
             this.hasComponentInstances.add(key);
@@ -335,7 +377,12 @@ export class AstManager implements vscode.Disposable {
             this.annotations.set(key, annotator);
         }
 
+        if (options?.disableDiagnostics) {
+            annotator.disable();
+        }
+
         annotator.pass(msg.ast, key);
+        annotator.enable();
 
         this.syntaxListener.flush(key);
         this.syntaxListener.flush(key);

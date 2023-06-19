@@ -39,7 +39,11 @@ class FppProject implements vscode.Disposable {
         }
 
         // Parse the locs file
-        const { ast } = await this.manager.parse(this.locsFile, undefined, true, true);
+        const { ast } = await this.manager.parse(this.locsFile, undefined, {
+            forceReparse: true,
+            noAnnotationRefresh: true,
+            disableDiagnostics: true
+        });
 
         // Parse the locs file
         this.locsTrav.pass(ast, this.locsFile.path);
@@ -55,7 +59,9 @@ class FppProject implements vscode.Disposable {
         await this.onScanDone(this.locs);
 
         // Force reparse of locs
-        await this.manager.parse(this.locsFile, undefined, true);
+        await this.manager.parse(this.locsFile, undefined, {
+            forceReparse: true
+        });
     }
 
     private locsTrav = new class extends MemberTraverser {
@@ -205,7 +211,9 @@ class FppExtension implements
             this.manager,
             async (addUri) => {
                 // Refresh declarations created by this AST
-                await this.manager.parse(addUri);
+                await this.manager.parse(addUri, undefined, {
+                    disableDiagnostics: true
+                });
             },
             (deleteUri) => {
                 this.manager.clear(deleteUri);
@@ -214,7 +222,11 @@ class FppExtension implements
                 // Reindex all file to resolve declaration errors
                 for (const file of locs) {
                     try {
-                        await this.manager.parse(vscode.Uri.file(file), undefined, true, true);
+                        await this.manager.parse(vscode.Uri.file(file), undefined, {
+                            forceReparse: true,
+                            noAnnotationRefresh: true,
+                            disableDiagnostics: true
+                        });
                     } catch {
 
                     }
