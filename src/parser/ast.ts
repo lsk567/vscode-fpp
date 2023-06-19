@@ -88,6 +88,10 @@ export interface Ast {
     isError?: boolean;
 }
 
+export interface Annotatable extends Ast {
+    annotation?: string;
+}
+
 export interface Error extends Ast {
     isError: true;
 }
@@ -96,7 +100,7 @@ export interface StringLiteral extends Ast {
     value: string;
 }
 
-export interface Decl extends Ast {
+export interface Decl extends Annotatable {
     scope?: QualifiedIdentifier;
     type: string;
     fppType?: TypeName;
@@ -136,7 +140,7 @@ export interface StructDecl extends Decl {
     default_: StructExpr;
 }
 
-export interface FormalParameter extends Ast {
+export interface FormalParameter extends Annotatable {
     ref: boolean;
     name: Identifier;
     type: TypeName;
@@ -273,10 +277,11 @@ export interface TelemetryChannelDecl extends Decl {
     highLimits?: TelemetryLimitExpr[];
 }
 
-export interface EnumMember extends Ast {
+export interface EnumMember extends Annotatable {
     name: Identifier;
     value?: Expr;
 }
+
 export interface EnumDecl extends Decl {
     type: "EnumDecl";
     fppType?: TypeName;
@@ -303,12 +308,12 @@ export interface EventDecl extends Decl {
     throttle?: Expr;
 }
 
-export interface IncludeStmt extends Ast {
+export interface IncludeStmt extends Annotatable {
     type: "IncludeStmt";
     include: StringLiteral;
 }
 
-export interface MatchStmt extends Ast {
+export interface MatchStmt extends Annotatable {
     type: "MatchStmt";
     match: Identifier;
     with: Identifier;
@@ -322,7 +327,7 @@ export interface InternalPortDecl extends Decl {
     queueFullBehavior?: QueueFullBehavior;
 }
 
-export interface InitSpecifier extends Ast {
+export interface InitSpecifier extends Annotatable {
     phase: Expr;
     code: StringLiteral;
 }
@@ -347,7 +352,7 @@ export interface PortDecl extends Decl {
     returnType?: TypeName;
 }
 
-export interface ComponentInstanceSpec extends Ast {
+export interface ComponentInstanceSpec extends Annotatable {
     type: "ComponentInstanceSpec";
     name: QualifiedIdentifier;
     isPrivate: boolean;
@@ -358,7 +363,7 @@ export interface ConnectionNode extends Ast {
     index?: Expr;
 }
 
-export interface Connection extends Ast {
+export interface Connection extends Annotatable {
     source: ConnectionNode;
     destination: ConnectionNode;
 }
@@ -377,25 +382,22 @@ export type PatternKind = Keyword<
     "telemetry" |
     "time"
 >;
-export interface PatternGraphStmt extends Ast {
+export interface PatternGraphStmt extends Annotatable {
     type: "PatternGraphStmt";
     kind: PatternKind;
     target: QualifiedIdentifier;
     sources: QualifiedIdentifier[];
 }
 
-export type ConnectionGraphStmt = (
-    DirectGraphDecl | PatternGraphStmt
-);
-
-export interface TopologyImportStmt extends Ast {
+export interface TopologyImportStmt extends Annotatable {
     type: "TopologyImportStmt";
     topology: QualifiedIdentifier;
 }
 
 export type TopologyMember = (
     ComponentInstanceSpec |
-    ConnectionGraphStmt |
+    DirectGraphDecl |
+    PatternGraphStmt |
     TopologyImportStmt |
     IncludeStmt
 );
@@ -415,7 +417,7 @@ export type LocationKind = Keyword<
     "type"
 >;
 
-export interface LocationStmt extends Ast {
+export interface LocationStmt extends Annotatable {
     type: "LocationStmt";
     name: QualifiedIdentifier;
     kind: LocationKind;

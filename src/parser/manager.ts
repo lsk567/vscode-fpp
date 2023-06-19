@@ -181,7 +181,11 @@ export class AstManager implements vscode.Disposable {
     private annotations = new Map<string, FppAnnotator>();
     private worker = new FppWorker();
 
-    constructor(private readonly syntaxListener: DiangosicManager) {
+    private hasComponentInstances = new Set<string>();
+
+    constructor(
+        public readonly documentSelector: vscode.DocumentSelector,
+        private readonly syntaxListener: DiangosicManager) {
     }
 
     ready(): Promise<void> {
@@ -210,22 +214,90 @@ export class AstManager implements vscode.Disposable {
         this.annotations.delete(uri.path);
     }
 
+    refreshAnnotations(alreadyDone?: string) {
+        // Keep track of files we annotated
+        const annotated = new Set<string>();
+        if (alreadyDone) {
+            annotated.add(alreadyDone);
+        }
+
+        // Refresh annotations on open text files
+        for (const textDocument of vscode.workspace.textDocuments) {
+            if (annotated.has(textDocument.uri.path)) {
+                continue;
+            }
+
+            if (vscode.languages.match(this.documentSelector, textDocument)) {
+                const ast = this.asts.get(textDocument.uri.path);
+                if (!ast) {
+                    // Document not parsed yet, skip for now
+                    continue;
+                }
+
+                this.annotations.get(textDocument.uri.path)?.pass(ast.ast, textDocument.uri.path);
+            }
+        }
+
+        for (const needsRefreshUri of this.hasComponentInstances) {
+            if (annotated.has(needsRefreshUri)) {
+                continue;
+            }
+
+            const ast = this.asts.get(needsRefreshUri);
+            if (!ast) {
+                // Document not parsed yet, skip for now
+                continue;
+            }
+
+            this.annotations.get(needsRefreshUri)?.pass(ast.ast, needsRefreshUri);
+        }
+    }
+
     async parse(
+        documentOrUri: vscode.TextDocument | vscode.Uri,
+        token?: vscode.CancellationToken,
+        forceReparse?: boolean,
+        noAnnotationRefresh?: boolean
+    ): Promise<FppMessage> {
+        const out = await this.parseImpl1(documentOrUri, token, forceReparse);
+
+        if (noAnnotationRefresh) {
+            // Skip annotation refresh for speed up
+        } else {
+            this.refreshAnnotations();
+        }
+
+        return out;
+    }
+
+    private async parseImpl1(
         documentOrUri: vscode.TextDocument | vscode.Uri,
         token?: vscode.CancellationToken,
         forceReparse?: boolean
     ): Promise<FppMessage> {
         if (documentOrUri instanceof vscode.Uri) {
+            // Check if we already have this file open in the workspace
+            // If we do, use the open version instead of reading directly from disk
+            const alreadyOpenDoc = vscode.workspace.textDocuments.find(v => v.uri.path === documentOrUri.path);
+            if (alreadyOpenDoc) {
+                return await this.parseImpl2({
+                    path: alreadyOpenDoc.uri.path,
+                    version: alreadyOpenDoc.version,
+                    getText: alreadyOpenDoc.getText.bind(documentOrUri)
+                }, token, forceReparse);
+            }
+
             // Read and decode the text file
             const text = textDecoder.decode(await vscode.workspace.fs.readFile(documentOrUri));
 
-            return await this.parseImpl({
+            return await this.parseImpl2({
                 path: documentOrUri.path,
-                version: -1,
+                // Any changes in the text document will force a reparse
+                version: 0,
                 getText() { return text; }
             }, token, forceReparse);
         } else {
-            return await this.parseImpl({
+            return await this.parseImpl2({
                 path: documentOrUri.uri.path,
                 version: documentOrUri.version,
                 getText: documentOrUri.getText.bind(documentOrUri)
@@ -233,7 +305,7 @@ export class AstManager implements vscode.Disposable {
         }
     }
 
-    private async parseImpl(document: DocumentOrFile, token?: vscode.CancellationToken, forceReparse?: boolean): Promise<FppMessage> {
+    private async parseImpl2(document: DocumentOrFile, token?: vscode.CancellationToken, forceReparse?: boolean): Promise<FppMessage> {
         const key = document.path;
 
         // First check if the AST we have is good enough
@@ -249,6 +321,12 @@ export class AstManager implements vscode.Disposable {
 
         // Update the project declarations
         this.decl.pass(msg.ast, key);
+
+        if (this.decl.hasComponentInstances) {
+            this.hasComponentInstances.add(key);
+        } else {
+            this.hasComponentInstances.delete(key);
+        }
 
         // Update the annotations
         let annotator = this.annotations.get(key);

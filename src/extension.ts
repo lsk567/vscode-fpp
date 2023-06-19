@@ -39,7 +39,7 @@ class FppProject implements vscode.Disposable {
         }
 
         // Parse the locs file
-        const { ast } = await this.manager.parse(this.locsFile, undefined, true);
+        const { ast } = await this.manager.parse(this.locsFile, undefined, true, true);
 
         // Parse the locs file
         this.locsTrav.pass(ast, this.locsFile.path);
@@ -196,9 +196,11 @@ class FppExtension implements
         private readonly context: vscode.ExtensionContext
     ) {
         this.syntaxListeners = new FppErrorListener();
-        this.manager = new AstManager(this.syntaxListeners);
+        this.manager = new AstManager(
+            { scheme: 'file', language: 'fpp' },
+            this.syntaxListeners
+        );
 
-        const docSelector: vscode.DocumentSelector = { scheme: 'file', language: 'fpp' };
         this.project = new FppProject(
             this.manager,
             async (addUri) => {
@@ -212,12 +214,13 @@ class FppExtension implements
                 // Reindex all file to resolve declaration errors
                 for (const file of locs) {
                     try {
-                        await this.manager.parse(vscode.Uri.file(file), undefined, true);
+                        await this.manager.parse(vscode.Uri.file(file), undefined, true, true);
                     } catch {
 
                     }
                 }
 
+                this.manager.refreshAnnotations();
                 this._onDidChangeSemanticTokens.fire();
             }
         );
@@ -226,18 +229,18 @@ class FppExtension implements
         this.subscriptions = [];
         this.manager.ready().then(() => {
             this.subscriptions = [
-                vscode.languages.registerDocumentSemanticTokensProvider(docSelector, this, fppLegend),
-                vscode.languages.registerDefinitionProvider(docSelector, this),
+                vscode.languages.registerDocumentSemanticTokensProvider(this.manager.documentSelector, this, fppLegend),
+                vscode.languages.registerDefinitionProvider(this.manager.documentSelector, this),
                 vscode.workspace.onDidChangeTextDocument((e) => {
-                    if (vscode.languages.match(docSelector, e.document)) {
+                    if (vscode.languages.match(this.manager.documentSelector, e.document)) {
                         // Reparse the document to update the information
                         this.manager.parse(e.document);
                     }
                 }),
-                vscode.languages.registerDocumentLinkProvider(docSelector, this),
-                vscode.languages.registerHoverProvider(docSelector, this),
-                vscode.languages.registerCompletionItemProvider(docSelector, this, " ", ".", ":"),
-                vscode.languages.registerSignatureHelpProvider(docSelector, this, " ", ",", "[", "(", "{", "=", ":"),
+                vscode.languages.registerDocumentLinkProvider(this.manager.documentSelector, this),
+                vscode.languages.registerHoverProvider(this.manager.documentSelector, this),
+                vscode.languages.registerCompletionItemProvider(this.manager.documentSelector, this, " ", ".", ":"),
+                vscode.languages.registerSignatureHelpProvider(this.manager.documentSelector, this, " ", ",", "[", "(", "{", "=", ":"),
             ];
 
             const file = this.context.workspaceState.get<string>("fpp.locsFile");
@@ -276,46 +279,15 @@ class FppExtension implements
     }
 
     async provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Hover | undefined> {
-        // Check if we are hovering over a variable reference
-        const association = (await this.manager.get(document)).definitions.getAssociation(position);
+        if (this.inComment(document, position)) {
+            return;
+        }
 
-        const signature = await this.provideSignatureHelp(document, position, token, {
-            triggerKind: vscode.SignatureHelpTriggerKind.Invoke,
-            isRetrigger: false,
-            triggerCharacter: undefined,
-            activeSignatureHelp: undefined
-        });
+        // Check if we are hovering over a variable reference
+        const association = (await this.manager.get(document, token)).definitions.getAssociation(position);
 
         let range: vscode.Range | undefined = undefined;
         const md: vscode.MarkdownString[] = [];
-
-        if (signature) {
-            const paramMd = new vscode.MarkdownString();
-            const sigMd = new vscode.MarkdownString();
-
-            const sig = signature.signatures[signature.activeSignature];
-            const param = sig.parameters[sig.activeParameter ?? signature.activeParameter];
-            if (param.documentation) {
-                if (typeof param.documentation === "string") {
-                    paramMd.appendText(param.documentation);
-                } else if (param.documentation) {
-                    paramMd.appendMarkdown(param.documentation.value);
-                }
-            }
-
-            if (sig.documentation) {
-                if (typeof sig.documentation === "string") {
-                    sigMd.appendText(sig.documentation);
-                } else if (sig.documentation) {
-                    sigMd.appendMarkdown(sig.documentation.value);
-                }
-            }
-
-            md.push(paramMd);
-            md.push(sigMd);
-
-            range = signature.lastToken;
-        }
 
         if (association) {
             const definition = association.value;
@@ -329,6 +301,11 @@ class FppExtension implements
             }
 
             const fullName = FppAnnotator.flat(definition.scope ?? [], definition.name);
+
+            // Add the optional annotation
+            if (definition.annotation) {
+                md.push(new vscode.MarkdownString(definition.annotation));
+            }
 
             const mdAssociation = new vscode.MarkdownString();
             mdAssociation.appendCodeblock(
@@ -352,7 +329,30 @@ class FppExtension implements
         return new vscode.Hover(md, range);
     }
 
-    provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext): vscode.ProviderResult<vscode.CompletionItem[]> {
+    private inComment(document: vscode.TextDocument, position: vscode.Position): boolean {
+        const currentLine = document.lineAt(position.line);
+        let commentIdx = currentLine.text.indexOf('#');
+        commentIdx = commentIdx < 0 ? currentLine.text.indexOf('@') : commentIdx;
+
+        // We are writing a comment since the cursor is after a line comment start
+        return commentIdx >= 0 && commentIdx <= position.character;
+    }
+
+    provideCompletionItems(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken,
+        context: vscode.CompletionContext
+    ): vscode.ProviderResult<vscode.CompletionItem[]> {
+
+        // First things first, check if we are in a comment
+        // The parser does not know how to recognize comments since
+        // they are expelled at lexing time
+        // FPP only has find line comments which makes things simple
+        if (this.inComment(document, position)) {
+            return;
+        }
+
         const [candidates, listener, parser] = getCandidates(document, position, exprRules);
         const out: vscode.CompletionItem[] = [];
 
@@ -412,11 +412,15 @@ class FppExtension implements
         token: vscode.CancellationToken,
         context: vscode.SignatureHelpContext
     ): Promise<vscode.SignatureHelp & { lastToken: vscode.Range } | undefined> {
+        if (this.inComment(document, position)) {
+            return;
+        }
+
         const signaturesDefinitions = (Signatures as { [name: string]: ISignature });
 
         // Provide all signatures of candidate rules
         const signatures: vscode.SignatureInformation[] = [];
-        const matched = (await this.manager.parse(document)).ranges.getAssociation(position);
+        const matched = (await this.manager.parse(document, token)).ranges.getAssociation(position);
         if (matched) {
             const ruleName = FppParser.ruleNames[matched.value.rule];
             const iSignature = signaturesDefinitions[ruleName];

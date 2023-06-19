@@ -8,6 +8,8 @@ import { AbstractTypeDeclContext } from "./FppParser";
 import { ArrayDeclContext } from "./FppParser";
 import { ConstantDeclContext } from "./FppParser";
 import { StructMemberContext } from "./FppParser";
+import { StructMemberNContext } from "./FppParser";
+import { StructMemberLContext } from "./FppParser";
 import { StructDeclContext } from "./FppParser";
 import { QueueFullBehaviorContext } from "./FppParser";
 import { CommandKindContext } from "./FppParser";
@@ -24,6 +26,8 @@ import { TelemetryLimitContext } from "./FppParser";
 import { TelemetryUpdateContext } from "./FppParser";
 import { TelemetryChannelDeclContext } from "./FppParser";
 import { EnumMemberContext } from "./FppParser";
+import { EnumMemberNContext } from "./FppParser";
+import { EnumMemberLContext } from "./FppParser";
 import { EnumDeclContext } from "./FppParser";
 import { EventSeverityContext } from "./FppParser";
 import { EventDeclContext } from "./FppParser";
@@ -33,6 +37,7 @@ import { InternalPortDeclContext } from "./FppParser";
 import { InitSpecifierContext } from "./FppParser";
 import { ComponentInstanceDeclContext } from "./FppParser";
 import { ComponentKindContext } from "./FppParser";
+import { ComponentMemberTemplContext } from "./FppParser";
 import { ComponentMemberContext } from "./FppParser";
 import { ComponentDeclContext } from "./FppParser";
 import { PortDeclContext } from "./FppParser";
@@ -44,13 +49,17 @@ import { PatternKindContext } from "./FppParser";
 import { PatternGraphSourcesContext } from "./FppParser";
 import { PatternGraphStmtContext } from "./FppParser";
 import { TopologyImportStmtContext } from "./FppParser";
+import { TopologyMemberTemplContext } from "./FppParser";
 import { TopologyMemberContext } from "./FppParser";
 import { TopologyDeclContext } from "./FppParser";
 import { LocationKindContext } from "./FppParser";
 import { LocationStmtContext } from "./FppParser";
+import { ModuleMemberTemplContext } from "./FppParser";
 import { ModuleMemberContext } from "./FppParser";
 import { ModuleDeclContext } from "./FppParser";
 import { FormalParameterContext } from "./FppParser";
+import { FormalParameterNContext } from "./FppParser";
+import { FormalParamaterLContext } from "./FppParser";
 import { FormalParameterListContext } from "./FppParser";
 import { QualIdentContext } from "./FppParser";
 import { PrimitiveTypeContext } from "./FppParser";
@@ -61,6 +70,7 @@ import { ArrayExprContext } from "./FppParser";
 import { StructAssignmentContext } from "./FppParser";
 import { StructExprContext } from "./FppParser";
 import { ExprContext } from "./FppParser";
+import { AnnotationContext } from "./FppParser";
 
 
 /**
@@ -122,6 +132,28 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitStructMember?: (ctx: StructMemberContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.structMemberN`.
+	 * @param ctx the parse tree
+	 */
+	enterStructMemberN?: (ctx: StructMemberNContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.structMemberN`.
+	 * @param ctx the parse tree
+	 */
+	exitStructMemberN?: (ctx: StructMemberNContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.structMemberL`.
+	 * @param ctx the parse tree
+	 */
+	enterStructMemberL?: (ctx: StructMemberLContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.structMemberL`.
+	 * @param ctx the parse tree
+	 */
+	exitStructMemberL?: (ctx: StructMemberLContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.structDecl`.
@@ -300,6 +332,28 @@ export interface FppListener extends ParseTreeListener {
 	exitEnumMember?: (ctx: EnumMemberContext) => void;
 
 	/**
+	 * Enter a parse tree produced by `FppParser.enumMemberN`.
+	 * @param ctx the parse tree
+	 */
+	enterEnumMemberN?: (ctx: EnumMemberNContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.enumMemberN`.
+	 * @param ctx the parse tree
+	 */
+	exitEnumMemberN?: (ctx: EnumMemberNContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.enumMemberL`.
+	 * @param ctx the parse tree
+	 */
+	enterEnumMemberL?: (ctx: EnumMemberLContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.enumMemberL`.
+	 * @param ctx the parse tree
+	 */
+	exitEnumMemberL?: (ctx: EnumMemberLContext) => void;
+
+	/**
 	 * Enter a parse tree produced by `FppParser.enumDecl`.
 	 * @param ctx the parse tree
 	 */
@@ -397,6 +451,17 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitComponentKind?: (ctx: ComponentKindContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.componentMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	enterComponentMemberTempl?: (ctx: ComponentMemberTemplContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.componentMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	exitComponentMemberTempl?: (ctx: ComponentMemberTemplContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.componentMember`.
@@ -520,6 +585,17 @@ export interface FppListener extends ParseTreeListener {
 	exitTopologyImportStmt?: (ctx: TopologyImportStmtContext) => void;
 
 	/**
+	 * Enter a parse tree produced by `FppParser.topologyMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	enterTopologyMemberTempl?: (ctx: TopologyMemberTemplContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.topologyMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	exitTopologyMemberTempl?: (ctx: TopologyMemberTemplContext) => void;
+
+	/**
 	 * Enter a parse tree produced by `FppParser.topologyMember`.
 	 * @param ctx the parse tree
 	 */
@@ -564,6 +640,17 @@ export interface FppListener extends ParseTreeListener {
 	exitLocationStmt?: (ctx: LocationStmtContext) => void;
 
 	/**
+	 * Enter a parse tree produced by `FppParser.moduleMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	enterModuleMemberTempl?: (ctx: ModuleMemberTemplContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.moduleMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	exitModuleMemberTempl?: (ctx: ModuleMemberTemplContext) => void;
+
+	/**
 	 * Enter a parse tree produced by `FppParser.moduleMember`.
 	 * @param ctx the parse tree
 	 */
@@ -595,6 +682,28 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitFormalParameter?: (ctx: FormalParameterContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.formalParameterN`.
+	 * @param ctx the parse tree
+	 */
+	enterFormalParameterN?: (ctx: FormalParameterNContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.formalParameterN`.
+	 * @param ctx the parse tree
+	 */
+	exitFormalParameterN?: (ctx: FormalParameterNContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.formalParamaterL`.
+	 * @param ctx the parse tree
+	 */
+	enterFormalParamaterL?: (ctx: FormalParamaterLContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.formalParamaterL`.
+	 * @param ctx the parse tree
+	 */
+	exitFormalParamaterL?: (ctx: FormalParamaterLContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.formalParameterList`.
@@ -705,5 +814,16 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitExpr?: (ctx: ExprContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.annotation`.
+	 * @param ctx the parse tree
+	 */
+	enterAnnotation?: (ctx: AnnotationContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.annotation`.
+	 * @param ctx the parse tree
+	 */
+	exitAnnotation?: (ctx: AnnotationContext) => void;
 }
 

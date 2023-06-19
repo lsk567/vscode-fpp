@@ -112,23 +112,6 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
-    private associateTree(ctx: SyntaxTree | undefined, rule: number, param: string) {
-        if (ctx === undefined || ctx.sourceInterval.equals(Interval.INVALID)) {
-            return;
-        }
-
-        // Grab the first and last tokens
-        const start = this.stream.get(ctx.sourceInterval.a);
-        const stop = this.stream.get(ctx.sourceInterval.b);
-
-        this.signature.add(
-            {
-                start: { line: start.line - 1, character: start.charPositionInLine },
-                end: { line: stop.line - 1, character: stop.charPositionInLine + (stop.text?.length ?? 1) }
-            }, { rule, param }
-        );
-    }
-
     private associate(ctx: ParserRuleContext | Token | undefined, rule: number, param: string) {
         if (ctx === undefined) { }
         else if (ctx instanceof ParserRuleContext) {
@@ -196,6 +179,21 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
+    private annotation(ctx?: FppParser.AnnotationContext): string | undefined {
+        if (!ctx) {
+            return undefined;
+        }
+
+        const annotations = ctx.ANNOTATION().map(e => {
+            if (e.text.startsWith("@<")) {
+                return e.text.substring(2); // @<
+            } else {
+                return e.text.substring(1); // @
+            }
+        });
+        return annotations.join(" ");
+    }
+
     visitProg(ctx: FppParser.ProgContext): Fpp.TranslationUnit {
         if (!ctx) {
             return this.error();
@@ -204,7 +202,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         return {
             type: "TranslationUnit",
             location: this.loc(ctx),
-            members: ctx.moduleMember().map(this.visit.bind(this)) as Fpp.ModuleMember[]
+            members: ctx.moduleMember().map(this.visitModuleMember.bind(this)) as Fpp.ModuleMember[]
         };
     }
 
@@ -289,8 +287,18 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             location: this.loc(ctx),
             fppType: this.visitTypeName(ctx._type),
             size: size ? this.visitExpr(size) : undefined,
-            format: format ? this.stringLiteral(format) : undefined
+            format: format ? this.stringLiteral(format) : undefined,
         };
+    }
+
+    visitStructMember_(ctx: FppParser.StructMemberNContext | FppParser.StructMemberLContext): Fpp.StructMember {
+        if (!ctx) {
+            return this.error();
+        }
+
+        const out = this.visitStructMember(ctx.structMember());
+        out.annotation = this.annotation(ctx.annotation());
+        return out;
     }
 
     visitStructDecl(ctx: FppParser.StructDeclContext): Fpp.StructDecl {
@@ -303,12 +311,23 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         this.associate(ctx.DEFAULT()?._symbol, ctx.ruleIndex, "default");
         this.associate(ctx._default_, ctx.ruleIndex, "defaultExpr");
 
+        const lastMember = ctx.structMemberL();
+        let members: Fpp.StructMember[];
+        if (lastMember) {
+            members = [
+                ...ctx.structMemberN().map(v => this.visitStructMember_(v)),
+                this.visitStructMember_(lastMember)
+            ];
+        } else {
+            members = [];
+        }
+
         return {
             type: "StructDecl",
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
-            members: ctx.structMember().map(this.visitStructMember.bind(this)),
+            members,
             default_: this.visitStructExpr(ctx._default_)
         };
     }
@@ -628,16 +647,37 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
+    visitEnumMember_(ctx: FppParser.EnumMemberNContext | FppParser.EnumMemberLContext): Fpp.EnumMember {
+        if (!ctx) {
+            return this.error();
+        }
+
+        const out = this.visitEnumMember(ctx.enumMember());
+        out.annotation = this.annotation(ctx.annotation());
+        return out;
+    }
+
     visitEnumDecl(ctx: FppParser.EnumDeclContext): Fpp.EnumDecl {
         if (!ctx) {
             return this.error();
+        }
+
+        let members: Fpp.EnumMember[];
+        const lastMember = ctx.enumMemberL();
+        if (lastMember) {
+            members = [
+                ...ctx.enumMemberN().map(this.visitEnumMember_.bind(this)),
+                this.visitEnumMember_(lastMember)
+            ];
+        } else {
+            members = [];
         }
 
         return {
             type: "EnumDecl",
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
-            members: ctx.enumMember().map(this.visitEnumMember.bind(this))
+            members
         };
     }
 
@@ -780,7 +820,8 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         return {
             location: this.loc(ctx),
             phase: this.visitExpr(ctx._phase),
-            code: this.stringLiteral(ctx._code)
+            code: this.stringLiteral(ctx._code),
+            annotation: this.annotation(ctx.annotation())
         };
     }
 
@@ -837,9 +878,34 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         return this.keyword(ctx);
     }
 
+    visitComponentMember(ctx: FppParser.ComponentMemberContext): Fpp.ComponentMember {
+        const out = this.visit(ctx.componentMemberTempl()) as Fpp.ComponentMember;
+        out.annotation = this.annotation(ctx.annotation());
+        return out;
+    }
+
+    visitModuleMember(ctx: FppParser.ModuleMemberContext): Fpp.ModuleMember {
+        const out = this.visit(ctx.moduleMemberTempl()) as Fpp.ModuleMember;
+        out.annotation = this.annotation(ctx.annotation());
+        return out;
+    }
+
+    visitTopologyMember(ctx: FppParser.TopologyMemberContext): Fpp.TopologyMember {
+        const out = this.visit(ctx.topologyMemberTempl()) as Fpp.TopologyMember;
+        out.annotation = this.annotation(ctx.annotation());
+        return out;
+    }
+
     visitComponentDecl(ctx: FppParser.ComponentDeclContext): Fpp.ComponentDecl {
         if (!ctx) {
             return this.error();
+        }
+
+        const members: Fpp.ComponentMember[] = [];
+        for (const memberCtx of ctx.componentMember()) {
+            try {
+                members.push(this.visitComponentMember(memberCtx));
+            } catch(e) { }
         }
 
         return {
@@ -848,7 +914,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
             kind: this.visitComponentKind(ctx._kind),
-            members: ctx.componentMember().map(v => this.visit(v) as Fpp.ComponentMember)
+            members
         };
     }
 
@@ -906,8 +972,8 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
-        this.associate(ctx._source, ctx.ruleIndex, "output");
-        this.associate(ctx._destination, ctx.ruleIndex, "input");
+        this.associate(ctx._source, ctx.ruleIndex, "input");
+        this.associate(ctx._destination, ctx.ruleIndex, "output");
 
         return {
             location: this.loc(ctx),
@@ -978,12 +1044,18 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        const members: Fpp.TopologyMember[] = [];
+        for (const memberCtx of ctx.topologyMember()) {
+            try {
+                members.push(this.visitTopologyMember(memberCtx) as Fpp.TopologyMember);
+            } catch(e) { }
+        }
         return {
             type: "TopologyDecl",
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
-            members: ctx.topologyMember().map(v => this.visit(v) as Fpp.TopologyMember)
+            members
         };
     }
 
@@ -1014,12 +1086,19 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        const members: Fpp.ModuleMember[] = [];
+        for (const memberCtx of ctx.moduleMember()) {
+            try {
+                members.push(this.visitModuleMember(memberCtx));
+            } catch(e) { }
+        }
+
         return {
             type: "ModuleDecl",
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
-            members: ctx.moduleMember().map(v => this.visit(v) as Fpp.ModuleMember)
+            members
         };
     }
 
@@ -1036,12 +1115,30 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
-    visitFormalParameterList_(ctx: FppParser.FormalParameterListContext): Fpp.FormalParameter[] {
+    visitFormalParameter_(ctx: FppParser.FormalParameterNContext | FppParser.FormalParamaterLContext): Fpp.FormalParameter {
         if (!ctx) {
             return this.error();
         }
 
-        return ctx.formalParameter().map(v => this.visitFormalParameter(v));
+        const out = this.visitFormalParameter(ctx.formalParameter());
+        out.annotation = this.annotation(ctx.annotation());
+        return out;
+    }
+
+    visitFormalParameterList_(ctx: FppParser.FormalParameterListContext): Fpp.FormalParameter[] {
+        if (!ctx) {
+            return [];
+        }
+
+        const lastParam = ctx.formalParamaterL();
+        if (!lastParam) {
+            return [];
+        }
+
+        return [
+            ...ctx.formalParameterN().map(v => this.visitFormalParameter_(v)),
+            this.visitFormalParameter_(lastParam)
+        ];
     }
 
     visitQualIdent_(ctx: FppParser.QualIdentContext): Fpp.QualifiedIdentifier {

@@ -20,9 +20,11 @@ structMember:
     type=typeName (FORMAT format=LIT_STRING)?
     ;
 
+structMemberN: structMember (commaDelim | commaDelim? annotation);
+structMemberL: structMember (commaDelim | commaDelim? annotation)?;
 structDecl:
     STRUCT name=IDENTIFIER '{'
-        NL* (structMember (commaDelim structMember)* commaDelim?)?
+        NL* (structMemberN* structMemberL)?
     '}' (DEFAULT default_=structExpr)?
     ;
 
@@ -88,9 +90,11 @@ telemetryChannelDecl:
     ;
 
 enumMember: name=IDENTIFIER ('=' value=expr)?;
+enumMemberN: enumMember (commaDelim | commaDelim? annotation);
+enumMemberL: enumMember (commaDelim | commaDelim? annotation)?;
 enumDecl: ENUM name=IDENTIFIER (':' type=INT_TYPE)?
     '{'
-        NL* (enumMember (commaDelim enumMember)* commaDelim?)?
+        NL* (enumMemberN* enumMemberL)?
     '}' (DEFAULT default_=expr)?
     ;
 
@@ -121,7 +125,7 @@ internalPortDecl:
     queueFull=queueFullBehavior?
     ;
 
-initSpecifier: PHASE phase=expr code=LIT_STRING;
+initSpecifier: annotation? PHASE phase=expr code=LIT_STRING;
 componentInstanceDecl:
     INSTANCE name=IDENTIFIER ':' fppType=qualIdent
     BASE ID base_id=expr
@@ -137,7 +141,7 @@ componentInstanceDecl:
     ;
 
 componentKind: ACTIVE | PASSIVE | QUEUED;
-componentMember:
+componentMemberTempl:
     abstractTypeDecl
     | arrayDecl
     | constantDecl
@@ -153,6 +157,9 @@ componentMember:
     | internalPortDecl
     | matchStmt
     ;
+
+componentMember: annotation? componentMemberTempl;
+
 componentDecl:
     kind=componentKind COMPONENT name=IDENTIFIER '{'
         NL* (componentMember semiDelim)* NL*
@@ -169,7 +176,7 @@ connectionNode: node=qualIdent ('[' index=expr ']')?;
 connection: source=connectionNode '->' destination=connectionNode;
 directGraphDecl:
     CONNECTIONS name=IDENTIFIER '{'
-        NL* (connection (commaDelim connection)* commaDelim?)?
+        NL* (connection commaDelim)* NL*
     '}'
     ;
 
@@ -189,13 +196,15 @@ patternGraphStmt:
     ;
 
 topologyImportStmt: IMPORT topology=qualIdent;
-topologyMember:
+topologyMemberTempl:
     componentInstanceSpec
     | directGraphDecl
     | patternGraphStmt
     | topologyImportStmt
     | includeStmt
     ;
+
+topologyMember: annotation? topologyMemberTempl;
 
 topologyDecl:
     TOPOLOGY name=IDENTIFIER '{'
@@ -215,7 +224,7 @@ locationStmt:
     LOCATE kind=locationKind
     name=qualIdent AT path=LIT_STRING;
 
-moduleMember:
+moduleMemberTempl:
     abstractTypeDecl
     | arrayDecl
     | componentDecl
@@ -229,6 +238,9 @@ moduleMember:
     | includeStmt
     | topologyDecl
     ;
+
+moduleMember: annotation? moduleMemberTempl;
+
 moduleDecl: MODULE name=IDENTIFIER '{'
         NL* (moduleMember semiDelim)* NL*
     '}'
@@ -239,7 +251,12 @@ moduleDecl: MODULE name=IDENTIFIER '{'
 //////////////////////
 
 formalParameter: REF? name=IDENTIFIER ':' type=typeName;
-formalParameterList: '(' NL* (formalParameter (commaDelim formalParameter)* commaDelim?)? ')';
+
+// Normal
+formalParameterN: formalParameter (commaDelim | commaDelim? annotation);
+formalParamaterL: formalParameter (commaDelim | commaDelim? annotation)?;
+
+formalParameterList: '(' NL* (formalParameterN* formalParamaterL)? ')';
 
 qualIdent: IDENTIFIER ('.' IDENTIFIER)*;
 
@@ -298,7 +315,8 @@ WS_NL: '\\'~[\n]*[\n] -> skip;
 COMMENT: [#]~[\n]* -> skip;
 
 // TODO(tumbar) Support labeling declarations with annotations
-ANNOTATION: [@]~[\n]* -> skip;
+ANNOTATION: [@]~[\n]*;
+annotation: (ANNOTATION | NL)+;
 
 LIT_BOOLEAN: FALSE | TRUE;
 LIT_STRING: LONG_STRING | SHORT_STRING;

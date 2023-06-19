@@ -74,6 +74,7 @@ parentPort?.on("message", (message: {
             msg: retMessage
         });
     } catch(e) {
+        console.error(e);
         parentPort?.postMessage({
             code: "error",
             msg: `${e}`

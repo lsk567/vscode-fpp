@@ -8,6 +8,8 @@ import { AbstractTypeDeclContext } from "./FppParser";
 import { ArrayDeclContext } from "./FppParser";
 import { ConstantDeclContext } from "./FppParser";
 import { StructMemberContext } from "./FppParser";
+import { StructMemberNContext } from "./FppParser";
+import { StructMemberLContext } from "./FppParser";
 import { StructDeclContext } from "./FppParser";
 import { QueueFullBehaviorContext } from "./FppParser";
 import { CommandKindContext } from "./FppParser";
@@ -24,6 +26,8 @@ import { TelemetryLimitContext } from "./FppParser";
 import { TelemetryUpdateContext } from "./FppParser";
 import { TelemetryChannelDeclContext } from "./FppParser";
 import { EnumMemberContext } from "./FppParser";
+import { EnumMemberNContext } from "./FppParser";
+import { EnumMemberLContext } from "./FppParser";
 import { EnumDeclContext } from "./FppParser";
 import { EventSeverityContext } from "./FppParser";
 import { EventDeclContext } from "./FppParser";
@@ -33,6 +37,7 @@ import { InternalPortDeclContext } from "./FppParser";
 import { InitSpecifierContext } from "./FppParser";
 import { ComponentInstanceDeclContext } from "./FppParser";
 import { ComponentKindContext } from "./FppParser";
+import { ComponentMemberTemplContext } from "./FppParser";
 import { ComponentMemberContext } from "./FppParser";
 import { ComponentDeclContext } from "./FppParser";
 import { PortDeclContext } from "./FppParser";
@@ -44,13 +49,17 @@ import { PatternKindContext } from "./FppParser";
 import { PatternGraphSourcesContext } from "./FppParser";
 import { PatternGraphStmtContext } from "./FppParser";
 import { TopologyImportStmtContext } from "./FppParser";
+import { TopologyMemberTemplContext } from "./FppParser";
 import { TopologyMemberContext } from "./FppParser";
 import { TopologyDeclContext } from "./FppParser";
 import { LocationKindContext } from "./FppParser";
 import { LocationStmtContext } from "./FppParser";
+import { ModuleMemberTemplContext } from "./FppParser";
 import { ModuleMemberContext } from "./FppParser";
 import { ModuleDeclContext } from "./FppParser";
 import { FormalParameterContext } from "./FppParser";
+import { FormalParameterNContext } from "./FppParser";
+import { FormalParamaterLContext } from "./FppParser";
 import { FormalParameterListContext } from "./FppParser";
 import { QualIdentContext } from "./FppParser";
 import { PrimitiveTypeContext } from "./FppParser";
@@ -61,6 +70,7 @@ import { ArrayExprContext } from "./FppParser";
 import { StructAssignmentContext } from "./FppParser";
 import { StructExprContext } from "./FppParser";
 import { ExprContext } from "./FppParser";
+import { AnnotationContext } from "./FppParser";
 
 
 /**
@@ -105,6 +115,20 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	 * @return the visitor result
 	 */
 	visitStructMember?: (ctx: StructMemberContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.structMemberN`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStructMemberN?: (ctx: StructMemberNContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.structMemberL`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStructMemberL?: (ctx: StructMemberLContext) => Result;
 
 	/**
 	 * Visit a parse tree produced by `FppParser.structDecl`.
@@ -219,6 +243,20 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	visitEnumMember?: (ctx: EnumMemberContext) => Result;
 
 	/**
+	 * Visit a parse tree produced by `FppParser.enumMemberN`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitEnumMemberN?: (ctx: EnumMemberNContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.enumMemberL`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitEnumMemberL?: (ctx: EnumMemberLContext) => Result;
+
+	/**
 	 * Visit a parse tree produced by `FppParser.enumDecl`.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -280,6 +318,13 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	 * @return the visitor result
 	 */
 	visitComponentKind?: (ctx: ComponentKindContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.componentMemberTempl`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitComponentMemberTempl?: (ctx: ComponentMemberTemplContext) => Result;
 
 	/**
 	 * Visit a parse tree produced by `FppParser.componentMember`.
@@ -359,6 +404,13 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	visitTopologyImportStmt?: (ctx: TopologyImportStmtContext) => Result;
 
 	/**
+	 * Visit a parse tree produced by `FppParser.topologyMemberTempl`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitTopologyMemberTempl?: (ctx: TopologyMemberTemplContext) => Result;
+
+	/**
 	 * Visit a parse tree produced by `FppParser.topologyMember`.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -387,6 +439,13 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	visitLocationStmt?: (ctx: LocationStmtContext) => Result;
 
 	/**
+	 * Visit a parse tree produced by `FppParser.moduleMemberTempl`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitModuleMemberTempl?: (ctx: ModuleMemberTemplContext) => Result;
+
+	/**
 	 * Visit a parse tree produced by `FppParser.moduleMember`.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -406,6 +465,20 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	 * @return the visitor result
 	 */
 	visitFormalParameter?: (ctx: FormalParameterContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.formalParameterN`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitFormalParameterN?: (ctx: FormalParameterNContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.formalParamaterL`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitFormalParamaterL?: (ctx: FormalParamaterLContext) => Result;
 
 	/**
 	 * Visit a parse tree produced by `FppParser.formalParameterList`.
@@ -476,5 +549,12 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	 * @return the visitor result
 	 */
 	visitExpr?: (ctx: ExprContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.annotation`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitAnnotation?: (ctx: AnnotationContext) => Result;
 }
 

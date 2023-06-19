@@ -366,6 +366,14 @@ export class DeclCollector extends MemberTraverser {
 
     translationUnitDeclarations = new Map<string, [FppTokenType, string][]>();
 
+    // If a translation unit includes component instances,
+    // there is a second stage of reference depth that should
+    // force re-annotation on doc refresh. Normally document
+    // annotation refresh happens only on open text documents
+    // since its not required, in this case it shouldn't matter
+    // if the doc is open or not
+    hasComponentInstances: boolean = false;
+
     topologyPortsTrav = new class extends MemberTraverser {
         parent!: DeclCollector;
 
@@ -375,6 +383,8 @@ export class DeclCollector extends MemberTraverser {
                 // This error will be annotated later
                 return;
             }
+
+            this.parent.hasComponentInstances = true;
 
             const componentScope = [...scope, ast.name];
 
@@ -453,9 +463,9 @@ export class DeclCollector extends MemberTraverser {
     }
 
     pass(ast: Fpp.TranslationUnit, grammarSource: string): void {
+        this.hasComponentInstances = false;
         this.clearDecls(grammarSource);
         super.pass(ast, grammarSource);
-
         this.topologyPortsTrav.pass(ast, grammarSource);
     }
 
@@ -481,7 +491,8 @@ export class DeclCollector extends MemberTraverser {
             type: "ConstantDecl",
             scope: scope,
             location: decl.location,
-            value: decl.value ?? defaultValue
+            value: decl.value ?? defaultValue,
+            annotation: decl.annotation
         });
         this.translationUnitDeclarations.get(grammarSource)!.push([FppTokenType.constant, name]);
     }
