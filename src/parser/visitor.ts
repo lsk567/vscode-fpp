@@ -126,11 +126,18 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
                 }, { rule, param }
             );
         } else {
+            // Single tokens are always on the same line,
+            // Except for long string literals
+            const textLines = (ctx.text ?? '').split("\n");
+            const finalLineLen = textLines[textLines.length - 1].length;
+
             this.signature.add(
                 {
                     start: { line: ctx.line - 1, character: ctx.charPositionInLine },
-                    // Single tokens are always on the same line
-                    end: { line: ctx.line - 1, character: ctx.charPositionInLine + (ctx.text?.length ?? 1) }
+                    
+                    end: {
+                        line: ctx.line - 1 + textLines.length - 1,
+                        character: textLines.length > 1 ? finalLineLen : ctx.charPositionInLine + finalLineLen }
                 }, { rule, param }
             );
         }
@@ -816,6 +823,10 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         if (!ctx) {
             return this.error();
         }
+
+        this.associate(ctx.tryGetToken(FppParser.FppParser.PHASE, 0)?._symbol, ctx.ruleIndex, "phase");
+        this.associate(ctx._phase, ctx.ruleIndex, "phaseExpr");
+        this.associate(ctx._code, ctx.ruleIndex, "codeLiteral");
 
         return {
             location: this.loc(ctx),

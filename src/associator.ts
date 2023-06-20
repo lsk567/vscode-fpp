@@ -13,7 +13,8 @@ interface RangeAssociation<T> {
     value: T;
 }
 
-export type IRangeAssociation = [number, [number, number, string][]][];
+// [startLine, endLine, startCol, endCol, value][]
+export type IRangeAssociation = [number, number, number, number, string][];
 
 export class RangeAssociator<T> {
     private lines = new Map<number, RangeAssociation<T>[]>();
@@ -27,44 +28,48 @@ export class RangeAssociator<T> {
         this.serializeT = serialize;
 
         if (serialized) {
-            for (const [line, tokens] of serialized) {
-                const lineAssociations: RangeAssociation<T>[] = [];
-                for (const [start, end, value] of tokens) {
+            for (const [startLine, endLine, start, end, value] of serialized) {
+                for (let line = startLine; line <= endLine; line++) {
+                    let lineAssociations = this.lines.get(line);
+                    if (!lineAssociations) {
+                        lineAssociations = [];
+                        this.lines.set(line, lineAssociations);
+                    }
+
                     lineAssociations.push({
                         range: {
-                            start: { line, character: start },
-                            end: { line, character: end }
+                            start: { line: startLine, character: start },
+                            end: { line: endLine, character: end }
                         },
                         value: deserialize(value)
                     });
                 }
-
-                this.lines.set(line, lineAssociations);
             }
         }
     }
 
     serialize(): IRangeAssociation {
-        // line: [startCol, endCol, value][]
-        const out: [number, [number, number, string][]][] = [];
+        const out: IRangeAssociation = [];
         for (const [line, tokens] of this.lines) {
-            const lineSer: [number, number, string][] = [];
             for (const tok of tokens) {
-                lineSer.push([tok.range.start.character, tok.range.end.character, this.serializeT(tok.value)]);
+                // Don't double dip the serialization
+                if (line === tok.range.end.line) {
+                    out.push([
+                        tok.range.start.line, tok.range.end.line,
+                        tok.range.start.character, tok.range.end.character,
+                        this.serializeT(tok.value)
+                    ]);
+                }
             }
-
-            out.push([line, lineSer]);
         }
 
         return out;
     }
 
     add(range: IRange, value: T) {
-        const line = range.start.line;
-
         const association: RangeAssociation<T> = { range, value };
 
-        for (let i = range.start.line; i <= range.end.line; i++) {
+        for (let line = range.start.line; line <= range.end.line; line++) {
             if (!this.lines.has(line)) {
                 this.lines.set(line, [association]);
             } else {
@@ -81,10 +86,18 @@ export class RangeAssociator<T> {
 
         for (const tok of tokens) {
             // Check if the position is contained in the range
-            if (tok.range.start.line <= position.line &&
-                position.line <= tok.range.end.line &&
-                tok.range.start.character <= position.character &&
-                position.character <= tok.range.end.character
+            if (tok.range.start.line === tok.range.end.line) {
+                if (tok.range.start.line <= position.line &&
+                    position.line <= tok.range.end.line &&
+                    tok.range.start.character <= position.character &&
+                    position.character <= tok.range.end.character
+                ) {
+                    return tok;
+                }
+            } else if (
+                (tok.range.start.line === position.line && tok.range.start.character <= position.character) ||
+                (tok.range.end.line === position.line && position.character <= tok.range.end.character) ||
+                (position.line > tok.range.start.line && position.line < tok.range.end.line)
             ) {
                 return tok;
             }

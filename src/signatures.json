@@ -653,5 +653,21 @@
                 ]
             }
         }
+    },
+    "initSpecifier": {
+        "signature": "phase phaseExpr codeLiteral",
+        "description": "Associates some code with a component instance. Usually this is initialization code, hence the name. It may also serve another purpose (e.g., teardown)",
+        "parameters": {
+            "phaseExpr": "Provides an integer identifier for an initialization phase.",
+            "codeLiteral": "Code in a target language that is associated with the instance"
+        },
+        "stateMap": {
+            "offset": 488,
+            "map": {
+                "phase": [0, 2],
+                "phaseExpr": [3],
+                "codeLiteral": [4]
+            }
+        }
     }
 }

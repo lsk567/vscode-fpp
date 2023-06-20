@@ -13,6 +13,7 @@ export const declRules = new Set([
     FppParser.RULE_eventDecl,
     FppParser.RULE_generalPortInstanceDecl,
     FppParser.RULE_includeStmt,
+    FppParser.RULE_initSpecifier,
     FppParser.RULE_internalPortDecl,
     FppParser.RULE_locationStmt,
     FppParser.RULE_matchStmt,
