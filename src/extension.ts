@@ -144,7 +144,6 @@ class FppProject implements vscode.Disposable {
 
 interface ISignature {
     signature: string;
-    description: string;
     parameters: Record<string, string | string[]>;
     stateMap?: {
         offset: number;
@@ -181,7 +180,7 @@ function generateSignature(signature: ISignature, activeParameter: string): vsco
         activeParameterIdx = parameters.length - 1;
     }
 
-    const out = new vscode.SignatureInformation(signature.signature, signature.description);
+    const out = new vscode.SignatureInformation(signature.signature);
     out.parameters = parameters;
     out.activeParameter = activeParameterIdx;
     return out;

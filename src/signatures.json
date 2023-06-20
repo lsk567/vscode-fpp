@@ -1,8 +1,8 @@
 {
     "abstractTypeDecl": {
         "signature": "type name",
-        "description": "An abstract type definition associates a name with a type without specifying the type. In generated code, the type is specified externally (e.g., as a C++ class).",
         "parameters": {
+            "type": "An abstract type definition associates a name with a type without specifying the type. In generated code, the type is specified externally (e.g., as a C++ class).",
             "name": "C++ type name"
         },
         "stateMap": [
@@ -12,9 +12,8 @@
     },
     "arrayDecl": {
         "signature": "array name = [ sizeExpression ] typeName (default defaultExpression)? (format formatLiteral)?",
-        "description": "An array definition defines a new array type and associates a name with it.",
         "parameters": {
-            "name": "Name of array",
+            "array": "An array definition defines a new array type and associates a name with it.",
             "sizeExpression": "Size of array",
             "typeName": "Array element type",
             "defaultExpression": "Array default value",
@@ -63,9 +62,9 @@
     },
     "commandDecl": {
         "signature": "commandKind command name (param-list)? (opcode opcodeExpr)? (priority priorityExpr)? queue-full-behavior?",
-        "description": "A command specifier specifies a command as part of a component definition.",
         "parameters": {
             "commandKind": "The command kind specifies the kind of the command. It is similar to the kind of a port instance specifier, except that different commands on the same port can have different kinds.",
+            "command": "A command specifier specifies a command as part of a component definition.",
             "name": "Name of command",
             "param-list": "The parameter list specifies the command parameters. If there are no parameters, the list may be omitted. ref may not appear in any of the parameters.",
             "opcodeExpr": "opcode specifies the numeric opcode for the command. If it is present, its type must be convertible to Integer, and must evaluate to a nonnegative integer. If it is not present, then the default opcode is either zero (for the first opcode appearing in a component) or the previous opcode plus one.",
@@ -95,8 +94,8 @@
     },
     "componentInstanceDecl": {
         "signature": "instance name : component base id baseIdExpr (type C++ type)? (at includeFile)? (queue size queueSize)? (stack size stackSize)? (priority priorityExpr)? (cpu cpuExpr)? { init-specifier-sequence }",
-        "description": "A component instance definition defines an instance of a component that you can refer to in a topology definition.",
         "parameters": {
+            "instance": "A component instance definition defines an instance of a component that you can refer to in a topology definition.",
             "name": "Name of component instance",
             "component": "A qualified identifier referencing a component definition",
             "baseIdExpr": [
@@ -182,8 +181,8 @@
     },
     "componentInstanceSpec": {
         "signature": "private? instance componentInstance",
-        "description": "A component instance specifier specifies that a component instance is part of a topology.",
         "parameters": {
+            "instance": "A component instance specifier specifies that a component instance is part of a topology.",
             "private": "A private instance does not appear in a topology in which this topology is imported",
             "componentInstance": "The qualified identifier must refer to a component instance."
         },
@@ -205,8 +204,8 @@
     },
     "constantDecl": {
         "signature": "constant name = expression",
-        "description": "A constant definition associates a name with a compile-time constant value. You can use the name in place of the value elsewhere in the model.",
         "parameters": {
+            "constant": "A constant definition associates a name with a compile-time constant value. You can use the name in place of the value elsewhere in the model.",
             "name": "Name of constant",
             "expression": "expression must evaluate to a compile-time constant value."
         },
@@ -230,7 +229,6 @@
     },
     "structMember": {
         "signature": "name: [n]? type (format formatLiteral)?",
-        "description": "",
         "parameters": {
             "name": "Name of struct member",
             "n": "Creates an array of size n",
@@ -270,8 +268,8 @@
     },
     "structDecl": {
         "signature": "struct name { members } (default defaultExpr)?",
-        "description": "A struct definition defines a new structure type and associates a name with it.",
         "parameters": {
+            "struct": "A struct definition defines a new structure type and associates a name with it.",
             "name": "Name of struct type",
             "defaultExpr": "Specifies the default value associated with the type. The type of the expression must be convertible to T. If the expression specifies a value for a member with size greater than one, then the value is applied to each element."
         },
@@ -302,10 +300,8 @@
     },
     "paramDecl": {
         "signature": "param name: type (default defaultExpr)? (id idExpr)? (set opcode setOpcode)? (save opcode saveOpcode)?",
-        "description": "A parameter specifier specifies a parameter as part of a component definition.",
         "parameters": {
-            "name": "",
-            "type": "",
+            "param": "A parameter specifier specifies a parameter as part of a component definition.",
             "defaultExpr": "Specifies a default value for the parameter when it does not exist in the parameter database",
             "idExpr": "Specifies a numeric identifier for the parameter. Must be convertible to an integer.",
             "setOpcode": "Opcode of the command for setting the parameter.",
@@ -361,8 +357,8 @@
     },
     "generalPortInstanceDecl": {
         "signature": "generalPortKind port name : [portNum]? port-instance-type (priority priorityExpr)? queue-full-behavior?",
-        "description": "Specifies an instantiated port as part of a component definition.",
         "parameters": {
+            "port": "Specifies an instantiated port as part of a component definition.",
             "portNum": "Number of port instances to instatiate",
             "priorityExpr": "Applies to the component’s message queue and may appear only for async input ports. The meaning of the priority value is operating system-dependent.",
             "queue-full-behavior": [
@@ -417,8 +413,9 @@
     },
     "specialPortInstanceDecl": {
         "signature": "specialPortKind port name",
-        "description": "These port instances correspond to the \"role ports\" in the F Prime XML model. Their types and other attributes are specified by F Prime. The identifier specifies the name of the port.",
-        "parameters": {},
+        "parameters": {
+            "port": "These port instances correspond to the \"role ports\" in the F Prime XML model. Their types and other attributes are specified by F Prime. The identifier specifies the name of the port."
+        },
         "stateMap": [
             "specialPortKind",
             "port",
@@ -427,8 +424,8 @@
     },
     "telemetryChannelDecl": {
         "signature": "telemetry name : type (id idExpr) (update telemetry-update)? (format formatLiteral)? ( low { telemetryLow } )? ( high { telemetryHigh } )?",
-        "description": "Defines a telemetry channel as part of a component definition.",
         "parameters": {
+            "telemetry": "Defines a telemetry channel as part of a component definition.",
             "telemetry-update": "Specifies whether the telemetry channel is emitted always or on change. If the specifier is not present, the default behavior is always.",
             "formatLiteral": "Specifies a format string. There is one argument to the format string, which is the channel value.",
             "lowLimit": "Specifies the low limit for the channel",
@@ -489,8 +486,8 @@
     },
     "eventDecl": {
         "signature": "event name param-list? severity severityKeyword (id idExpr)? format formatLiteral (throttle throttleExpr)?",
-        "description": "",
         "parameters": {
+            "event": "Defines a C++ interface for logging runtime events",
             "severityKeyword": "Severity of the event",
             "formatLiteral": "Format string that formats the event for display on the ground. The arguments to the format string are the values bound to the event parameters. A numeric format is allowed for any argument whose type is a numeric type.",
             "throttleExpr": "Specifies the maximum number of times to emit the event before throttling it. The type of e must be convertible to Integer and must evaluate to an integer."
@@ -539,8 +536,8 @@
     },
     "includeStmt": {
         "signature": "include includeFile",
-        "description": "Specifies that a file should be included in a translation unit.",
         "parameters": {
+            "include": "Specifies that a file should be included in a translation unit.",
             "includeFile": [
                 "The string literal specifies a file path relative to the location of the include specifier.",
                 "The suffix .fppi is conventional for included files, to distinguish them from files presented directly for analysis or translation."
@@ -553,10 +550,10 @@
     },
     "matchStmt": {
         "signature": "match target with source",
-        "description": "Specifies that when the component is instantiated and connected into a topology, the corresponding port numbers of two of its port instances should match. For example, a port matching specifier could specify that for a health monitoring component, any component connected to its ping output port at port number n should also be connected to its ping input port at the same port number n.",
         "parameters": {
-            "target": "Identifier reference output port instance",
-            "source": "Identifier reference input port instance"
+            "match": "Specifies that when the component is instantiated and connected into a topology, the corresponding port numbers of two of its port instances should match. For example, a port matching specifier could specify that for a health monitoring component, any component connected to its ping output port at port number n should also be connected to its ping input port at the same port number n.",
+            "target": "Output port instance",
+            "source": "Input port instance"
         },
         "stateMap": [
             "match",
@@ -567,8 +564,9 @@
     },
     "internalPortDecl": {
         "signature": "internal port name param-list? (priority priorityExpr)? queue-full-behavior?",
-        "description": "Specifies a single-use port for use in handlers of the enclosing component. A component can use an internal port to send a message to itself.",
         "parameters": {
+            "internal": "Specifies a single-use port for use in handlers of the enclosing component. A component can use an internal port to send a message to itself.",
+            "port": "Specifies a single-use port for use in handlers of the enclosing component. A component can use an internal port to send a message to itself.",
             "param-list": "Parameters sent as part of the internal message",
             "queue-full-behavior": "Same as async input ports"
         },
@@ -604,8 +602,8 @@
     },
     "portDecl": {
         "signature": "port name param-list? (-> returnType)?",
-        "description": "Defines an F Prime port. A port is the endpoint of a connection between F Prime components.",
         "parameters": {
+            "port": "Defines an F Prime port. A port is the endpoint of a connection between F Prime components.",
             "param-list": "Parameters sent as part of the message",
             "returnType": "Return type used when port is invoked in a synchronous context"
         },
@@ -634,9 +632,9 @@
     },
     "connection": {
         "signature": "output -> input",
-        "description": "Connects output port on a component instance to an input port",
         "parameters": {
             "output": "Reference to the an output port instance",
+            "->": "Connects output port on a component instance to an input port",
             "input": "Reference to an input port instance"
         },
         "stateMap": {
@@ -656,8 +654,8 @@
     },
     "initSpecifier": {
         "signature": "phase phaseExpr codeLiteral",
-        "description": "Associates some code with a component instance. Usually this is initialization code, hence the name. It may also serve another purpose (e.g., teardown)",
         "parameters": {
+            "phase": "Associates some code with a component instance. Usually this is initialization code, hence the name. It may also serve another purpose (e.g., teardown)",
             "phaseExpr": "Provides an integer identifier for an initialization phase.",
             "codeLiteral": "Code in a target language that is associated with the instance"
         },
