@@ -1,14 +1,16 @@
 import * as vscode from 'vscode';
 
-import { FppParser } from './grammar/FppParser';
+import { FppParser, QualIdentContext } from './grammar/FppParser';
 
 import * as Fpp from './parser/ast';
-import { FppAnnotator, MemberTraverser, fppLegend } from './fpp';
+import { FppAnnotator, FppTokenType, MemberTraverser, fppLegend } from './fpp';
 
 import Signatures from "./signatures.json";
-import { FppErrorListener, declRules, exprRules, getCandidates, ignoreTokens } from './parser/parse';
 import { AstManager } from './parser/manager';
-import { RuleContext } from 'antlr4ts';
+import { CompletionRelevantInfo, getCandidates } from './parser/completion';
+import { declRules, ignoreTokens } from './parser/common';
+
+const signaturesDefinitions = (Signatures as Record<string, ISignature>);
 
 class FppProject implements vscode.Disposable {
     private locs = new Set<string>();
@@ -144,7 +146,10 @@ interface ISignature {
     signature: string;
     description: string;
     parameters: Record<string, string | string[]>;
-    stateMap?: Record<string, number[]> | string[];
+    stateMap?: {
+        offset: number;
+        map: Record<string, number[]>
+    } | string[];
 }
 
 function generateSignature(signature: ISignature, activeParameter: string): vscode.SignatureInformation {
@@ -196,16 +201,11 @@ class FppExtension implements
     private manager: AstManager;
 
     private subscriptions: vscode.Disposable[];
-    private syntaxListeners: FppErrorListener;
 
     constructor(
         private readonly context: vscode.ExtensionContext
     ) {
-        this.syntaxListeners = new FppErrorListener();
-        this.manager = new AstManager(
-            { scheme: 'file', language: 'fpp' },
-            this.syntaxListeners
-        );
+        this.manager = new AstManager({ scheme: 'file', language: 'fpp' });
 
         this.project = new FppProject(
             this.manager,
@@ -314,11 +314,6 @@ class FppExtension implements
 
             const fullName = FppAnnotator.flat(definition.scope ?? [], definition.name);
 
-            // Add the optional annotation
-            if (definition.annotation) {
-                md.push(new vscode.MarkdownString(definition.annotation));
-            }
-
             const mdAssociation = new vscode.MarkdownString();
             mdAssociation.appendCodeblock(
                 typeName ?
@@ -328,6 +323,12 @@ class FppExtension implements
             );
 
             md.push(mdAssociation);
+
+            // Add the optional annotation
+            if (definition.annotation) {
+                md.push(new vscode.MarkdownString(definition.annotation));
+            }
+
             range = new vscode.Range(
                 association.range.start.line, association.range.start.character,
                 association.range.end.line, association.range.end.character
@@ -350,6 +351,92 @@ class FppExtension implements
         return commentIdx >= 0 && commentIdx <= position.character;
     }
 
+    private generateReferenceListFromScope(
+        map: Map<string, Fpp.Decl>,
+        context: QualIdentContext | undefined,
+        scope: readonly string[],
+        kind: vscode.CompletionItemKind
+    ): vscode.CompletionItem[] {
+        let writtenSoFar: string = '';
+        let range: vscode.Range | undefined;
+        if (context) {
+            writtenSoFar = context.text.replaceAll(" ", "");
+            if (context.start) {
+                range = new vscode.Range(
+                    context.start.line - 1,
+                    context.start.charPositionInLine,
+                    context.start.line - 1,
+                    context.start.charPositionInLine + context.text.length
+                );
+            }
+        }
+
+        const out: vscode.CompletionItem[] = [];
+
+        const scopeBuildUp: string[] = [];
+        const scopeTeardown = [...scope];
+
+        const keys = Array.from(map.keys());
+
+        while (out.length === 0) {
+            const prefix = [...scopeBuildUp, writtenSoFar].join(".");
+            const foundItems = keys.filter(v => v.startsWith(prefix));
+            for (const found of foundItems) {
+                const decl = map.get(found)!;
+
+                // Simplify the key
+                // Expand the prefix as much as possible
+                let foundQualIdent = found.split(".");
+                let i = 0;
+                for (; i < foundQualIdent.length && i < scope.length; i++) {
+                    if (foundQualIdent[i] !== scope[i]) {
+                        break;
+                    }
+                }
+
+                const item = new vscode.CompletionItem(foundQualIdent.slice(i).join('.'), kind);
+                item.range = range;
+                item.detail = decl.annotation;
+
+                out.push(item);
+            }
+
+            const nextScope = scopeTeardown.pop();
+            if (nextScope) {
+                scopeBuildUp.push(nextScope);
+            } else {
+                break;
+            }
+        }
+
+        return out;
+    }
+
+    private referenceCompletion(declType: FppTokenType, context: QualIdentContext, scope: string[]): vscode.CompletionItem[] {
+        const declTypeMap = new Map<FppTokenType, [Map<string, Fpp.Decl>, vscode.CompletionItemKind]>([
+            [FppTokenType.topology, [this.manager.decls.topologies, vscode.CompletionItemKind.Module]],
+            [FppTokenType.component, [this.manager.decls.components, vscode.CompletionItemKind.Class]],
+            [FppTokenType.componentInstance, [this.manager.decls.componentInstances, vscode.CompletionItemKind.Variable]],
+            [FppTokenType.constant, [this.manager.decls.constants, vscode.CompletionItemKind.EnumMember]],
+            [FppTokenType.port, [this.manager.decls.ports, vscode.CompletionItemKind.TypeParameter]],
+            [FppTokenType.type, [this.manager.decls.types, vscode.CompletionItemKind.TypeParameter]],
+            [FppTokenType.inputPortInstance, [this.manager.decls.generalInputPortInstances, vscode.CompletionItemKind.Function]],
+            [FppTokenType.outputPortInstance, [this.manager.decls.generalOutputPortInstances, vscode.CompletionItemKind.Function]],
+        ]);
+
+        const simpleMapping = declTypeMap.get(declType);
+        if (simpleMapping) {
+            return this.generateReferenceListFromScope(
+                simpleMapping[0],
+                context,
+                scope,
+                simpleMapping[1]
+            );
+        }
+
+        return [];
+    }
+
     provideCompletionItems(
         document: vscode.TextDocument,
         position: vscode.Position,
@@ -365,11 +452,15 @@ class FppExtension implements
             return;
         }
 
-        const [candidates, listener, parser] = getCandidates(document, position, exprRules);
-        const out: vscode.CompletionItem[] = [];
+        const candidates = getCandidates(document, position);
+        let out: vscode.CompletionItem[] = [];
 
         for (const candidate of candidates.tokens) {
-            const displayName = parser.vocabulary.getDisplayName(candidate[0]);
+            if (ignoreTokens.has(candidate)) {
+                continue;
+            }
+
+            const displayName = candidates.parser.vocabulary.getDisplayName(candidate);
             if (displayName.startsWith("'")) {
                 out.push(
                     new vscode.CompletionItem(
@@ -380,42 +471,84 @@ class FppExtension implements
         }
 
         if (out.length > 0) {
+            // The ATN could tell us what to write
+            // This means a simple keyword could follow the caret
             return out;
         }
 
-        const syntaxException = listener.getException(position);
-        if (syntaxException) {
-            if (syntaxException.expectedTokens) {
-                for (const token of syntaxException.expectedTokens.toArray()) {
-                    if (ignoreTokens.has(token)) {
-                        continue;
-                    }
+        const qualIdentInfo = candidates.rules.get(FppParser.RULE_qualIdent);
+        if (qualIdentInfo) {
+            // A qualified identifier references some declaration
+            // We need to figure out what type this is referencing
 
-                    const displayName = parser.vocabulary.getDisplayName(token);
-                    if (displayName.startsWith("'")) {
-                        out.push(
-                            new vscode.CompletionItem(
-                                displayName.replaceAll("'", ""),
-                                vscode.CompletionItemKind.Keyword)
-                        );
-                    }
+            const singleQualIdentMappings: [number, FppTokenType][] = [
+                // This is in order of priority
+                // Only the first two need to be injested first
+                [FppParser.RULE_expr, FppTokenType.constant],
+                [FppParser.RULE_typeName, FppTokenType.type],
+
+                [FppParser.RULE_generalPortInstanceType, FppTokenType.port],
+                [FppParser.RULE_componentInstanceDecl, FppTokenType.component],
+                [FppParser.RULE_componentInstanceSpec, FppTokenType.componentInstance],
+                // This is special since we there are two in the rule
+                // [FppParser.RULE_connectionNode, FppTokenType.componentInstance],
+                [FppParser.RULE_patternGraphSources, FppTokenType.componentInstance],
+                [FppParser.RULE_topologyImportStmt, FppTokenType.topology],
+
+                // I'm not doing this cause its annoying ;)
+                // Also who the hell writes these manually
+                // [FppParser.RULE_locationStmt, FppTokenType.],
+            ];
+
+            for (const [ruleIdx, type] of singleQualIdentMappings) {
+                if (candidates.rules.has(ruleIdx)) {
+                    return this.referenceCompletion(type, qualIdentInfo.context as QualIdentContext, candidates.scope);
                 }
             }
-        }
 
-        if (out.length > 0) {
-            return out;
-        }
-
-        for (const candidate of candidates.rules) {
-            switch (candidate[0]) {
-                case FppParser.RULE_expr:
-
-                    break;
+            // Rule the manual rules
+            const connectionInfo = candidates.rules.get(FppParser.RULE_connection);
+            if (connectionInfo) {
+                return this.referenceCompletion(
+                    connectionInfo.context.childCount <= 1 ? FppTokenType.outputPortInstance : FppTokenType.inputPortInstance,
+                    qualIdentInfo.context as QualIdentContext, candidates.scope
+                );
             }
         }
+    }
 
-        return out;
+    private getSignatureRelevantInfo(ruleIdx: number, relevant: CompletionRelevantInfo) {
+        const ruleName = FppParser.ruleNames[ruleIdx];
+
+        if (!signaturesDefinitions[ruleName]) {
+            return;
+        }
+
+        const stateMap = signaturesDefinitions[ruleName].stateMap;
+
+        let paramName: string;
+        if (!stateMap) {
+            return;
+        } else if (Array.isArray(stateMap)) {
+            paramName = stateMap[relevant.context.childCount];
+        } else {
+            const map = new Map<number, string>();
+
+            for (const [key, states] of Object.entries(stateMap.map)) {
+                for (const stateOffset of states) {
+                    map.set(stateOffset, key);
+                }
+            }
+
+            const prmName = map.get(relevant.state - stateMap.offset);
+            if (!prmName) {
+                return;
+            }
+
+            paramName = prmName;
+        }
+
+        return generateSignature(signaturesDefinitions[ruleName], paramName);
     }
 
     async provideSignatureHelp(
@@ -423,87 +556,42 @@ class FppExtension implements
         position: vscode.Position,
         token: vscode.CancellationToken,
         context: vscode.SignatureHelpContext
-    ): Promise<vscode.SignatureHelp & { lastToken: vscode.Range } | undefined> {
+    ): Promise<vscode.SignatureHelp | undefined> {
         if (this.inComment(document, position)) {
             return;
         }
 
-        const signaturesDefinitions = (Signatures as { [name: string]: ISignature });
-
         // Provide all signatures of candidate rules
-        const signatures: vscode.SignatureInformation[] = [];
         const matched = (await this.manager.parse(document, token)).ranges.getAssociation(position);
         if (matched) {
             const ruleName = FppParser.ruleNames[matched.value.rule];
             const iSignature = signaturesDefinitions[ruleName];
-            if (iSignature) {
-                signatures.push(generateSignature(iSignature, matched.value.param));
-            } else {
-                console.error(`No signature for ${ruleName}`);
+            if (!iSignature) {
+                return undefined;
             }
 
             return {
-                signatures: signatures,
+                signatures: [generateSignature(iSignature, matched.value.param)],
                 activeParameter: 0,
-                activeSignature: 0,
-                lastToken: new vscode.Range(
-                    matched.range.start.line, matched.range.start.character,
-                    matched.range.start.line, matched.range.end.character
-                )
+                activeSignature: 0
             };
         }
 
-        const [candidates, syntaxErrorListener, parser, core] = getCandidates(document, new vscode.Position(position.line, position.character + 1), declRules);
-        const exception = syntaxErrorListener.getException(position);
-        if (exception) {
-            // We are currently writing a rule
-            // We must be at the end of the rule if the token is not matched yet
-            // This means the argument offset is the current child count
+        const candidates = getCandidates(document, position, declRules);
 
-            // Find the matching signature definition in the parsing rule context stack
-            // To do this we must traverse the parsing stack and find a signatured def
-            let currentState = exception.state;
-
-            for (
-                let ctx: RuleContext | undefined = exception.ctx;
-                ctx; currentState = ctx.invokingState, ctx = ctx.parent
-            ) {
-                const ruleName = FppParser.ruleNames[ctx.ruleIndex];
-                if (signaturesDefinitions[ruleName] && signaturesDefinitions[ruleName].stateMap) {
-                    // We found one that matches
-                    let paramName: string;
-                    if (Array.isArray(signaturesDefinitions[ruleName].stateMap)) {
-                        paramName = (signaturesDefinitions[ruleName].stateMap as string[])[ctx.childCount];
-                    } else {
-                        const map = new Map<number, string>();
-                        for (const [key, states] of Object.entries(signaturesDefinitions[ruleName].stateMap as Record<string, number[]>)) {
-                            for (const state of states) {
-                                map.set(state, key);
-                            }
-                        }
-
-                        const targetParam = map.get(currentState);
-                        if (!targetParam) {
-                            continue;
-                        }
-
-                        paramName = targetParam;
-                    }
-
-                    signatures.push(generateSignature(signaturesDefinitions[ruleName], paramName));
-                    break;
-                }
+        const signatures: vscode.SignatureInformation[] = [];
+        for (const [ruleIdx, relevant] of candidates.rules) {
+            const signature = this.getSignatureRelevantInfo(ruleIdx, relevant);
+            if (signature) {
+                signatures.push(signature);
             }
-
-            return {
-                signatures: signatures,
-                activeParameter: 0,
-                activeSignature: 0,
-                lastToken: new vscode.Range(position, position)
-            };
         }
 
-        return undefined;
+        return {
+            signatures,
+            activeParameter: 0,
+            activeSignature: 0
+        };
     }
 
     dispose() {

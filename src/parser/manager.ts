@@ -49,7 +49,6 @@ export interface ParsingOptions {
     disableDiagnostics?: boolean;
 }
 
-
 export class FppMessage {
     constructor(
         readonly version: number,
@@ -206,16 +205,22 @@ export class AstManager implements vscode.Disposable {
     private asts = new Map<string, FppMessage>();
     private annotations = new Map<string, FppAnnotator>();
     private worker = new FppWorker();
+    private syntaxListener: DiangosicManager;
 
     private hasComponentInstances = new Set<string>();
 
     constructor(
-        public readonly documentSelector: vscode.DocumentSelector,
-        private readonly syntaxListener: DiangosicManager) {
+        public readonly documentSelector: vscode.DocumentSelector
+    ) {
+        this.syntaxListener = new DiangosicManager();
     }
 
     ready(): Promise<void> {
         return this.worker.ready();
+    }
+
+    get decls(): DeclCollector {
+        return this.decl;
     }
 
     dispose() {
@@ -240,9 +245,12 @@ export class AstManager implements vscode.Disposable {
         this.annotations.delete(uri.path);
     }
 
-    refreshAnnotations(options?: ParsingOptions) {
+    refreshAnnotations(options?: ParsingOptions, ignoreKey?: string) {
         // Keep track of files we annotated
         const annotated = new Set<string>();
+        if (ignoreKey) {
+            annotated.add(ignoreKey);
+        }
 
         // Refresh annotations on open text files
         for (const textDocument of vscode.workspace.textDocuments) {
@@ -291,28 +299,12 @@ export class AstManager implements vscode.Disposable {
         token?: vscode.CancellationToken,
         options?: ParsingOptions
     ): Promise<FppMessage> {
-        const out = await this.parseImpl1(documentOrUri, token, options);
-
-        if (options?.noAnnotationRefresh) {
-            // Skip annotation refresh for speed up
-        } else {
-            this.refreshAnnotations(options);
-        }
-
-        return out;
-    }
-
-    private async parseImpl1(
-        documentOrUri: vscode.TextDocument | vscode.Uri,
-        token?: vscode.CancellationToken,
-        options?: ParsingOptions
-    ): Promise<FppMessage> {
         if (documentOrUri instanceof vscode.Uri) {
             // Check if we already have this file open in the workspace
             // If we do, use the open version instead of reading directly from disk
             const alreadyOpenDoc = vscode.workspace.textDocuments.find(v => v.uri.path === documentOrUri.path);
             if (alreadyOpenDoc) {
-                return await this.parseImpl2({
+                return await this.parseImpl({
                     path: alreadyOpenDoc.uri.path,
                     version: alreadyOpenDoc.version,
                     getText: alreadyOpenDoc.getText.bind(documentOrUri)
@@ -322,14 +314,14 @@ export class AstManager implements vscode.Disposable {
             // Read and decode the text file
             const text = textDecoder.decode(await vscode.workspace.fs.readFile(documentOrUri));
 
-            return await this.parseImpl2({
+            return await this.parseImpl({
                 path: documentOrUri.path,
                 // Any changes in the text document will force a reparse
                 version: -1,
                 getText() { return text; }
             }, token, options);
         } else {
-            return await this.parseImpl2({
+            return await this.parseImpl({
                 path: documentOrUri.uri.path,
                 version: documentOrUri.version,
                 getText: documentOrUri.getText.bind(documentOrUri)
@@ -337,7 +329,7 @@ export class AstManager implements vscode.Disposable {
         }
     }
 
-    private async parseImpl2(
+    private async parseImpl(
         document: DocumentOrFile,
         token?: vscode.CancellationToken,
         options?: ParsingOptions
@@ -391,6 +383,10 @@ export class AstManager implements vscode.Disposable {
             this.syntaxListener.emit(uri, err);
         }
         this.syntaxListener.flush(key);
+
+        if (!options?.noAnnotationRefresh) {
+            this.refreshAnnotations(options, key);
+        }
 
         return msg;
     }

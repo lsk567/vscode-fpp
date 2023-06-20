@@ -833,8 +833,8 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         this.associate(ctx.INSTANCE()._symbol, ctx.ruleIndex, "instance");
         this.associate(ctx._name, ctx.ruleIndex, "name");
         this.associate(ctx._fppType, ctx.ruleIndex, "component");
-        this.associate(ctx.BASE()._symbol, ctx.ruleIndex, "base");
-        this.associate(ctx.ID()._symbol, ctx.ruleIndex, "id");
+        this.associate(ctx.tryGetToken(FppParser.FppParser.BASE, 0)?._symbol, ctx.ruleIndex, "base");
+        this.associate(ctx.tryGetToken(FppParser.FppParser.ID, 0)?._symbol, ctx.ruleIndex, "id");
         this.associate(ctx._base_id, ctx.ruleIndex, "baseIdExpr");
         this.associate(ctx.TYPE()?._symbol, ctx.ruleIndex, "type");
         this.associate(ctx._cppType, ctx.ruleIndex, "C++ type");

@@ -5,7 +5,10 @@
         "parameters": {
             "name": "C++ type name"
         },
-        "stateMap": ["type", "name"]
+        "stateMap": [
+            "type",
+            "name"
+        ]
     },
     "arrayDecl": {
         "signature": "array name = [ sizeExpression ] typeName (default defaultExpression)? (format formatLiteral)?",
@@ -18,17 +21,44 @@
             "formatLiteral": "Default string literal format to include in dictionary definition"
         },
         "stateMap": {
-            "array": [143],
-            "name": [144],
-            "=": [145],
-            "[": [146],
-            "sizeExpression": [147],
-            "]": [148],
-            "typeName": [149],
-            "default": [150, 152],
-            "defaultExpression": [151],
-            "format": [154, 156],
-            "formatLiteral": [155]
+            "offset": 163,
+            "map": {
+                "array": [
+                    0
+                ],
+                "name": [
+                    1
+                ],
+                "=": [
+                    2
+                ],
+                "[": [
+                    3
+                ],
+                "sizeExpression": [
+                    4
+                ],
+                "]": [
+                    5
+                ],
+                "typeName": [
+                    6
+                ],
+                "default": [
+                    7,
+                    9
+                ],
+                "defaultExpression": [
+                    8
+                ],
+                "format": [
+                    11,
+                    13
+                ],
+                "formatLiteral": [
+                    12
+                ]
+            }
         }
     },
     "commandDecl": {
@@ -43,11 +73,24 @@
             "queue-full-behavior": "specifies the behavior of the command when the input full is queue. This specifier is valid only if the kind of the command is async. If no specifier appears, then the default behavior is assert."
         },
         "stateMap": {
-            "commandKind": [208],
-            "command": [209],
-            "name": [210],
-            "opcodeExpression": [215],
-            "priorityExpression": [219]
+            "offset": 239,
+            "map": {
+                "commandKind": [
+                    0
+                ],
+                "command": [
+                    1
+                ],
+                "name": [
+                    2
+                ],
+                "opcodeExpression": [
+                    7
+                ],
+                "priorityExpression": [
+                    11
+                ]
+            }
         }
     },
     "componentInstanceDecl": {
@@ -85,21 +128,56 @@
             "cpuExpr": "Specifies the CPU affinity for active components. The CPU affinity is optional for active components and is not allowed for queued or passive components."
         },
         "stateMap": {
-            "instance": [449],
-            "name": [450],
-            ":": [451],
-            "component": [452],
-            "base": [453],
-            "id": [454],
-            "baseIdExpr": [455],
-            "C++ type": [457],
-            "includeFile": [461],
-            "queue size": [464, 465],
-            "queueSize": [466],
-            "stack size": [469, 470],
-            "stackSize": [471],
-            "priorityExpr": [475],
-            "cpuExpr": [479]
+            "offset": 494,
+            "map": {
+                "instance": [
+                    0
+                ],
+                "name": [
+                    1
+                ],
+                ":": [
+                    2
+                ],
+                "component": [
+                    3
+                ],
+                "base": [
+                    4
+                ],
+                "id": [
+                    5
+                ],
+                "baseIdExpr": [
+                    6
+                ],
+                "C++ type": [
+                    8
+                ],
+                "includeFile": [
+                    12
+                ],
+                "queue size": [
+                    15,
+                    16
+                ],
+                "queueSize": [
+                    17
+                ],
+                "stack size": [
+                    20,
+                    21
+                ],
+                "stackSize": [
+                    22
+                ],
+                "priorityExpr": [
+                    26
+                ],
+                "cpuExpr": [
+                    30
+                ]
+            }
         }
     },
     "componentInstanceSpec": {
@@ -110,9 +188,19 @@
             "componentInstance": "The qualified identifier must refer to a component instance."
         },
         "stateMap": {
-            "private": [560, 559],
-            "instance": [562],
-            "componentInstance": [563]
+            "offset": 610,
+            "map": {
+                "private": [
+                    0,
+                    -1
+                ],
+                "instance": [
+                    2
+                ],
+                "componentInstance": [
+                    3
+                ]
+            }
         }
     },
     "constantDecl": {
@@ -123,10 +211,21 @@
             "expression": "expression must evaluate to a compile-time constant value."
         },
         "stateMap": {
-            "constant": [158],
-            "name": [159],
-            "=": [160],
-            "expression": [161]
+            "offset": 178,
+            "map": {
+                "constant": [
+                    0
+                ],
+                "name": [
+                    1
+                ],
+                "=": [
+                    2
+                ],
+                "expression": [
+                    3
+                ]
+            }
         }
     },
     "structMember": {
@@ -138,14 +237,35 @@
             "type": "Member type"
         },
         "stateMap": {
-            "name": [163],
-            ":": [164],
-            "[": [165],
-            "n": [166],
-            "]": [167],
-            "type": [169, 171],
-            "format": [172, 174],
-            "formatLiteral": [173]
+            "offset": 183,
+            "map": {
+                "name": [
+                    0
+                ],
+                ":": [
+                    1
+                ],
+                "[": [
+                    2
+                ],
+                "n": [
+                    3
+                ],
+                "]": [
+                    4
+                ],
+                "type": [
+                    6,
+                    8
+                ],
+                "format": [
+                    9,
+                    11
+                ],
+                "formatLiteral": [
+                    10
+                ]
+            }
         }
     },
     "structDecl": {
@@ -156,12 +276,28 @@
             "defaultExpr": "Specifies the default value associated with the type. The type of the expression must be convertible to T. If the expression specifies a value for a member with size greater than one, then the value is applied to each element."
         },
         "stateMap": {
-            "struct": [176],
-            "name": [177],
-            "{": [178],
-            "}": [199],
-            "default": [200, 202],
-            "defaultExpr": [201]
+            "offset": 212,
+            "map": {
+                "struct": [
+                    0
+                ],
+                "name": [
+                    1
+                ],
+                "{": [
+                    2
+                ],
+                "}": [
+                    23
+                ],
+                "default": [
+                    24,
+                    26
+                ],
+                "defaultExpr": [
+                    25
+                ]
+            }
         }
     },
     "paramDecl": {
@@ -176,18 +312,51 @@
             "saveOpcode": "Opcode of the command for saving the parameter to the database."
         },
         "stateMap": {
-            "param": [225],
-            "name": [226],
-            ":": [227],
-            "type": [228],
-            "default": [231, 229],
-            "defaultExpr": [230],
-            "id": [235, 233],
-            "idExpr": [234],
-            "set opcode": [240, 237, 238],
-            "setOpcode": [239],
-            "save opcode": [245, 242, 243],
-            "saveOpcode": [244]
+            "offset": 256,
+            "map": {
+                "param": [
+                    0
+                ],
+                "name": [
+                    1
+                ],
+                ":": [
+                    2
+                ],
+                "type": [
+                    3
+                ],
+                "default": [
+                    6,
+                    4
+                ],
+                "defaultExpr": [
+                    5
+                ],
+                "id": [
+                    10,
+                    8
+                ],
+                "idExpr": [
+                    9
+                ],
+                "set opcode": [
+                    15,
+                    12,
+                    13
+                ],
+                "setOpcode": [
+                    14
+                ],
+                "save opcode": [
+                    20,
+                    17,
+                    18
+                ],
+                "saveOpcode": [
+                    19
+                ]
+            }
         }
     },
     "generalPortInstanceDecl": {
@@ -205,24 +374,56 @@
             ]
         },
         "stateMap": {
-            "generalPortKind": [278],
-            "port": [279],
-            "name": [280],
-            ":": [281],
-            "[": [282],
-            "portNum": [283],
-            "]": [284],
-            "port-instance-type": [286, 288],
-            "priority": [291, 289],
-            "priorityExpr": [290],
-            "queue-full-behavior": [294, 293]
+            "offset": 309,
+            "map": {
+                "generalPortKind": [
+                    0
+                ],
+                "port": [
+                    1
+                ],
+                "name": [
+                    2
+                ],
+                ":": [
+                    3
+                ],
+                "[": [
+                    4
+                ],
+                "portNum": [
+                    5
+                ],
+                "]": [
+                    6
+                ],
+                "port-instance-type": [
+                    8,
+                    10
+                ],
+                "priority": [
+                    13,
+                    11
+                ],
+                "priorityExpr": [
+                    12
+                ],
+                "queue-full-behavior": [
+                    16,
+                    15
+                ]
+            }
         }
     },
     "specialPortInstanceDecl": {
         "signature": "specialPortKind port name",
         "description": "These port instances correspond to the \"role ports\" in the F Prime XML model. Their types and other attributes are specified by F Prime. The identifier specifies the name of the port.",
         "parameters": {},
-        "stateMap": ["specialPortKind", "port", "name"]
+        "stateMap": [
+            "specialPortKind",
+            "port",
+            "name"
+        ]
     },
     "telemetryChannelDecl": {
         "signature": "telemetry name : type (id idExpr) (update telemetry-update)? (format formatLiteral)? ( low { telemetryLow } )? ( high { telemetryHigh } )?",
@@ -234,20 +435,56 @@
             "highLimit": "Specifies the high limit for the channel"
         },
         "stateMap": {
-            "telemetry": [333],
-            "name": [334],
-            ":": [335],
-            "type": [336],
-            "id": [339, 337],
-            "idExpr": [338],
-            "update": [343, 341],
-            "telemetry-update": [342],
-            "format": [347, 345],
-            "formatLiteral": [346],
-            "low": [351, 349],
-            "lowLimit": [350],
-            "high": [355, 353],
-            "highLimit": [354]
+            "offset": 364,
+            "map": {
+                "telemetry": [
+                    0
+                ],
+                "name": [
+                    1
+                ],
+                ":": [
+                    2
+                ],
+                "type": [
+                    3
+                ],
+                "id": [
+                    6,
+                    4
+                ],
+                "idExpr": [
+                    5
+                ],
+                "update": [
+                    10,
+                    8
+                ],
+                "telemetry-update": [
+                    9
+                ],
+                "format": [
+                    14,
+                    12
+                ],
+                "formatLiteral": [
+                    13
+                ],
+                "low": [
+                    18,
+                    16
+                ],
+                "lowLimit": [
+                    17
+                ],
+                "high": [
+                    22,
+                    20
+                ],
+                "highLimit": [
+                    21
+                ]
+            }
         }
     },
     "eventDecl": {
@@ -259,17 +496,45 @@
             "throttleExpr": "Specifies the maximum number of times to emit the event before throttling it. The type of e must be convertible to Integer and must evaluate to an integer."
         },
         "stateMap": {
-            "event": [407],
-            "name": [408],
-            "param-list": [409, 410],
-            "severity": [412],
-            "severityKeyword": [413],
-            "id": [414],
-            "idExpr": [415],
-            "format": [416, 418],
-            "formatLiteral": [419],
-            "throttle": [420, 422],
-            "throttleExpr": [421]
+            "offset": 449,
+            "map": {
+                "event": [
+                    0
+                ],
+                "name": [
+                    1
+                ],
+                "param-list": [
+                    2,
+                    3
+                ],
+                "severity": [
+                    5
+                ],
+                "severityKeyword": [
+                    6
+                ],
+                "id": [
+                    7
+                ],
+                "idExpr": [
+                    8
+                ],
+                "format": [
+                    9,
+                    11
+                ],
+                "formatLiteral": [
+                    12
+                ],
+                "throttle": [
+                    13,
+                    15
+                ],
+                "throttleExpr": [
+                    14
+                ]
+            }
         }
     },
     "includeStmt": {
@@ -281,7 +546,10 @@
                 "The suffix .fppi is conventional for included files, to distinguish them from files presented directly for analysis or translation."
             ]
         },
-        "stateMap": ["include", "includeFile"]
+        "stateMap": [
+            "include",
+            "includeFile"
+        ]
     },
     "matchStmt": {
         "signature": "match target with source",
@@ -290,7 +558,12 @@
             "target": "Identifier reference output port instance",
             "source": "Identifier reference input port instance"
         },
-        "stateMap": ["match", "target", "with", "source"]
+        "stateMap": [
+            "match",
+            "target",
+            "with",
+            "source"
+        ]
     },
     "internalPortDecl": {
         "signature": "internal port name param-list? (priority priorityExpr)? queue-full-behavior?",
@@ -300,13 +573,33 @@
             "queue-full-behavior": "Same as async input ports"
         },
         "stateMap": {
-            "internal": [432],
-            "port": [433],
-            "name": [434],
-            "param-list": [435, 436],
-            "priority": [438, 440],
-            "priorityExpr": [439],
-            "queue-full-behavior": [442, 443]
+            "offset": 474,
+            "map": {
+                "internal": [
+                    0
+                ],
+                "port": [
+                    1
+                ],
+                "name": [
+                    2
+                ],
+                "param-list": [
+                    3,
+                    4
+                ],
+                "priority": [
+                    6,
+                    8
+                ],
+                "priorityExpr": [
+                    7
+                ],
+                "queue-full-behavior": [
+                    10,
+                    11
+                ]
+            }
         }
     },
     "portDecl": {
@@ -317,11 +610,26 @@
             "returnType": "Return type used when port is invoked in a synchronous context"
         },
         "stateMap": {
-            "port": [550],
-            "name": [551],
-            "param-list": [553, 552],
-            "->": [557, 555],
-            "returnType": [556]
+            "offset": 600,
+            "map": {
+                "port": [
+                    0
+                ],
+                "name": [
+                    1
+                ],
+                "param-list": [
+                    3,
+                    2
+                ],
+                "->": [
+                    7,
+                    5
+                ],
+                "returnType": [
+                    6
+                ]
+            }
         }
     },
     "connection": {
@@ -332,9 +640,18 @@
             "input": "Reference to an input port instance"
         },
         "stateMap": {
-            "output": [572],
-            "->": [573],
-            "input": [574]
+            "offset": 622,
+            "map": {
+                "output": [
+                    0
+                ],
+                "->": [
+                    1
+                ],
+                "input": [
+                    2
+                ]
+            }
         }
     }
 }

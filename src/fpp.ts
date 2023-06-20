@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 
+import * as fs from 'fs';
+
 import * as Fpp from './parser/ast';
 import { RangeAssociator } from './associator';
 import { implicitLocation } from './parser/visitor';
@@ -12,7 +14,7 @@ export interface AstMessage {
     message: string;
 }
 
-export abstract class DiangosicManager implements vscode.Disposable {
+export class DiangosicManager implements vscode.Disposable {
     private diagnostics: vscode.DiagnosticCollection;
     private pendingDiagnostics = new Map<string, vscode.Diagnostic[]>();
 
@@ -1236,12 +1238,21 @@ export class FppAnnotator extends MemberTraverser {
                 // The 'at' path is a header file relative to the component definition
                 if (fppTypeDecl) {
                     const resolvedPath = path.resolve(path.dirname(fppTypeDecl.name.location.source), ast.at.value);
-                    this.links.push(
-                        new vscode.DocumentLink(
-                            MemberTraverser.asRange(ast.at.location),
-                            vscode.Uri.file(resolvedPath)
-                        )
-                    );
+
+                    if (fs.existsSync(resolvedPath)) {
+                        this.links.push(
+                            new vscode.DocumentLink(
+                                MemberTraverser.asRange(ast.at.location),
+                                vscode.Uri.file(resolvedPath)
+                            )
+                        );
+                    } else {
+                        this.emit(
+                            vscode.Uri.file(grammarSource),
+                            new vscode.Diagnostic(FppAnnotator.asRange(ast.at.location),
+                                `File '${resolvedPath}' does not exist`)
+                        );
+                    }
                 }
             }
         }
