@@ -2,8 +2,16 @@
     "name": "fpp",
     "displayName": "FPP",
     "description": "FPrime-Prime Language Support",
+    "author": {
+        "name": "Andrei Tumbar",
+        "email": "andrei.tumbar@jpl.nasa.gov"
+    },
     "publisher": "jet-propulsion-laboratory",
-    "version": "0.0.1",
+    "repository": {
+        "url": "https://github.com/Kronos3/vscode-fpp",
+        "type": "git"
+    },
+    "version": "1.0.0",
     "engines": {
         "vscode": "^1.78.0"
     },
