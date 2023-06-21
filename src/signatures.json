@@ -20,7 +20,7 @@
             "formatLiteral": "Default string literal format to include in dictionary definition"
         },
         "stateMap": {
-            "offset": 215,
+            "offset": 217,
             "map": {
                 "array": [
                     0
@@ -72,7 +72,7 @@
             "queue-full-behavior": "specifies the behavior of the command when the input full is queue. This specifier is valid only if the kind of the command is async. If no specifier appears, then the default behavior is assert."
         },
         "stateMap": {
-            "offset": 291,
+            "offset": 293,
             "map": {
                 "commandKind": [
                     0
@@ -127,7 +127,7 @@
             "cpuExpr": "Specifies the CPU affinity for active components. The CPU affinity is optional for active components and is not allowed for queued or passive components."
         },
         "stateMap": {
-            "offset": 546,
+            "offset": 548,
             "map": {
                 "instance": [
                     0
@@ -187,7 +187,7 @@
             "componentInstance": "The qualified identifier must refer to a component instance."
         },
         "stateMap": {
-            "offset": 662,
+            "offset": 664,
             "map": {
                 "private": [
                     0,
@@ -210,7 +210,7 @@
             "expression": "expression must evaluate to a compile-time constant value."
         },
         "stateMap": {
-            "offset": 230,
+            "offset": 232,
             "map": {
                 "constant": [
                     0
@@ -235,7 +235,7 @@
             "type": "Member type"
         },
         "stateMap": {
-            "offset": 235,
+            "offset": 237,
             "map": {
                 "name": [
                     0
@@ -274,7 +274,7 @@
             "defaultExpr": "Specifies the default value associated with the type. The type of the expression must be convertible to T. If the expression specifies a value for a member with size greater than one, then the value is applied to each element."
         },
         "stateMap": {
-            "offset": 264,
+            "offset": 266,
             "map": {
                 "struct": [
                     0
@@ -308,7 +308,7 @@
             "saveOpcode": "Opcode of the command for saving the parameter to the database."
         },
         "stateMap": {
-            "offset": 308,
+            "offset": 310,
             "map": {
                 "param": [
                     0
@@ -370,7 +370,7 @@
             ]
         },
         "stateMap": {
-            "offset": 361,
+            "offset": 363,
             "map": {
                 "generalPortKind": [
                     0
@@ -432,7 +432,7 @@
             "highLimit": "Specifies the high limit for the channel"
         },
         "stateMap": {
-            "offset": 416,
+            "offset": 418,
             "map": {
                 "telemetry": [
                     0
@@ -493,7 +493,7 @@
             "throttleExpr": "Specifies the maximum number of times to emit the event before throttling it. The type of e must be convertible to Integer and must evaluate to an integer."
         },
         "stateMap": {
-            "offset": 501,
+            "offset": 503,
             "map": {
                 "event": [
                     0
@@ -571,7 +571,7 @@
             "queue-full-behavior": "Same as async input ports"
         },
         "stateMap": {
-            "offset": 526,
+            "offset": 528,
             "map": {
                 "internal": [
                     0
@@ -608,7 +608,7 @@
             "returnType": "Return type used when port is invoked in a synchronous context"
         },
         "stateMap": {
-            "offset": 652,
+            "offset": 654,
             "map": {
                 "port": [
                     0
@@ -638,7 +638,7 @@
             "input": "Reference to an input port instance"
         },
         "stateMap": {
-            "offset": 674,
+            "offset": 676,
             "map": {
                 "output": [
                     0
@@ -660,7 +660,7 @@
             "codeLiteral": "Code in a target language that is associated with the instance"
         },
         "stateMap": {
-            "offset": 540,
+            "offset": 542,
             "map": {
                 "phase": [0, 2],
                 "phaseExpr": [3],

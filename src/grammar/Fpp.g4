@@ -102,7 +102,7 @@ telemetryChannelDecl:
 enumMember: name=IDENTIFIER ('=' value=expr)?;
 enumMemberN: enumMember (commaDelim | commaDelim? annotation);
 enumMemberL: enumMember (commaDelim | commaDelim? annotation)?;
-enumDecl: ENUM name=IDENTIFIER (':' type=INT_TYPE)?
+enumDecl: ENUM name=IDENTIFIER (':' type=intType)?
     '{'
         NL* (enumMemberN* enumMemberL)?
     '}' (DEFAULT default_=expr)?
@@ -270,12 +270,9 @@ formalParameterList: '(' NL* (formalParameterN* formalParamaterL)? ')';
 
 qualIdent: IDENTIFIER ('.' IDENTIFIER)*;
 
-fragment INTEGRAL_TYPE: U8 | I8 | U16 | I16 | U32 | I32 | U64 | I64;
-fragment FLOAT_TYPE: F32 | F64;
-fragment NUMERIC_TYPE: INTEGRAL_TYPE | FLOAT_TYPE;
-PRIM_TYPE: INTEGRAL_TYPE | FLOAT_TYPE | NUMERIC_TYPE | BOOL;
-INT_TYPE: INTEGRAL_TYPE;
-primitiveType: type=PRIM_TYPE | type=STRING (SIZE size=expr)?;
+// PRIM_TYPE:  U8 | I8 | U16 | I16 | U32 | I32 | U64 | I64 | F32 | F64 | BOOL;
+intType:  U8 | I8 | U16 | I16 | U32 | I32 | U64 | I64;
+primitiveType: type=(U8 | I8 | U16 | I16 | U32 | I32 | U64 | I64 | F32 | F64 | BOOL) | type=STRING (SIZE size=expr)?;
 typeName: primitiveType | qualIdent;
 
 commaDelim: ',' NL* | NL+;
