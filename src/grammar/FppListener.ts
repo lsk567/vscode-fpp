@@ -4,6 +4,8 @@
 import { ParseTreeListener } from "antlr4ts/tree/ParseTreeListener";
 
 import { ProgContext } from "./FppParser";
+import { ProgTopologyContext } from "./FppParser";
+import { ProgComponentContext } from "./FppParser";
 import { AbstractTypeDeclContext } from "./FppParser";
 import { ArrayDeclContext } from "./FppParser";
 import { ConstantDeclContext } from "./FppParser";
@@ -88,6 +90,28 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitProg?: (ctx: ProgContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.progTopology`.
+	 * @param ctx the parse tree
+	 */
+	enterProgTopology?: (ctx: ProgTopologyContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.progTopology`.
+	 * @param ctx the parse tree
+	 */
+	exitProgTopology?: (ctx: ProgTopologyContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.progComponent`.
+	 * @param ctx the parse tree
+	 */
+	enterProgComponent?: (ctx: ProgComponentContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.progComponent`.
+	 * @param ctx the parse tree
+	 */
+	exitProgComponent?: (ctx: ProgComponentContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.abstractTypeDecl`.

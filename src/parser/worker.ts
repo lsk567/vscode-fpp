@@ -3,19 +3,26 @@ import {
     BufferedTokenStream,
     CharStreams,
     RecognitionException,
-    Recognizer,
+    Recognizer
 } from 'antlr4ts';
 
 import { FppParser } from '../grammar/FppParser';
 import { FppLexer } from '../grammar/FppLexer';
 
+import * as Fpp from './ast';
+
+import * as fs from 'fs/promises';
+
 import { parentPort } from 'worker_threads';
-import { AstVisitor } from './visitor';
-import { IFppMessage, IDiagnostic } from './message';
+import { AstVisitor, IncludeContext, IncludeProduct } from './visitor';
+import { IFppMessage, IDiagnostic, IFppWorkerRequest } from './message';
+import { TextDecoder } from 'util';
 
 
 class SyntaxErrorListener implements ANTLRErrorListener<any> {
     diagnostics: IDiagnostic[] = [];
+
+    constructor(private readonly source: string) { }
 
     syntaxError(
         recognizer: Recognizer<any, any>,
@@ -25,6 +32,7 @@ class SyntaxErrorListener implements ANTLRErrorListener<any> {
         message: string, e: RecognitionException | undefined
     ): void {
         this.diagnostics.push({
+            source: this.source,
             range: [
                 line - 1, charPositionInLine,
                 line - 1, charPositionInLine + (e?.getOffendingToken(recognizer)?.text?.length || 1)
@@ -34,18 +42,75 @@ class SyntaxErrorListener implements ANTLRErrorListener<any> {
     }
 }
 
-parentPort?.on("message", (message: {
+let subFile: {
     path: string;
-    version: number;
     text: string;
-}) => {
+} | undefined = undefined;
+
+const textDecoder = new TextDecoder();
+async function parse(path: string, pathStack: readonly string[], context: IncludeContext): Promise<[IncludeProduct, Fpp.TranslationUnit<Fpp.Member>]> {
+    if (pathStack.includes(path)) {
+        // Cyclic dependency, stop parsing or we'll be here all week
+        throw new Error("Cyclic dependency detected");
+    }
+
+    // Get the file contents
+    let text: string;
+
+    if (subFile?.path === path) {
+        // We are currently editing this dependency
+        text = subFile.text;
+    } else {
+        // Read and decode the file
+        text = textDecoder.decode(await fs.readFile(path));
+    }
+
+    // Generate a token stream from the document
+    // Run this through C3 to get parsing candidates
+    const inputStream = CharStreams.fromString(text);
+    const lexer = new FppLexer(inputStream);
+
+    const listener = new SyntaxErrorListener(path);
+    lexer.removeErrorListeners();
+    lexer.addErrorListener(listener);
+
+    const tokenStream = new BufferedTokenStream(lexer);
+    const parser = new FppParser(tokenStream);
+    parser.removeErrorListeners();
+    parser.addErrorListener(listener);
+
+    const visitor = new AstVisitor([...pathStack, path], parse);
+    let out: Fpp.TranslationUnit<Fpp.Member>;
+    switch (context) {
+        case IncludeContext.module:
+            out = visitor.visitProg(parser.prog());
+            break;
+        case IncludeContext.topology:
+            out = visitor.visitProgTopology(parser.progTopology());
+            break;
+        case IncludeContext.component:
+            out = visitor.visitProgComponent(parser.progComponent());
+            break;
+    }
+
+    return [await visitor.finish(), out];
+}
+
+parentPort?.on("message", async (message: IFppWorkerRequest) => {
     try {
+        if (message.subText) {
+            subFile = {
+                text: message.subText[0],
+                path: message.subText[1]
+            };
+        }
+
         // Generate a token stream from the document
         // Run this through C3 to get parsing candidates
         const inputStream = CharStreams.fromString(message.text);
         const lexer = new FppLexer(inputStream);
 
-        const listener = new SyntaxErrorListener();
+        const listener = new SyntaxErrorListener(message.path);
         lexer.removeErrorListeners();
         lexer.addErrorListener(listener);
 
@@ -54,17 +119,21 @@ parentPort?.on("message", (message: {
         parser.removeErrorListeners();
         parser.addErrorListener(listener);
 
-        // Parse the input to pull the tokens through the lexer
-        const ctx = parser.prog();
-
         // Lower the ANTLR parsing tree to an AST
-        const visitor = new AstVisitor(message.path, tokenStream);
-        const ast = visitor.visitProg(ctx);
+        const visitor = new AstVisitor([message.path], parse);
+        const ast = visitor.visitProg(parser.prog());
+
+        // Wait for any includes to finish up
+        const product = await visitor.finish();
+
+        subFile = undefined;
 
         const retMessage: IFppMessage = {
             ast,
-            ranges: visitor.signature.serialize(),
-            syntaxErrors: listener.diagnostics,
+            path: message.path,
+            dependencies: product.dependencies,
+            ranges: Array.from(product.ranges.entries()),
+            syntaxErrors: listener.diagnostics.concat(product.errors),
             version: message.version
         };
 
@@ -73,7 +142,7 @@ parentPort?.on("message", (message: {
             code: "success",
             msg: retMessage
         });
-    } catch(e) {
+    } catch (e) {
         console.error(e);
         parentPort?.postMessage({
             code: "error",

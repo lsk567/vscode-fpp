@@ -5,7 +5,6 @@ import * as fs from 'fs';
 
 import * as Fpp from './parser/ast';
 import { RangeAssociator } from './associator';
-import { implicitLocation } from './parser/visitor';
 
 type MessageSeverity = "info" | "warning" | "error";
 export interface AstMessage {
@@ -60,9 +59,9 @@ export class DiangosicManager implements vscode.Disposable {
         return (f ? qual.concat(f) : qual).map(q => q ? q.value : "").join(".");
     }
 
-    clear() {
-        this.pendingDiagnostics.clear();
-        this.diagnostics.clear();
+    clear(source: string) {
+        this.pendingDiagnostics.delete(source);
+        this.diagnostics.delete(vscode.Uri.file(source));
     }
 
     dispose() {
@@ -92,135 +91,153 @@ export class DiangosicManager implements vscode.Disposable {
 }
 
 export abstract class MemberTraverser extends DiangosicManager {
-    pass(ast: Fpp.TranslationUnit, grammarSource: string) {
+    private passSemaphore: number = 0;
+
+    pass(ast: Fpp.TranslationUnit<Fpp.Member>, scope: Fpp.QualifiedIdentifier = []) {
+        this.passSemaphore++;
+
         for (const member of ast.members) {
-            this.traverse(member, grammarSource, []);
+            this.traverse(member, scope);
         }
 
-        this.flush(grammarSource);
+        this.passSemaphore--;
+
+        // Only flush diags on the outer most recursion
+        if (this.passSemaphore === 0) {
+            this.flush(ast.location.source);
+        }
     }
 
-    protected traverse(ast: Fpp.Member, grammarSource: string, scope: Fpp.QualifiedIdentifier) {
+    protected traverse(ast: Fpp.Member, scope: Fpp.QualifiedIdentifier) {
         if (ast.isError) {
             return;
         }
 
         switch (ast.type) {
             case 'AbstractTypeDecl':
-                this.abstractTypeDecl(ast, grammarSource, scope);
+                this.abstractTypeDecl(ast, scope);
                 break;
             case 'ArrayDecl':
-                this.arrayDecl(ast, grammarSource, scope);
+                this.arrayDecl(ast, scope);
                 break;
             case 'ConstantDecl':
-                this.constantDecl(ast, grammarSource, scope);
+                this.constantDecl(ast, scope);
                 break;
             case 'StructDecl':
-                this.structDecl(ast, grammarSource, scope);
+                this.structDecl(ast, scope);
                 break;
             case 'CommandDecl':
-                this.commandDecl(ast, grammarSource, scope);
+                this.commandDecl(ast, scope);
                 break;
             case 'ParamDecl':
-                this.paramDecl(ast, grammarSource, scope);
+                this.paramDecl(ast, scope);
                 break;
             case 'GeneralPortInstanceDecl':
-                this.generalPortInstanceDecl(ast, grammarSource, scope);
+                this.generalPortInstanceDecl(ast, scope);
                 break;
             case 'SpecialPortInstanceDecl':
-                this.specialPortInstanceDecl(ast, grammarSource, scope);
+                this.specialPortInstanceDecl(ast, scope);
                 break;
             case 'TelemetryChannelDecl':
-                this.telemetryChannelDecl(ast, grammarSource, scope);
+                this.telemetryChannelDecl(ast, scope);
                 break;
             case 'EnumDecl':
-                this.enumDecl(ast, grammarSource, scope);
+                this.enumDecl(ast, scope);
                 break;
             case 'EventDecl':
-                this.eventDecl(ast, grammarSource, scope);
+                this.eventDecl(ast, scope);
                 break;
             case 'IncludeStmt':
-                this.includeStmt(ast, grammarSource, scope);
+                this.includeStmt(ast, scope);
                 break;
             case 'InternalPortDecl':
-                this.internalPortDecl(ast, grammarSource, scope);
+                this.internalPortDecl(ast, scope);
                 break;
             case 'MatchStmt':
-                this.matchStmt(ast, grammarSource, scope);
+                this.matchStmt(ast, scope);
                 break;
             case 'ComponentDecl':
-                this.componentDecl(ast, grammarSource, scope);
+                this.componentDecl(ast, scope);
                 break;
             case 'ComponentInstanceDecl':
-                this.componentInstanceDecl(ast, grammarSource, scope);
+                this.componentInstanceDecl(ast, scope);
                 break;
             case 'ModuleDecl':
-                this.moduleDecl(ast, grammarSource, scope);
+                this.moduleDecl(ast, scope);
                 break;
             case 'PortDecl':
-                this.portDecl(ast, grammarSource, scope);
+                this.portDecl(ast, scope);
                 break;
             case 'TopologyDecl':
-                this.topologyDecl(ast, grammarSource, scope);
+                this.topologyDecl(ast, scope);
                 break;
             case 'LocationStmt':
-                this.locationStmt(ast, grammarSource, scope);
+                this.locationStmt(ast, scope);
                 break;
             case 'ComponentInstanceSpec':
-                this.componentInstanceSpec(ast, grammarSource, scope);
+                this.componentInstanceSpec(ast, scope);
                 break;
             case 'DirectGraphDecl':
-                this.directGraphDecl(ast, grammarSource, scope);
+                this.directGraphDecl(ast, scope);
                 break;
             case 'PatternGraphStmt':
-                this.patternGraphStmt(ast, grammarSource, scope);
+                this.patternGraphStmt(ast, scope);
                 break;
             case 'TopologyImportStmt':
-                this.topologyImportStmt(ast, grammarSource, scope);
+                this.topologyImportStmt(ast, scope);
                 break;
             default:
                 throw new Error(`Unhandled declaration type ${(ast as any).type}: ${ast}`);
         }
     }
 
-    protected abstractTypeDecl(ast: Fpp.AbstractTypeDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected arrayDecl(ast: Fpp.ArrayDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected constantDecl(ast: Fpp.ConstantDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected structDecl(ast: Fpp.StructDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected commandDecl(ast: Fpp.CommandDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected paramDecl(ast: Fpp.ParamDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected generalPortInstanceDecl(ast: Fpp.GeneralPortInstanceDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected specialPortInstanceDecl(ast: Fpp.SpecialPortInstanceDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected telemetryChannelDecl(ast: Fpp.TelemetryChannelDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected enumDecl(ast: Fpp.EnumDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected eventDecl(ast: Fpp.EventDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected includeStmt(ast: Fpp.IncludeStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected matchStmt(ast: Fpp.MatchStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected internalPortDecl(ast: Fpp.InternalPortDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected portDecl(ast: Fpp.PortDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected locationStmt(ast: Fpp.LocationStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected componentInstanceSpec(ast: Fpp.ComponentInstanceSpec, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected directGraphDecl(ast: Fpp.DirectGraphDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected patternGraphStmt(ast: Fpp.PatternGraphStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
-    protected topologyImportStmt(ast: Fpp.TopologyImportStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier) { }
+    protected abstractTypeDecl(ast: Fpp.AbstractTypeDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected arrayDecl(ast: Fpp.ArrayDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected constantDecl(ast: Fpp.ConstantDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected structDecl(ast: Fpp.StructDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected commandDecl(ast: Fpp.CommandDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected paramDecl(ast: Fpp.ParamDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected generalPortInstanceDecl(ast: Fpp.GeneralPortInstanceDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected specialPortInstanceDecl(ast: Fpp.SpecialPortInstanceDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected telemetryChannelDecl(ast: Fpp.TelemetryChannelDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected enumDecl(ast: Fpp.EnumDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected eventDecl(ast: Fpp.EventDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected matchStmt(ast: Fpp.MatchStmt, scope: Fpp.QualifiedIdentifier) { }
+    protected internalPortDecl(ast: Fpp.InternalPortDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected portDecl(ast: Fpp.PortDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected locationStmt(ast: Fpp.LocationStmt, scope: Fpp.QualifiedIdentifier) { }
+    protected componentInstanceSpec(ast: Fpp.ComponentInstanceSpec, scope: Fpp.QualifiedIdentifier) { }
+    protected directGraphDecl(ast: Fpp.DirectGraphDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected patternGraphStmt(ast: Fpp.PatternGraphStmt, scope: Fpp.QualifiedIdentifier) { }
+    protected topologyImportStmt(ast: Fpp.TopologyImportStmt, scope: Fpp.QualifiedIdentifier) { }
 
-    protected componentDecl(ast: Fpp.ComponentDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) {
-        for (const member of ast.members) {
-            this.traverse(member, grammarSource, [...scope, ast.name]);
+    protected includeStmt(ast: Fpp.IncludeStmt<Fpp.Member>, scope: Fpp.QualifiedIdentifier) {
+        if (ast.resolved) {
+            try {
+                this.pass(ast.resolved, scope);
+            } catch(e) {
+                console.error(e);
+            }
         }
     }
 
-    protected moduleDecl(ast: Fpp.ModuleDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) {
+    protected componentDecl(ast: Fpp.ComponentDecl, scope: Fpp.QualifiedIdentifier) {
         for (const member of ast.members) {
-            this.traverse(member, grammarSource, [...scope, ast.name]);
+            this.traverse(member, [...scope, ast.name]);
         }
     }
 
-    protected topologyDecl(ast: Fpp.TopologyDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) {
+    protected moduleDecl(ast: Fpp.ModuleDecl, scope: Fpp.QualifiedIdentifier) {
         for (const member of ast.members) {
-            // this.traverse(member, grammarSource, [...scope, ast.name]);
-            this.traverse(member, grammarSource, scope);
+            this.traverse(member, [...scope, ast.name]);
+        }
+    }
+
+    protected topologyDecl(ast: Fpp.TopologyDecl, scope: Fpp.QualifiedIdentifier) {
+        for (const member of ast.members) {
+            // this.traverse(member, [...scope, ast.name]);
+            this.traverse(member, scope);
         }
     }
 }
@@ -393,7 +410,7 @@ export class DeclCollector extends MemberTraverser {
     topologyPortsTrav = new class extends MemberTraverser {
         parent!: DeclCollector;
 
-        protected componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+        protected componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
             const resolved = this.parent.resolve(ast.fppType.type, scope, FppTokenType.component);
             if (!resolved) {
                 // This error will be annotated later
@@ -412,12 +429,12 @@ export class DeclCollector extends MemberTraverser {
                         const portName = MemberTraverser.flat(componentScope, member.name);
                         if (member.kind.isOutput) {
                             this.parent.generalOutputPortInstances.set(portName, member);
-                            this.parent.translationUnitDeclarations.get(grammarSource)!.push([
+                            this.parent.translationUnitDeclarations.get(ast.location.source)!.push([
                                 FppTokenType.outputPortInstance, portName,
                             ]);
                         } else {
                             this.parent.generalInputPortInstances.set(portName, member);
-                            this.parent.translationUnitDeclarations.get(grammarSource)!.push([
+                            this.parent.translationUnitDeclarations.get(ast.location.source)!.push([
                                 FppTokenType.inputPortInstance, portName,
                             ]);
                         }
@@ -478,14 +495,14 @@ export class DeclCollector extends MemberTraverser {
         this.translationUnitDeclarations.set(grammarSource, []);
     }
 
-    pass(ast: Fpp.TranslationUnit, grammarSource: string): void {
+    pass(ast: Fpp.TranslationUnit, scope: Fpp.QualifiedIdentifier = []): void {
         this.hasComponentInstances = false;
-        this.clearDecls(grammarSource);
-        super.pass(ast, grammarSource);
-        this.topologyPortsTrav.pass(ast, grammarSource);
+        this.clearDecls(ast.location.source);
+        super.pass(ast, scope);
+        this.topologyPortsTrav.pass(ast, scope);
     }
 
-    private typeCollect(decl: TypeDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier) {
+    private typeCollect(decl: TypeDecl, scope: Fpp.QualifiedIdentifier) {
         const name = MemberTraverser.flat(scope, decl.name);
         if (this.check(name, FppTokenType.type, decl.name)) {
             return;
@@ -493,10 +510,10 @@ export class DeclCollector extends MemberTraverser {
 
         decl.scope = scope;
         this.types.set(name, decl);
-        this.translationUnitDeclarations.get(grammarSource)!.push([FppTokenType.type, name]);
+        this.translationUnitDeclarations.get(decl.location.source)!.push([FppTokenType.type, name]);
     }
 
-    private constantCollect(decl: Fpp.ConstantDecl | Fpp.EnumMember, grammarSource: string, scope: Fpp.QualifiedIdentifier, defaultValue: Fpp.Expr) {
+    private constantCollect(decl: Fpp.ConstantDecl | Fpp.EnumMember, scope: Fpp.QualifiedIdentifier, defaultValue: Fpp.Expr) {
         const name = MemberTraverser.flat(scope, decl.name);
         if (this.check(name, FppTokenType.constant, decl.name)) {
             return;
@@ -510,45 +527,45 @@ export class DeclCollector extends MemberTraverser {
             value: decl.value ?? defaultValue,
             annotation: decl.annotation
         });
-        this.translationUnitDeclarations.get(grammarSource)!.push([FppTokenType.constant, name]);
+        this.translationUnitDeclarations.get(decl.location.source)!.push([FppTokenType.constant, name]);
     }
 
-    abstractTypeDecl(ast: Fpp.AbstractTypeDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
-        this.typeCollect(ast, grammarSource, scope);
+    abstractTypeDecl(ast: Fpp.AbstractTypeDecl, scope: Fpp.QualifiedIdentifier): void {
+        this.typeCollect(ast, scope);
     }
 
-    structDecl(ast: Fpp.StructDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
-        this.typeCollect(ast, grammarSource, scope);
+    structDecl(ast: Fpp.StructDecl, scope: Fpp.QualifiedIdentifier): void {
+        this.typeCollect(ast, scope);
     }
 
-    arrayDecl(ast: Fpp.ArrayDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
-        this.typeCollect(ast, grammarSource, scope);
+    arrayDecl(ast: Fpp.ArrayDecl, scope: Fpp.QualifiedIdentifier): void {
+        this.typeCollect(ast, scope);
     }
 
-    enumDecl(ast: Fpp.EnumDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
-        this.typeCollect(ast, grammarSource, scope);
+    enumDecl(ast: Fpp.EnumDecl, scope: Fpp.QualifiedIdentifier): void {
+        this.typeCollect(ast, scope);
 
         const enumScope = [...scope, ast.name];
-        const one: Fpp.Expr = { type: "IntLiteral", value: 1, location: implicitLocation };
+        const one: Fpp.Expr = { type: "IntLiteral", value: 1, location: Fpp.implicitLocation };
 
-        let lastExpression: Fpp.Expr = { type: "IntLiteral", value: -1, location: implicitLocation };
+        let lastExpression: Fpp.Expr = { type: "IntLiteral", value: -1, location: Fpp.implicitLocation };
         for (const member of ast.members) {
             let currDefault: Fpp.Expr = {
                 type: "BinaryExpr",
-                operator: { value: "+", location: implicitLocation },
-                left: lastExpression, right: one, location: implicitLocation
+                operator: { value: "+", location: Fpp.implicitLocation },
+                left: lastExpression, right: one, location: Fpp.implicitLocation
             };
 
-            this.constantCollect(member, grammarSource, enumScope, currDefault);
+            this.constantCollect(member, enumScope, currDefault);
             lastExpression = member.value ?? currDefault;
         }
     }
 
-    constantDecl(ast: Fpp.ConstantDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
-        this.constantCollect(ast, grammarSource, scope, ast.value);
+    constantDecl(ast: Fpp.ConstantDecl, scope: Fpp.QualifiedIdentifier): void {
+        this.constantCollect(ast, scope, ast.value);
     }
 
-    componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
         if (this.check(name, FppTokenType.componentInstance, ast.name)) {
             return;
@@ -556,10 +573,10 @@ export class DeclCollector extends MemberTraverser {
 
         ast.scope = scope;
         this.componentInstances.set(name, ast);
-        this.translationUnitDeclarations.get(grammarSource)!.push([FppTokenType.componentInstance, name]);
+        this.translationUnitDeclarations.get(ast.location.source)!.push([FppTokenType.componentInstance, name]);
     }
 
-    portDecl(ast: Fpp.PortDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    portDecl(ast: Fpp.PortDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
         if (this.check(name, FppTokenType.port, ast.name)) {
             return;
@@ -567,10 +584,10 @@ export class DeclCollector extends MemberTraverser {
 
         ast.scope = scope;
         this.ports.set(name, ast);
-        this.translationUnitDeclarations.get(grammarSource)!.push([FppTokenType.port, name]);
+        this.translationUnitDeclarations.get(ast.location.source)!.push([FppTokenType.port, name]);
     }
 
-    directGraphDecl(ast: Fpp.DirectGraphDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    directGraphDecl(ast: Fpp.DirectGraphDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
         if (this.graphGroups.has(name)) {
             this.conflict(name, this.graphGroups.get(name)!.name, ast.name);
@@ -579,10 +596,10 @@ export class DeclCollector extends MemberTraverser {
 
         ast.scope = scope;
         this.graphGroups.set(name, ast);
-        this.translationUnitDeclarations.get(grammarSource)!.push([FppTokenType.graphGroup, name]);
+        this.translationUnitDeclarations.get(ast.location.source)!.push([FppTokenType.graphGroup, name]);
     }
 
-    componentDecl(ast: Fpp.ComponentDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    componentDecl(ast: Fpp.ComponentDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
         if (this.check(name, FppTokenType.component, ast.name)) {
             return;
@@ -590,11 +607,11 @@ export class DeclCollector extends MemberTraverser {
 
         ast.scope = scope;
         this.components.set(name, ast);
-        this.translationUnitDeclarations.get(grammarSource)!.push([FppTokenType.component, name]);
-        super.componentDecl(ast, grammarSource, scope);
+        this.translationUnitDeclarations.get(ast.location.source)!.push([FppTokenType.component, name]);
+        super.componentDecl(ast, scope);
     }
 
-    topologyDecl(ast: Fpp.TopologyDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    topologyDecl(ast: Fpp.TopologyDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
         if (this.check(name, FppTokenType.topology, ast.name)) {
             return;
@@ -602,9 +619,9 @@ export class DeclCollector extends MemberTraverser {
 
         ast.scope = scope;
         this.topologies.set(name, ast);
-        this.translationUnitDeclarations.get(grammarSource)!.push([FppTokenType.topology, name]);
+        this.translationUnitDeclarations.get(ast.location.source)!.push([FppTokenType.topology, name]);
 
-        super.topologyDecl(ast, grammarSource, scope);
+        super.topologyDecl(ast, scope);
     }
 
     private conflict(name: string, original: Fpp.Identifier, conflict: Fpp.Identifier) {
@@ -719,7 +736,7 @@ export class DeclCollector extends MemberTraverser {
             // The scope is infered and therefore has no location
             tryScope.push({
                 value: subScope.value,
-                location: implicitLocation
+                location: Fpp.implicitLocation
             });
         }
 
@@ -739,9 +756,9 @@ export class DeclCollector extends MemberTraverser {
  *   - document links
  */
 export class FppAnnotator extends MemberTraverser {
-    tokens = new vscode.SemanticTokensBuilder(fppLegend);
-    definitions = new RangeAssociator<Fpp.Decl>();
-    links: vscode.DocumentLink[] = [];
+    tokens = new Map<string, vscode.SemanticTokensBuilder>();
+    definitions = new Map<string, RangeAssociator<Fpp.Decl>>();
+    links = new Map<string, vscode.DocumentLink[]>();
 
     exprTrav = new (class extends ExpressionTraverser {
         parent!: FppAnnotator;
@@ -930,21 +947,21 @@ export class FppAnnotator extends MemberTraverser {
                     // Provide semantics and links to member names in struct expressions
                     this.parent.semantic(member.name, FppTokenType.parameter);
                     memberDefinition.scope = this.scope;
-                    this.parent.definitions.add(FppAnnotator.asRange(member.name.location), memberDefinition);
+                    this.parent.addDefinition(member.name.location.source, FppAnnotator.asRange(member.name.location), memberDefinition);
 
                     // Validate the member value types
                     if (memberDefinition.size) {
-                        const typeNameTok = { value: "Annonymous Array", location: implicitLocation };
+                        const typeNameTok = { value: "Annonymous Array", location: Fpp.implicitLocation };
                         this.setType({
                             complex: true,
                             type: [typeNameTok],
-                            location: implicitLocation
+                            location: Fpp.implicitLocation
                         }, {
                             name: typeNameTok,
                             type: "ArrayDecl",
                             fppType: memberDefinition.fppType,
                             size: memberDefinition.size,
-                            location: implicitLocation
+                            location: Fpp.implicitLocation
                         });
                     } else {
                         this.setType(memberDefinition.fppType);
@@ -994,16 +1011,16 @@ export class FppAnnotator extends MemberTraverser {
         this.exprTrav.parent = this;
     }
 
-    clear() {
-        this.tokens = new vscode.SemanticTokensBuilder(fppLegend);
-        this.definitions = new RangeAssociator<Fpp.Decl>();
-        this.links = [];
+    clear(source: string) {
+        this.tokens.delete(source);
+        this.definitions.delete(source);
+        this.links.delete(source);
     }
 
-    pass(ast: Fpp.TranslationUnit, grammarSource: string): void {
-        this.clear();
-        this.decl.pass(ast, grammarSource);
-        super.pass(ast, grammarSource);
+    pass(ast: Fpp.TranslationUnit, scope: Fpp.QualifiedIdentifier = []): void {
+        this.clear(ast.location.source);
+        this.decl.pass(ast, scope);
+        super.pass(ast, scope);
     }
 
     semantic(tok: Fpp.Identifier, type: FppTokenType) {
@@ -1012,7 +1029,32 @@ export class FppAnnotator extends MemberTraverser {
             return;
         }
 
-        this.tokens.push(FppAnnotator.asRange(tok.location), fppLegend.tokenTypes[type]);
+        let builder = this.tokens.get(tok.location.source);
+        if (!builder) {
+            builder = new vscode.SemanticTokensBuilder(fppLegend);
+            this.tokens.set(tok.location.source, builder);
+        }
+
+        builder.push(FppAnnotator.asRange(tok.location), fppLegend.tokenTypes[type]);
+    }
+
+    addDefinition(source: string, range: vscode.Range, value: Fpp.Decl) {
+        let associator = this.definitions.get(source);
+        if (!associator) {
+            associator = new RangeAssociator<Fpp.Decl>();
+            this.definitions.set(source, associator);
+        }
+
+        associator.add(range, value);
+    }
+
+    addLink(source: string, link: vscode.DocumentLink) {
+        let links = this.links.get(source);
+        if (!links) {
+            this.links.set(source, [link]);
+        } else {
+            links.push(link);
+        }
     }
 
     private identifier(ident: Fpp.QualifiedIdentifier, scope: Fpp.QualifiedIdentifier, type: FppTokenType): Fpp.Decl | undefined {
@@ -1037,11 +1079,12 @@ export class FppAnnotator extends MemberTraverser {
             return;
         }
 
-        this.semantic(resolved[resolved.length - 1], type);
+        const finalTok = resolved[resolved.length - 1];
+        this.semantic(finalTok, type);
         const resolveDecl = this.decl.get(MemberTraverser.flat(resolved), type)!;
 
         // Attach the definition to this token
-        this.definitions.add(FppAnnotator.asRange(resolved[resolved.length - 1].location), resolveDecl);
+        this.addDefinition(finalTok.location.source, FppAnnotator.asRange(resolved[resolved.length - 1].location), resolveDecl);
 
         const fullyResolvedQualifier = [...(resolveDecl.scope ?? scope), resolveDecl.name];
 
@@ -1077,7 +1120,7 @@ export class FppAnnotator extends MemberTraverser {
                 this.semantic(tok, foundT);
 
                 // Attach the definition to this token
-                this.definitions.add(FppAnnotator.asRange(tok.location), decl);
+                this.addDefinition(tok.location.source, FppAnnotator.asRange(tok.location), decl);
             } else {
                 // If the declaration doesn't explicitly exist,
                 // it must be module. Module declarations are not
@@ -1087,7 +1130,7 @@ export class FppAnnotator extends MemberTraverser {
                 // We don't actually keep track of module AST positions
                 // outside of their own scope so we should do anything more
                 // than color the token semantics
-                this.definitions.add(FppAnnotator.asRange(tok.location), {
+                this.addDefinition(tok.location.source, FppAnnotator.asRange(tok.location), {
                     location: fullyResolvedQualifier[resolved.length - i - 1].location,
                     scope: resolved.slice(0, resolved.length - i - 1),
                     type: "ModuleDecl",
@@ -1104,7 +1147,7 @@ export class FppAnnotator extends MemberTraverser {
                 continue;
             }
 
-            this.definitions.add(FppAnnotator.asRange(tok.location), {
+            this.addDefinition(tok.location.source, FppAnnotator.asRange(tok.location), {
                 location: fullyResolvedQualifier[j].location,
                 scope: resolved.slice(0, j),
                 type: "ModuleDecl",
@@ -1129,25 +1172,25 @@ export class FppAnnotator extends MemberTraverser {
         }
     }
 
-    abstractTypeDecl(ast: Fpp.AbstractTypeDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    abstractTypeDecl(ast: Fpp.AbstractTypeDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.type);
     }
 
-    arrayDecl(ast: Fpp.ArrayDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    arrayDecl(ast: Fpp.ArrayDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.type);
         this.type(ast.fppType, scope);
-        this.expr(ast.default_, scope, { complex: true, type: [ast.name], location: implicitLocation });
-        this.expr(ast.size, scope, { complex: false, type: "U32", location: implicitLocation });
+        this.expr(ast.default_, scope, { complex: true, type: [ast.name], location: Fpp.implicitLocation });
+        this.expr(ast.size, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
     }
 
-    constantDecl(ast: Fpp.ConstantDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    constantDecl(ast: Fpp.ConstantDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.constant);
 
         // TODO(tumbar) Do we need another compiler stage to infer the constant type?
-        this.expr(ast.value, scope, { complex: false, type: "F64", location: implicitLocation });
+        this.expr(ast.value, scope, { complex: false, type: "F64", location: Fpp.implicitLocation });
     }
 
-    structDecl(ast: Fpp.StructDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    structDecl(ast: Fpp.StructDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.type);
         for (const member of ast.members) {
             this.semantic(member.name, FppTokenType.parameter);
@@ -1155,14 +1198,14 @@ export class FppAnnotator extends MemberTraverser {
         }
     }
 
-    enumDecl(ast: Fpp.EnumDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    enumDecl(ast: Fpp.EnumDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.type);
         for (const member of ast.members) {
             this.semantic(member.name, FppTokenType.constant);
         }
     }
 
-    commandDecl(ast: Fpp.CommandDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    commandDecl(ast: Fpp.CommandDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.cppInterface);
         for (const member of ast.params) {
             this.semantic(member.name, FppTokenType.parameter);
@@ -1170,22 +1213,22 @@ export class FppAnnotator extends MemberTraverser {
         }
     }
 
-    paramDecl(ast: Fpp.ParamDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    paramDecl(ast: Fpp.ParamDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.cppInterface);
         this.type(ast.fppType, scope);
         this.expr(ast.default_, scope, ast.fppType);
     }
 
-    generalPortInstanceDecl(ast: Fpp.GeneralPortInstanceDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    generalPortInstanceDecl(ast: Fpp.GeneralPortInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, (ast.kind.direction.value === "input") ? FppTokenType.inputPortInstance : FppTokenType.outputPortInstance);
         if (ast.fppType) {
             this.identifier(ast.fppType.type, scope, FppTokenType.port);
         }
 
-        this.expr(ast.n, scope, { complex: false, type: "U32", location: implicitLocation });
+        this.expr(ast.n, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
     }
 
-    specialPortInstanceDecl(ast: Fpp.SpecialPortInstanceDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    specialPortInstanceDecl(ast: Fpp.SpecialPortInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic({ value: "", location: ast.kind.location }, FppTokenType.modifier);
 
         // Not a port instance because we shouldn't be allowed to
@@ -1193,12 +1236,12 @@ export class FppAnnotator extends MemberTraverser {
         this.semantic(ast.name, FppTokenType.cppInterface);
     }
 
-    telemetryChannelDecl(ast: Fpp.TelemetryChannelDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    telemetryChannelDecl(ast: Fpp.TelemetryChannelDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.cppInterface);
         this.type(ast.fppType, scope);
     }
 
-    eventDecl(ast: Fpp.EventDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    eventDecl(ast: Fpp.EventDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.cppInterface);
         for (const param of ast.params) {
             this.semantic(param.name, FppTokenType.parameter);
@@ -1206,12 +1249,12 @@ export class FppAnnotator extends MemberTraverser {
         }
     }
 
-    matchStmt(ast: Fpp.MatchStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    matchStmt(ast: Fpp.MatchStmt, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.match, FppTokenType.inputPortInstance);
         this.semantic(ast.with, FppTokenType.outputPortInstance);
     }
 
-    internalPortDecl(ast: Fpp.InternalPortDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    internalPortDecl(ast: Fpp.InternalPortDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.cppInterface);
         for (const param of ast.params) {
             this.semantic(param.name, FppTokenType.parameter);
@@ -1219,7 +1262,7 @@ export class FppAnnotator extends MemberTraverser {
         }
     }
 
-    componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.componentInstance);
 
         let fppTypeDecl: Fpp.Decl | undefined;
@@ -1230,7 +1273,7 @@ export class FppAnnotator extends MemberTraverser {
         if (ast.at) {
             if (!ast.fppType) {
                 this.emit(
-                    vscode.Uri.file(grammarSource),
+                    vscode.Uri.file(ast.location.source),
                     new vscode.Diagnostic(FppAnnotator.asRange(ast.at.location),
                         "Component instance with an 'at' specifier must also include a FPrime component reference")
                 );
@@ -1240,7 +1283,8 @@ export class FppAnnotator extends MemberTraverser {
                     const resolvedPath = path.resolve(path.dirname(fppTypeDecl.name.location.source), ast.at.value);
 
                     if (fs.existsSync(resolvedPath)) {
-                        this.links.push(
+                        this.addLink(
+                            ast.location.source,
                             new vscode.DocumentLink(
                                 MemberTraverser.asRange(ast.at.location),
                                 vscode.Uri.file(resolvedPath)
@@ -1248,7 +1292,7 @@ export class FppAnnotator extends MemberTraverser {
                         );
                     } else {
                         this.emit(
-                            vscode.Uri.file(grammarSource),
+                            vscode.Uri.file(ast.location.source),
                             new vscode.Diagnostic(FppAnnotator.asRange(ast.at.location),
                                 `File '${resolvedPath}' does not exist`)
                         );
@@ -1257,18 +1301,18 @@ export class FppAnnotator extends MemberTraverser {
             }
         }
 
-        this.expr(ast.baseId, scope, { complex: false, type: "U32", location: implicitLocation });
-        this.expr(ast.queueSize, scope, { complex: false, type: "U32", location: implicitLocation });
-        this.expr(ast.stackSize, scope, { complex: false, type: "U32", location: implicitLocation });
-        this.expr(ast.priority, scope, { complex: false, type: "U32", location: implicitLocation });
-        this.expr(ast.cpu, scope, { complex: false, type: "U32", location: implicitLocation });
+        this.expr(ast.baseId, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
+        this.expr(ast.queueSize, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
+        this.expr(ast.stackSize, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
+        this.expr(ast.priority, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
+        this.expr(ast.cpu, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
 
         for (const init of ast.init) {
-            this.expr(init.phase, scope, { complex: false, type: "string", location: implicitLocation });
+            this.expr(init.phase, scope, { complex: false, type: "string", location: Fpp.implicitLocation });
         }
     }
 
-    portDecl(ast: Fpp.PortDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    portDecl(ast: Fpp.PortDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.cppInterface);
         if (ast.returnType) {
             this.type(ast.returnType, scope);
@@ -1280,7 +1324,7 @@ export class FppAnnotator extends MemberTraverser {
         }
     }
 
-    locationStmt(ast: Fpp.LocationStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    locationStmt(ast: Fpp.LocationStmt, scope: Fpp.QualifiedIdentifier): void {
         switch (ast.kind.value) {
             case 'instance':
                 this.identifier(ast.name, scope, FppTokenType.componentInstance);
@@ -1302,7 +1346,8 @@ export class FppAnnotator extends MemberTraverser {
                 break;
         }
 
-        this.links.push(
+        this.addLink(
+            ast.location.source,
             new vscode.DocumentLink(
                 MemberTraverser.asRange(ast.path.location),
                 vscode.Uri.file(ast.path.value)
@@ -1310,52 +1355,55 @@ export class FppAnnotator extends MemberTraverser {
         );
     }
 
-    protected includeStmt(ast: Fpp.IncludeStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
-        this.links.push(
+    protected includeStmt(ast: Fpp.IncludeStmt<Fpp.Member>, scope: Fpp.QualifiedIdentifier): void {
+        this.addLink(
+            ast.location.source,
             new vscode.DocumentLink(
                 MemberTraverser.asRange(ast.include.location),
                 vscode.Uri.file(ast.include.value)
             )
         );
+
+        super.includeStmt(ast, scope);
     }
 
-    componentInstanceSpec(ast: Fpp.ComponentInstanceSpec, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    componentInstanceSpec(ast: Fpp.ComponentInstanceSpec, scope: Fpp.QualifiedIdentifier): void {
         this.identifier(ast.name, scope, FppTokenType.componentInstance);
     }
 
-    directGraphDecl(ast: Fpp.DirectGraphDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    directGraphDecl(ast: Fpp.DirectGraphDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.graphGroup);
         for (const conn of ast.connections) {
             this.identifier(conn.source.node, scope, FppTokenType.outputPortInstance);
-            this.expr(conn.source.index, scope, { complex: false, type: "I32", location: implicitLocation });
+            this.expr(conn.source.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
             this.identifier(conn.destination.node, scope, FppTokenType.inputPortInstance);
-            this.expr(conn.destination.index, scope, { complex: false, type: "I32", location: implicitLocation });
+            this.expr(conn.destination.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
         }
     }
 
-    patternGraphStmt(ast: Fpp.PatternGraphStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    patternGraphStmt(ast: Fpp.PatternGraphStmt, scope: Fpp.QualifiedIdentifier): void {
         this.identifier(ast.target, scope, FppTokenType.componentInstance);
         for (const sources of ast.sources) {
             this.identifier(sources, scope, FppTokenType.componentInstance);
         }
     }
 
-    topologyImportStmt(ast: Fpp.TopologyImportStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    topologyImportStmt(ast: Fpp.TopologyImportStmt, scope: Fpp.QualifiedIdentifier): void {
         this.identifier(ast.topology, scope, FppTokenType.topology);
     }
 
-    componentDecl(ast: Fpp.ComponentDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    componentDecl(ast: Fpp.ComponentDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.component);
-        super.componentDecl(ast, grammarSource, scope);
+        super.componentDecl(ast, scope);
     }
 
-    moduleDecl(ast: Fpp.ModuleDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    moduleDecl(ast: Fpp.ModuleDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.module);
-        super.moduleDecl(ast, grammarSource, scope);
+        super.moduleDecl(ast, scope);
     }
 
-    topologyDecl(ast: Fpp.TopologyDecl, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+    topologyDecl(ast: Fpp.TopologyDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.topology);
-        super.topologyDecl(ast, grammarSource, scope);
+        super.topologyDecl(ast, scope);
     }
 }

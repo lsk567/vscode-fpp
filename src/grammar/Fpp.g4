@@ -5,6 +5,16 @@ prog:
     EOF
     ;
 
+progTopology:
+    NL* (topologyMember (semiDelim | EOF))* NL*
+    EOF
+    ;
+
+progComponent:
+    NL* (componentMember (semiDelim | EOF))* NL*
+    EOF
+    ;
+
 abstractTypeDecl: TYPE name=IDENTIFIER;
 arrayDecl:
     ARRAY name=IDENTIFIER '=' '[' size=expr ']'

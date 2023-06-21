@@ -86,7 +86,7 @@ class FppExtension implements
                 });
             },
             (deleteUri) => {
-                this.manager.clear(deleteUri);
+                this.manager.clear(deleteUri.path);
             },
             async (locs: Set<string>) => {
                 // Reindex all file to resolve declaration errors
@@ -145,23 +145,19 @@ class FppExtension implements
 
     _onDidChangeSemanticTokens = new vscode.EventEmitter<void>();
     onDidChangeSemanticTokens = this._onDidChangeSemanticTokens.event;
-    async provideDocumentSemanticTokens(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.SemanticTokens> {
-        return (await this.manager.get(document)).tokens.build();
+    async provideDocumentSemanticTokens(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.SemanticTokens | undefined> {
+        return (await this.manager.get(document, token)).tokens.get(document.uri.path)?.build();
     }
 
     async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Definition | undefined> {
-        const definition = (await this.manager.get(document)).definitions.get(position);
+        const definition = (await this.manager.get(document, token)).definitions.get(document.uri.path)?.get(position);
         if (definition) {
             return FppAnnotator.asLocation(definition.name.location);
         }
     }
 
-    provideTypeDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): vscode.ProviderResult<vscode.Definition> {
-        return undefined;
-    }
-
     async provideDocumentLinks(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.DocumentLink[]> {
-        return (await this.manager.get(document)).links;
+        return (await this.manager.get(document, token)).links.get(document.uri.path) ?? [];
     }
 
     async provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Hover | undefined> {
@@ -170,7 +166,7 @@ class FppExtension implements
         }
 
         // Check if we are hovering over a variable reference
-        const association = (await this.manager.get(document, token)).definitions.getAssociation(position);
+        const association = (await this.manager.get(document, token)).definitions.get(document.uri.path)?.getAssociation(position);
 
         let range: vscode.Range | undefined = undefined;
         const md: vscode.MarkdownString[] = [];
@@ -436,7 +432,7 @@ class FppExtension implements
         }
 
         // Provide all signatures of candidate rules
-        const matched = (await this.manager.parse(document, token)).ranges.getAssociation(position);
+        const matched = (await this.manager.parse(document, token)).ranges.get(document.uri.path)?.getAssociation(position);
         if (matched) {
             const ruleName = FppParser.ruleNames[matched.value.rule];
             const iSignature = signaturesDefinitions[ruleName];

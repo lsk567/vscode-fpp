@@ -71,7 +71,7 @@ export class FppProject implements vscode.Disposable {
         });
 
         // Parse the locs file
-        this.locsTrav.pass(ast, this.locsFile.path);
+        this.locsTrav.pass(ast);
 
         // Wait for all files to finish
         for (const prom of this.locsTrav.promises) {
@@ -94,10 +94,10 @@ export class FppProject implements vscode.Disposable {
         newLocs = new Set<string>();
         promises: Promise<void>[] = [];
 
-        pass(ast: Fpp.TranslationUnit, grammarSource: string): void {
+        pass(ast: Fpp.TranslationUnit): void {
             this.newLocs.clear();
             this.promises = [];
-            super.pass(ast, grammarSource);
+            super.pass(ast);
 
             for (const loc of this.parent) {
                 if (!this.newLocs.has(loc)) {
@@ -108,7 +108,7 @@ export class FppProject implements vscode.Disposable {
             this.parent.setLocs(this.newLocs);
         }
 
-        protected locationStmt(ast: Fpp.LocationStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
+        protected locationStmt(ast: Fpp.LocationStmt, scope: Fpp.QualifiedIdentifier): void {
             if (this.newLocs.has(ast.path.value)) {
                 // No need to double dip this file
                 return;

@@ -4,6 +4,8 @@
 import { ParseTreeVisitor } from "antlr4ts/tree/ParseTreeVisitor";
 
 import { ProgContext } from "./FppParser";
+import { ProgTopologyContext } from "./FppParser";
+import { ProgComponentContext } from "./FppParser";
 import { AbstractTypeDeclContext } from "./FppParser";
 import { ArrayDeclContext } from "./FppParser";
 import { ConstantDeclContext } from "./FppParser";
@@ -87,6 +89,20 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	 * @return the visitor result
 	 */
 	visitProg?: (ctx: ProgContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.progTopology`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitProgTopology?: (ctx: ProgTopologyContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.progComponent`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitProgComponent?: (ctx: ProgComponentContext) => Result;
 
 	/**
 	 * Visit a parse tree produced by `FppParser.abstractTypeDecl`.

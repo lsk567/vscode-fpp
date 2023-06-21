@@ -1,34 +1,82 @@
 import * as path from 'path';
 
 import { FppVisitor } from '../grammar/FppVisitor';
-import { ParserRuleContext, Token, TokenStream } from "antlr4ts";
+import { ParserRuleContext, Token } from "antlr4ts";
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
 
 import * as Fpp from './ast';
 import * as FppParser from '../grammar/FppParser';
-import { SyntaxTree } from 'antlr4ts/tree/SyntaxTree';
-import { Interval } from 'antlr4ts/misc/Interval';
-import { RangeAssociator } from '../associator';
+import { IRangeAssociation, RangeAssociator } from '../associator';
+import { RangeRuleAssociation } from './common';
+import { IDiagnostic } from './message';
 
-export const implicitLocation: Fpp.Location = {
-    source: "",
-    start: { line: -1, column: -1 },
-    end: { line: -1, column: -1 },
-};
+export enum IncludeContext {
+    module,
+    topology,
+    component
+}
 
-export interface RangeRuleAssociation {
-    rule: number;
-    param: string;
+export interface IncludeProduct {
+    source: string;
+    dependencies: string[];
+    ranges: Map<string, IRangeAssociation>;
+    errors: IDiagnostic[];
 }
 
 export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements FppVisitor<Fpp.Ast> {
     signature = new RangeAssociator<RangeRuleAssociation>();
 
+    private promises: [FppParser.IncludeStmtContext, Promise<IncludeProduct>][] = [];
+    private includeContextStack: IncludeContext[] = [];
+    private source: string;
+
     constructor(
-        private readonly source: string,
-        private readonly stream: TokenStream
+        private readonly sourceStack: readonly string[],
+        private readonly onInclude: (path: string, pathStack: readonly string[], context: IncludeContext) => Promise<[IncludeProduct, Fpp.TranslationUnit<Fpp.Member>]>,
     ) {
         super();
+        this.source = this.sourceStack[this.sourceStack.length - 1];
+    }
+
+    async finish(): Promise<IncludeProduct> {
+        const product: IncludeProduct = {
+            source: this.source,
+            dependencies: [],
+            ranges: new Map<string, IRangeAssociation>(),
+            errors: []
+        };
+
+        product.ranges.set(this.source, this.signature.serialize());
+
+        for (const [ctx, promise] of this.promises) {
+            try {
+                const singleProduct = await promise;
+                product.dependencies.push(singleProduct.source);
+                product.dependencies = product.dependencies.concat(singleProduct.dependencies);
+                product.errors = product.errors.concat(singleProduct.errors);
+
+                for (const [key, ranges] of singleProduct.ranges) {
+                    if (!product.ranges.has(key)) {
+                        product.ranges.set(key, ranges);
+                    } else {
+                        console.error("Found duplicate ranges for ", key);
+                    }
+                }
+
+            } catch(e) {
+                const loc = this.loc(ctx);
+                product.errors.push({
+                    source: this.source,
+                    range: [
+                        loc.start.line, loc.start.column,
+                        loc.end.line, loc.end.column
+                    ],
+                    message: `${e}`
+                });
+            }
+        }
+
+        return product;
     }
 
     protected defaultResult(): Fpp.Ast {
@@ -37,7 +85,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
     private error(): any {
         return {
-            location: implicitLocation,
+            location: Fpp.implicitLocation,
             isError: true
         };
     }
@@ -51,7 +99,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
     private loc(ctx: ParserRuleContext): Fpp.Location {
         if (!ctx) {
-            return implicitLocation;
+            return Fpp.implicitLocation;
         }
 
         return {
@@ -134,10 +182,11 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             this.signature.add(
                 {
                     start: { line: ctx.line - 1, character: ctx.charPositionInLine },
-                    
+
                     end: {
                         line: ctx.line - 1 + textLines.length - 1,
-                        character: textLines.length > 1 ? finalLineLen : ctx.charPositionInLine + finalLineLen }
+                        character: textLines.length > 1 ? finalLineLen : ctx.charPositionInLine + finalLineLen
+                    }
                 }, { rule, param }
             );
         }
@@ -206,10 +255,40 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        this.includeContextStack.push(IncludeContext.module);
+
         return {
             type: "TranslationUnit",
             location: this.loc(ctx),
             members: ctx.moduleMember().map(this.visitModuleMember.bind(this)) as Fpp.ModuleMember[]
+        };
+    }
+
+    visitProgTopology(ctx: FppParser.ProgTopologyContext): Fpp.TranslationUnit<Fpp.TopologyMember> {
+        if (!ctx) {
+            return this.error();
+        }
+
+        this.includeContextStack.push(IncludeContext.topology);
+
+        return {
+            type: "TranslationUnit",
+            location: this.loc(ctx),
+            members: ctx.topologyMember().map(this.visitTopologyMember.bind(this)) as Fpp.TopologyMember[]
+        };
+    }
+
+    visitProgComponent(ctx: FppParser.ProgComponentContext): Fpp.TranslationUnit<Fpp.ComponentMember> {
+        if (!ctx) {
+            return this.error();
+        }
+
+        this.includeContextStack.push(IncludeContext.component);
+
+        return {
+            type: "TranslationUnit",
+            location: this.loc(ctx),
+            members: ctx.componentMember().map(this.visitComponentMember.bind(this)) as Fpp.ComponentMember[]
         };
     }
 
@@ -758,7 +837,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
-    visitIncludeStmt(ctx: FppParser.IncludeStmtContext): Fpp.IncludeStmt {
+    visitIncludeStmt(ctx: FppParser.IncludeStmtContext): Fpp.IncludeStmt<Fpp.Member> {
         if (!ctx) {
             return this.error();
         }
@@ -766,11 +845,21 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         this.associate(ctx.INCLUDE().symbol, ctx.ruleIndex, "include");
         this.associate(ctx._include, ctx.ruleIndex, "includeFile");
 
-        return {
+        const outAst: Fpp.IncludeStmt<Fpp.Member> = {
             type: "IncludeStmt",
             location: this.loc(ctx),
-            include: this.resolvePath(this.stringLiteral(ctx._include))
+            include: this.resolvePath(this.stringLiteral(ctx._include)),
+            resolved: undefined as any
         };
+
+        if (outAst.include && !outAst.include.isError) {
+            const currentContext = this.includeContextStack[this.includeContextStack.length - 1];
+
+            const parsePromise = this.onInclude(outAst.include.value, this.sourceStack, currentContext);
+            this.promises.push([ctx, parsePromise.then(v => { outAst.resolved = v[1]; return v[0]; })]);
+        }
+
+        return outAst;
     }
 
     visitMatchStmt(ctx: FppParser.MatchStmtContext): Fpp.MatchStmt {
@@ -912,12 +1001,16 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        this.includeContextStack.push(IncludeContext.component);
+
         const members: Fpp.ComponentMember[] = [];
         for (const memberCtx of ctx.componentMember()) {
             try {
                 members.push(this.visitComponentMember(memberCtx));
-            } catch(e) { }
+            } catch (e) { }
         }
+
+        this.includeContextStack.pop();
 
         return {
             type: "ComponentDecl",
@@ -1055,12 +1148,17 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        this.includeContextStack.push(IncludeContext.topology);
+
         const members: Fpp.TopologyMember[] = [];
         for (const memberCtx of ctx.topologyMember()) {
             try {
                 members.push(this.visitTopologyMember(memberCtx) as Fpp.TopologyMember);
-            } catch(e) { }
+            } catch (e) { }
         }
+
+        this.includeContextStack.pop();
+
         return {
             type: "TopologyDecl",
             fppType: undefined,
@@ -1097,12 +1195,16 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        this.includeContextStack.push(IncludeContext.module);
+
         const members: Fpp.ModuleMember[] = [];
         for (const memberCtx of ctx.moduleMember()) {
             try {
                 members.push(this.visitModuleMember(memberCtx));
-            } catch(e) { }
+            } catch (e) { }
         }
+
+        this.includeContextStack.pop();
 
         return {
             type: "ModuleDecl",

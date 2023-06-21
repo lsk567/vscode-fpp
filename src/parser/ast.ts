@@ -1,3 +1,9 @@
+export const implicitLocation: Location = {
+    source: "",
+    start: { line: -1, column: -1 },
+    end: { line: -1, column: -1 },
+};
+
 export function isIntegral(type: string): boolean {
     switch (type) {
         case "U8":
@@ -249,7 +255,7 @@ export type ComponentMember = (
     TelemetryChannelDecl |
     EnumDecl |
     EventDecl |
-    IncludeStmt |
+    IncludeStmt<ComponentMember> |
     MatchStmt |
     InternalPortDecl
 );
@@ -308,9 +314,13 @@ export interface EventDecl extends Decl {
     throttle?: Expr;
 }
 
-export interface IncludeStmt extends Annotatable {
+export interface IncludeStmt<T> extends Annotatable {
     type: "IncludeStmt";
     include: StringLiteral;
+
+    // The imported file is resolved asynchronously
+    // If this ends up undefined, it failed to parse/read file
+    resolved?: TranslationUnit<T>;
 }
 
 export interface MatchStmt extends Annotatable {
@@ -399,7 +409,7 @@ export type TopologyMember = (
     DirectGraphDecl |
     PatternGraphStmt |
     TopologyImportStmt |
-    IncludeStmt
+    IncludeStmt<TopologyMember>
 );
 
 export interface TopologyDecl extends Decl {
@@ -436,7 +446,7 @@ export type ModuleMember = (
     TopologyDecl |
     LocationStmt |
     EnumDecl |
-    IncludeStmt
+    IncludeStmt<ModuleMember>
 );
 export interface ModuleDecl extends Decl {
     type: "ModuleDecl";
@@ -517,7 +527,7 @@ export type QualifiedIdentifier = Identifier[];
 
 
 export type Member = ( ModuleMember | TopologyMember | ComponentMember );
-export interface TranslationUnit extends Ast {
+export interface TranslationUnit<T = ModuleMember> extends Ast {
     type: "TranslationUnit";
-    members: ModuleMember[];
+    members: T[];
 };

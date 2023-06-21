@@ -47,7 +47,8 @@
                     "fpp"
                 ],
                 "extensions": [
-                    ".fpp"
+                    ".fpp",
+                    ".fppi"
                 ],
                 "configuration": "./syntax/language-configuration.json"
             }

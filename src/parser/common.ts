@@ -1,5 +1,10 @@
 import { FppParser } from '../grammar/FppParser';
 
+export interface RangeRuleAssociation {
+    rule: number;
+    param: string;
+}
+
 export const declRules = new Set([
     FppParser.RULE_abstractTypeDecl,
     FppParser.RULE_arrayDecl,

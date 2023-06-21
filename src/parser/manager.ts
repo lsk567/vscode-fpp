@@ -4,16 +4,17 @@ import { Worker } from 'worker_threads';
 
 import * as Fpp from './ast';
 import { DeclCollector, DiangosicManager, FppAnnotator } from '../fpp';
-import { IFppMessage, IRange } from './message';
+import { IFppMessage, IFppWorkerRequest } from './message';
 import { TextDecoder } from 'util';
 import path from 'path';
 import { RangeAssociator } from '../associator';
-import { RangeRuleAssociation } from './visitor';
+import { RangeRuleAssociation } from './common';
 
 interface DocumentOrFile {
     path: string;
     version: number; // 0 for files
     getText(): string;
+    getTextSub?(): [string, string];
 }
 
 interface PendingParse {
@@ -51,29 +52,33 @@ export interface ParsingOptions {
 
 export class FppMessage {
     constructor(
+        readonly path: string,
         readonly version: number,
         readonly ast: Fpp.TranslationUnit,
-        readonly ranges: RangeAssociator<RangeRuleAssociation>,
-        readonly syntaxErrors: vscode.Diagnostic[]
+        readonly dependencies: Set<string>,
+        readonly ranges: Map<string, RangeAssociator<RangeRuleAssociation>>,
+        readonly syntaxErrors: [string, vscode.Diagnostic][]
     ) {
-    }
-
-    private static deserializeRange(iface: IRange): vscode.Range {
-        return new vscode.Range(
-            new vscode.Position(iface[0], iface[1]),
-            new vscode.Position(iface[2], iface[3]),
-        );
     }
 
     static deserialize(msg: IFppMessage): FppMessage {
         return new FppMessage(
+            msg.path,
             msg.version,
             msg.ast,
-            new RangeAssociator<RangeRuleAssociation>(msg.ranges),
-            msg.syntaxErrors.map((diag) => new vscode.Diagnostic(
-                FppMessage.deserializeRange(diag.range),
-                diag.message
-            ))
+            new Set<string>(msg.dependencies),
+            new Map<string, RangeAssociator<RangeRuleAssociation>>(
+                msg.ranges.map(v => [
+                    v[0],
+                    new RangeAssociator<RangeRuleAssociation>(v[1])
+                ])
+            ),
+            msg.syntaxErrors.map((diag) => ([
+                diag.source, new vscode.Diagnostic(
+                    new vscode.Range(...diag.range),
+                    diag.message
+                )
+            ]))
         );
     }
 }
@@ -143,8 +148,9 @@ class FppWorker extends Worker implements vscode.Disposable {
                 this.postMessage({
                     path: nextItem,
                     version: parsing.document.version,
-                    text: parsing.document.getText()
-                });
+                    text: parsing.document.getText(),
+                    subText: parsing.document.getTextSub?.()
+                } as IFppWorkerRequest);
             }
         }
     }
@@ -208,6 +214,7 @@ export class AstManager implements vscode.Disposable {
     private syntaxListener: DiangosicManager;
 
     private hasComponentInstances = new Set<string>();
+    private parentFile = new Map<string, string>();
 
     constructor(
         public readonly documentSelector: vscode.DocumentSelector
@@ -235,14 +242,18 @@ export class AstManager implements vscode.Disposable {
 
     async get(document: vscode.TextDocument, token?: vscode.CancellationToken): Promise<FppAnnotator> {
         // Re-parse the document if needed
-        await this.parse(document, token);
-        return this.annotations.get(document.uri.path)!;
+        const parseOut = await this.parse(document, token);
+        return this.annotations.get(parseOut.path)!;
     }
 
-    clear(uri: vscode.Uri) {
-        this.decl.clearDecls(uri.path);
-        this.annotations.get(uri.path)?.dispose();
-        this.annotations.delete(uri.path);
+    clear(path: string) {
+        this.decl.clearDecls(path);
+        this.asts.delete(path);
+        this.hasComponentInstances.delete(path);
+        this.annotations.get(path)?.dispose();
+        this.annotations.delete(path);
+        this.syntaxListener.flush(path);
+        this.syntaxListener.flush(path);
     }
 
     refreshAnnotations(options?: ParsingOptions, ignoreKey?: string) {
@@ -269,7 +280,7 @@ export class AstManager implements vscode.Disposable {
                 if (options?.disableDiagnostics) {
                     annotations?.disable();
                 }
-                annotations?.pass(ast.ast, textDocument.uri.path);
+                annotations?.pass(ast.ast);
                 annotations?.enable();
             }
         }
@@ -289,9 +300,21 @@ export class AstManager implements vscode.Disposable {
             if (options?.disableDiagnostics) {
                 annotations?.disable();
             }
-            annotations?.pass(ast.ast, needsRefreshUri);
+            annotations?.pass(ast.ast);
             annotations?.enable();
         }
+    }
+
+    private async getTextOf(uri: vscode.Uri): Promise<[number, string]> {
+        // Check if we already have this file open in the workspace
+        // If we do, use the open version instead of reading directly from disk
+        const alreadyOpenDoc = vscode.workspace.textDocuments.find(v => v.uri.path === uri.path);
+        if (alreadyOpenDoc) {
+            return [alreadyOpenDoc.version, alreadyOpenDoc.getText()];
+        }
+
+        // Read and decode the text file
+        return [-1, textDecoder.decode(await vscode.workspace.fs.readFile(uri))];
     }
 
     async parse(
@@ -300,25 +323,11 @@ export class AstManager implements vscode.Disposable {
         options?: ParsingOptions
     ): Promise<FppMessage> {
         if (documentOrUri instanceof vscode.Uri) {
-            // Check if we already have this file open in the workspace
-            // If we do, use the open version instead of reading directly from disk
-            const alreadyOpenDoc = vscode.workspace.textDocuments.find(v => v.uri.path === documentOrUri.path);
-            if (alreadyOpenDoc) {
-                return await this.parseImpl({
-                    path: alreadyOpenDoc.uri.path,
-                    version: alreadyOpenDoc.version,
-                    getText: alreadyOpenDoc.getText.bind(documentOrUri)
-                }, token, options);
-            }
-
-            // Read and decode the text file
-            const text = textDecoder.decode(await vscode.workspace.fs.readFile(documentOrUri));
-
+            const [version, text] = await this.getTextOf(documentOrUri);
             return await this.parseImpl({
                 path: documentOrUri.path,
-                // Any changes in the text document will force a reparse
-                version: -1,
-                getText() { return text; }
+                version,
+                getText: () => text,
             }, token, options);
         } else {
             return await this.parseImpl({
@@ -330,6 +339,30 @@ export class AstManager implements vscode.Disposable {
     }
 
     private async parseImpl(
+        document: DocumentOrFile,
+        token?: vscode.CancellationToken,
+        options?: ParsingOptions
+    ): Promise<FppMessage> {
+        // If we are attempting to parse a file that has been included by another file
+        // We actually need to parse the parent file so the declarations work properly
+        const parentFile = this.parentFile.get(document.path);
+        if (parentFile) {
+            const [version, text] = await this.getTextOf(vscode.Uri.file(parentFile));
+            return await this.parseImpl2({
+                path: parentFile,
+                version,
+                getText: () => text,
+                getTextSub: () => [document.getText(), document.path]
+            }, token, {
+                ...options,
+                forceReparse: true
+            });
+        } else {
+            return await this.parseImpl2(document, token, options);
+        }
+    }
+
+    private async parseImpl2(
         document: DocumentOrFile,
         token?: vscode.CancellationToken,
         options?: ParsingOptions
@@ -347,12 +380,17 @@ export class AstManager implements vscode.Disposable {
         // Update our knowledge of the AST
         this.asts.set(key, msg);
 
+        for (const dep of msg.dependencies) {
+            this.clear(dep);
+            this.parentFile.set(dep, key);
+        }
+
         if (options?.disableDiagnostics) {
             this.decl.disable();
         }
 
         // Update the project declarations
-        this.decl.pass(msg.ast, key);
+        this.decl.pass(msg.ast);
 
         this.decl.enable();
 
@@ -373,14 +411,13 @@ export class AstManager implements vscode.Disposable {
             annotator.disable();
         }
 
-        annotator.pass(msg.ast, key);
+        annotator.pass(msg.ast);
         annotator.enable();
 
         this.syntaxListener.flush(key);
         this.syntaxListener.flush(key);
-        const uri = vscode.Uri.file(key);
-        for (const err of msg.syntaxErrors) {
-            this.syntaxListener.emit(uri, err);
+        for (const [uriStr, err] of msg.syntaxErrors) {
+            this.syntaxListener.emit(vscode.Uri.file(uriStr), err);
         }
         this.syntaxListener.flush(key);
 
