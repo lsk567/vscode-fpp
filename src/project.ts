@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import * as Fpp from './parser/ast';
 import { AstManager } from './parser/manager';
-import { MemberTraverser } from './fpp';
+import { MemberTraverser } from './traverser';
 
 export class FppProject implements vscode.Disposable {
     private locs = new Set<string>();

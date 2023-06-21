@@ -3,12 +3,14 @@ import * as vscode from 'vscode';
 import { Worker } from 'worker_threads';
 
 import * as Fpp from './ast';
-import { DeclCollector, DiangosicManager, FppAnnotator } from '../fpp';
 import { IFppMessage, IFppWorkerRequest } from './message';
 import { TextDecoder } from 'util';
 import path from 'path';
 import { RangeAssociator } from '../associator';
 import { RangeRuleAssociation } from './common';
+import { DiangosicManager } from '../diagnostics';
+import { FppAnnotator } from '../annotator';
+import { DeclCollector } from '../decl';
 
 interface DocumentOrFile {
     path: string;

@@ -3,13 +3,15 @@ import * as vscode from 'vscode';
 import { FppParser, QualIdentContext } from './grammar/FppParser';
 
 import * as Fpp from './parser/ast';
-import { FppAnnotator, FppTokenType, MemberTraverser, fppLegend } from './fpp';
 
 import Signatures from "./signatures.json";
 import { AstManager } from './parser/manager';
 import { CompletionRelevantInfo, getCandidates } from './parser/completion';
 import { declRules, ignoreTokens } from './parser/common';
 import { FppProject } from './project';
+import { FppAnnotator, fppLegend } from './annotator';
+import { MemberTraverser } from './traverser';
+import { FppTokenType } from './decl';
 
 const signaturesDefinitions = (Signatures as Record<string, ISignature>);
 
