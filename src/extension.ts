@@ -79,27 +79,26 @@ class FppExtension implements
 
         this.project = new FppProject(
             this.manager,
-            async (addUri) => {
+            async (addUri, token?: vscode.CancellationToken) => {
                 // Refresh declarations created by this AST
-                await this.manager.parse(addUri, undefined, {
+                await this.manager.parse(addUri, token, {
                     disableDiagnostics: true
                 });
             },
             (deleteUri) => {
                 this.manager.clear(deleteUri.path);
             },
-            async (locs: Set<string>) => {
+            async (locs: Set<string>, increment: number, progress: vscode.Progress<{ message?: string; increment?: number }>, token: vscode.CancellationToken) => {
                 // Reindex all file to resolve declaration errors
                 for (const file of locs) {
                     try {
-                        await this.manager.parse(vscode.Uri.file(file), undefined, {
+                        progress.report({ message: file, increment });
+                        await this.manager.parse(vscode.Uri.file(file), token, {
                             forceReparse: true,
                             noAnnotationRefresh: true,
                             disableDiagnostics: true
                         });
-                    } catch {
-
-                    }
+                    } catch { }
                 }
 
                 this.manager.refreshAnnotations();

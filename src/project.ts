@@ -13,9 +13,9 @@ export class FppProject implements vscode.Disposable {
 
     constructor(
         readonly manager: AstManager,
-        readonly onCreate: (file: vscode.Uri) => Promise<void>,
+        readonly onCreate: (file: vscode.Uri, token?: vscode.CancellationToken) => Promise<void>,
         readonly onDelete: (file: vscode.Uri) => void,
-        readonly onScanDone: (locs: Set<string>) => Promise<void>
+        readonly onScanDone: (locs: Set<string>, increment: number, progress: vscode.Progress<{ message?: string; increment?: number }>, token: vscode.CancellationToken) => Promise<void>
     ) {
         this.locsNew = vscode.languages.createLanguageStatusItem(
             'fpp.locsNew',
@@ -57,11 +57,16 @@ export class FppProject implements vscode.Disposable {
         }
     }
 
-    private async scan() {
+    private async scan(progress: vscode.Progress<{ message?: string; increment?: number }>, token: vscode.CancellationToken) {
         // Read the locsFile file
         if (!this.locsFile) {
             throw new Error('No locs loaded');
         }
+
+        progress.report({
+            message: "Scanning locs file",
+            increment: 0
+        });
 
         // Parse the locs file
         const { ast } = await this.manager.parse(this.locsFile, undefined, {
@@ -72,27 +77,40 @@ export class FppProject implements vscode.Disposable {
 
         // Parse the locs file
         this.locsTrav.pass(ast);
+        const indexCount = this.locsTrav.promises.length;
 
         // Wait for all files to finish
-        for (const prom of this.locsTrav.promises) {
+        let i = 1;
+        this.locsTrav.token = token;
+        for (const [uri, prom] of this.locsTrav.promises) {
             try {
+                progress.report({
+                    message: uri.path,
+                    increment: 100 / (this.locs.size + indexCount)
+                });
+
                 await prom;
             } catch { }
+            i++;
         }
 
+        this.locsTrav.token = undefined;
+
         // For reparse of all files to resolve declarations
-        await this.onScanDone(this.locs);
+        await this.onScanDone(this.locs, 100 / (this.locs.size + indexCount), progress, token);
 
         // Force reparse of locs
-        await this.manager.parse(this.locsFile, undefined, {
+        await this.manager.parse(this.locsFile, token, {
             forceReparse: true
         });
     }
 
     private locsTrav = new class extends MemberTraverser {
         parent!: FppProject;
+
         newLocs = new Set<string>();
-        promises: Promise<void>[] = [];
+        promises: [vscode.Uri, Promise<void>][] = [];
+        token?: vscode.CancellationToken;
 
         pass(ast: Fpp.TranslationUnit): void {
             this.newLocs.clear();
@@ -115,7 +133,8 @@ export class FppProject implements vscode.Disposable {
             }
 
             if (!this.parent.has(ast.path.value)) {
-                this.promises.push(this.parent.onCreate(vscode.Uri.file(ast.path.value)));
+                const uri = vscode.Uri.file(ast.path.value);
+                this.promises.push([uri, this.parent.onCreate(uri, this.token)]);
             }
 
             this.newLocs.add(ast.path.value);
@@ -143,7 +162,11 @@ export class FppProject implements vscode.Disposable {
         this.locsReload.busy = true;
 
         try {
-            await this.scan();
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "Indexing FPP Project",
+                cancellable: true
+            }, this.scan.bind(this));
         } catch (e) {
             vscode.window.showErrorMessage(`Failed to load locs.fpp: ${e}`);
             this.locsNew.text = "Locs load failed";
@@ -164,7 +187,11 @@ export class FppProject implements vscode.Disposable {
             this.locsNew.busy = true;
 
             try {
-                await this.scan();
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: "Indexing FPP Project",
+                    cancellable: true
+                }, this.scan.bind(this));
             } catch (e) {
                 vscode.window.showErrorMessage(`Failed to load locs.fpp: ${e}`);
                 this.locsNew.text = "Locs load failed";

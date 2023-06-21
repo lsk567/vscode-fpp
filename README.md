@@ -50,3 +50,23 @@ stage.
 
 Files are parsed and reduced in a separate worker thread and then
 sent through the compilers declaration collection in the main thread.
+
+### Development
+
+To set up dependencies you will need NodeJS and a package manager like `npm` or `yarn`:
+
+```
+$ yarn install
+```
+
+When making a change to the ANTLR definition (`src/grammar/Fpp.g4`), you will need to regenerate
+the generated files.
+
+```
+$ yarn antlr
+```
+
+To build a VSIX file you can use:
+```
+$ vsce package
+```
