@@ -23,12 +23,8 @@
     "contributes": {
         "commands": [
             {
-                "command": "fpp.parseFile",
-                "title": "Parse FPP File"
-            },
-            {
-                "command": "fpp.index",
-                "title": "Index all FPP files"
+                "command": "fpp.reload",
+                "title": "FPP: Reload Project"
             },
             {
                 "command": "fpp.close",

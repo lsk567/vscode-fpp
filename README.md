@@ -8,13 +8,20 @@ When first loading up your FPrime project, you will notice
 many errors! This is because the compiler doesn't know
 where to search for FPP declarations
 
-![Screenshot from 2023-06-20 14-14-57](https://github.com/Kronos3/vscode-fpp/assets/15131751/82d0f80b-5885-4fab-808c-cb04c6ef2344)
+![Screenshot from 2023-06-20 17-44-17](https://github.com/Kronos3/vscode-fpp/assets/15131751/10abfcb0-a9cd-4410-b68d-d5314c4af756)
 
 You will need to load the locs files which is generated during build time
 in the cmake build folder. Look for `build/locs.fpp`.
 
 Once the locs file is loaded, the entire project will be indexed and references
 will be resolved.
+
+It's recommended to 'pin' the reload status so that its easier to reload/reindex
+the project:
+
+![Screenshot from 2023-06-20 17-47-03](https://github.com/Kronos3/vscode-fpp/assets/15131751/74e9f986-09e4-4a1f-be4d-aa40f6cc5562)
+
+This will add a status bar item that will reindex the locs file when clicked.
 
 ### Features
 

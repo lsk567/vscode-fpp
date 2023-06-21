@@ -9,138 +9,9 @@ import Signatures from "./signatures.json";
 import { AstManager } from './parser/manager';
 import { CompletionRelevantInfo, getCandidates } from './parser/completion';
 import { declRules, ignoreTokens } from './parser/common';
+import { FppProject } from './project';
 
 const signaturesDefinitions = (Signatures as Record<string, ISignature>);
-
-class FppProject implements vscode.Disposable {
-    private locs = new Set<string>();
-    private locsFile?: vscode.Uri;
-
-    private projectStatus: vscode.StatusBarItem;
-
-    constructor(
-        readonly manager: AstManager,
-        readonly onCreate: (file: vscode.Uri) => Promise<void>,
-        readonly onDelete: (file: vscode.Uri) => void,
-        readonly onScanDone: (locs: Set<string>) => Promise<void>
-    ) {
-        this.projectStatus = vscode.window.createStatusBarItem(
-            'fpp.projectStatus',
-            vscode.StatusBarAlignment.Right,
-            2
-        );
-
-        this.projectStatus.command = "fpp.open";
-        this.locsTrav.parent = this;
-    }
-
-    private async scan() {
-        // Read the locsFile file
-        if (!this.locsFile) {
-            throw new Error('No locs loaded');
-        }
-
-        // Parse the locs file
-        const { ast } = await this.manager.parse(this.locsFile, undefined, {
-            forceReparse: true,
-            noAnnotationRefresh: true,
-            disableDiagnostics: true
-        });
-
-        // Parse the locs file
-        this.locsTrav.pass(ast, this.locsFile.path);
-
-        // Wait for all files to finish
-        for (const prom of this.locsTrav.promises) {
-            try {
-                await prom;
-            } catch { }
-        }
-
-        // For reparse of all files to resolve declarations
-        await this.onScanDone(this.locs);
-
-        // Force reparse of locs
-        await this.manager.parse(this.locsFile, undefined, {
-            forceReparse: true
-        });
-    }
-
-    private locsTrav = new class extends MemberTraverser {
-        parent!: FppProject;
-        newLocs = new Set<string>();
-        promises: Promise<void>[] = [];
-
-        pass(ast: Fpp.TranslationUnit, grammarSource: string): void {
-            this.newLocs.clear();
-            this.promises = [];
-            super.pass(ast, grammarSource);
-
-            for (const loc of this.parent) {
-                if (!this.newLocs.has(loc)) {
-                    this.parent.onDelete(vscode.Uri.file(loc));
-                }
-            }
-
-            this.parent.setLocs(this.newLocs);
-        }
-
-        protected locationStmt(ast: Fpp.LocationStmt, grammarSource: string, scope: Fpp.QualifiedIdentifier): void {
-            if (this.newLocs.has(ast.path.value)) {
-                // No need to double dip this file
-                return;
-            }
-
-            if (!this.parent.has(ast.path.value)) {
-                this.promises.push(this.parent.onCreate(vscode.Uri.file(ast.path.value)));
-            }
-
-            this.newLocs.add(ast.path.value);
-        }
-    }();
-
-    [Symbol.iterator](): Iterator<string> {
-        return this.locs.keys();
-    }
-
-    has(loc: string): boolean {
-        return this.locs.has(loc);
-    }
-
-    setLocs(locs: Set<string>) {
-        this.locs = new Set<string>(locs);
-    }
-
-    async set(locsFile: vscode.Uri | undefined) {
-        if (!locsFile) {
-            this.locsFile = undefined;
-
-            this.projectStatus.text = "Load locs.fpp";
-            this.projectStatus.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-            this.projectStatus.show();
-        } else {
-            this.locsFile = locsFile;
-
-            this.projectStatus.text = "Loading...";
-            this.projectStatus.backgroundColor = new vscode.ThemeColor('statusBarItem.prominentBackground');
-            this.projectStatus.show();
-
-            try {
-                await this.scan();
-                this.projectStatus.hide();
-            } catch (e) {
-                vscode.window.showErrorMessage(`Failed to load locs.fpp: ${e}`);
-                this.projectStatus.text = "Locs Failed";
-                this.projectStatus.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-            }
-        }
-    }
-
-    dispose() {
-        this.locs.clear();
-        this.projectStatus.dispose();
-    }
-}
 
 interface ISignature {
     signature: string;
@@ -266,6 +137,10 @@ class FppExtension implements
     async setLocs(locsFile: vscode.Uri | undefined) {
         this.context.workspaceState.update('fpp.locsFile', locsFile?.path);
         await this.project.set(locsFile);
+    }
+
+    reload() {
+        return this.project.reload();
     }
 
     _onDidChangeSemanticTokens = new vscode.EventEmitter<void>();
@@ -607,9 +482,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         extension,
-        vscode.commands.registerCommand('fpp.index', () => {
-            // extension.refresh(true);
-        }),
+        vscode.commands.registerCommand('fpp.reload', extension.reload.bind(extension)),
         vscode.commands.registerCommand('fpp.load', async (file?: vscode.Uri) => {
             if (!file) {
                 vscode.commands.executeCommand('fpp.open');
