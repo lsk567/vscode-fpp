@@ -666,25 +666,6 @@ export class FppAnnotator extends MemberTraverser {
             this.expr(conn.source.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
             const inputDecl = this.identifier(conn.destination.node, scope, FppTokenType.inputPortInstance);
             this.expr(conn.destination.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
-
-            // There is one layer of removal between the port instances
-            // that belong to component instances and their parent
-            // component declaration
-            // This is why we must manually add it to the reference tracker
-            if (outputDecl) {
-                this.decl.references.add(
-                    DiangosicManager.flat(outputDecl.scope, outputDecl.name),
-                    ast.location.source,
-                    DiangosicManager.asRange(conn.source.location)
-                );
-            }
-            if (inputDecl) {
-                this.decl.references.add(
-                    DiangosicManager.flat(inputDecl.scope, inputDecl.name),
-                    ast.location.source,
-                    DiangosicManager.asRange(conn.destination.location)
-                );
-            }
         }
     }
 
