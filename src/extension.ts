@@ -9,9 +9,10 @@ import { AstManager } from './parser/manager';
 import { CompletionRelevantInfo, getCandidates } from './parser/completion';
 import { declRules, ignoreTokens } from './parser/common';
 import { FppProject } from './project';
-import { FppAnnotator, fppLegend } from './annotator';
+import { FppAnnotator } from './annotator';
 import { MemberTraverser } from './traverser';
-import { FppTokenType } from './decl';
+import { FppTokenType, fppLegend } from './decl';
+import { DiangosicManager } from './diagnostics';
 
 const signaturesDefinitions = (Signatures as Record<string, ISignature>);
 
@@ -67,6 +68,7 @@ class FppExtension implements
     vscode.HoverProvider,
     vscode.CompletionItemProvider,
     vscode.SignatureHelpProvider,
+    vscode.ReferenceProvider,
     vscode.Disposable {
 
     private project: FppProject;
@@ -124,11 +126,45 @@ class FppExtension implements
                 vscode.languages.registerHoverProvider(this.manager.documentSelector, this),
                 vscode.languages.registerCompletionItemProvider(this.manager.documentSelector, this, " ", ".", ":"),
                 vscode.languages.registerSignatureHelpProvider(this.manager.documentSelector, this, " ", ",", "[", "(", "{", "=", ":"),
+                vscode.languages.registerReferenceProvider(this.manager.documentSelector, this)
             ];
 
             const file = this.context.workspaceState.get<string>("fpp.locsFile");
             this.setLocs(file ? vscode.Uri.file(file) : undefined);
         });
+    }
+
+    async provideReferences(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        context: vscode.ReferenceContext,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Location[] | undefined> {
+
+        // Check if this definition exists
+        let fullyQualified: string | undefined = this.manager.decls.translationUnitDeclarations.get(document.uri.path)?.get(position)?.[1];
+        if (!fullyQualified) {
+            // See if this is a reference to a declaration
+            let definition = (await this.manager.get(document, token)).definitions.get(document.uri.path)?.get(position);
+            if (!definition) {
+                return;
+            }
+
+            fullyQualified = DiangosicManager.flat(definition.scope ?? [], definition.name);
+        }
+
+        const allReferences = this.manager.decls.references.get(fullyQualified);
+
+        const out: vscode.Location[] = [];
+        for (const [source, references] of allReferences) {
+            const uri = vscode.Uri.file(source);
+
+            for (const ref of references) {
+                out.push(new vscode.Location(uri, ref));
+            }
+        }
+
+        return out;
     }
 
     ready(): Promise<void> {

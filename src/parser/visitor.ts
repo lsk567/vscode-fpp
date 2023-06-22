@@ -32,7 +32,8 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
     constructor(
         private readonly sourceStack: readonly string[],
-        private readonly onInclude: (path: string, pathStack: readonly string[], context: IncludeContext) => Promise<[IncludeProduct, Fpp.TranslationUnit<Fpp.Member>]>,
+        private scope: Fpp.QualifiedIdentifier,
+        private readonly onInclude: (path: string, pathStack: readonly string[], scope: Fpp.QualifiedIdentifier, context: IncludeContext) => Promise<[IncludeProduct, Fpp.TranslationUnit<Fpp.Member>]>,
     ) {
         super();
         this.source = this.sourceStack[this.sourceStack.length - 1];
@@ -302,6 +303,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "AbstractTypeDecl",
+            scope: [...this.scope],
             name: this.identifier(ctx._name),
             location: this.loc(ctx),
             fppType: undefined
@@ -327,6 +329,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "ArrayDecl",
+            scope: [...this.scope],
             name: this.identifier(ctx._name),
             location: this.loc(ctx),
             fppType: this.visitTypeName(ctx._type),
@@ -347,6 +350,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "ConstantDecl",
+            scope: [...this.scope],
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
             value: this.visitExpr(ctx._value) as Fpp.Expr
@@ -369,6 +373,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             name: this.identifier(ctx._name),
+            scope: [...this.scope],
             type: "StructMemberDecl",
             location: this.loc(ctx),
             fppType: this.visitTypeName(ctx._type),
@@ -410,6 +415,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "StructDecl",
+            scope: [...this.scope],
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
@@ -451,6 +457,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "CommandDecl",
+            scope: [...this.scope],
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
@@ -487,6 +494,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "ParamDecl",
+            scope: [...this.scope],
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
             fppType: this.visitTypeName(ctx._type),
@@ -621,6 +629,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "GeneralPortInstanceDecl",
+            scope: [...this.scope],
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
             kind: this.visitGeneralPortKind(ctx._kind),
@@ -641,6 +650,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "SpecialPortInstanceDecl",
+            scope: [...this.scope],
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
@@ -709,6 +719,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "TelemetryChannelDecl",
+            scope: [...this.scope],
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
             fppType: this.visitTypeName(ctx._type),
@@ -761,6 +772,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "EnumDecl",
+            scope: [...this.scope],
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
             members
@@ -826,6 +838,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "EventDecl",
+            scope: [...this.scope],
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
@@ -855,7 +868,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         if (outAst.include && !outAst.include.isError) {
             const currentContext = this.includeContextStack[this.includeContextStack.length - 1];
 
-            const parsePromise = this.onInclude(outAst.include.value, this.sourceStack, currentContext);
+            const parsePromise = this.onInclude(outAst.include.value, this.sourceStack, this.scope, currentContext);
             this.promises.push([ctx, parsePromise.then(v => { outAst.resolved = v[1]; return v[0]; })]);
         }
 
@@ -899,6 +912,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "InternalPortDecl",
+            scope: [...this.scope],
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
@@ -953,6 +967,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "ComponentInstanceDecl",
+            scope: [...this.scope],
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
             fppType: {
@@ -1001,7 +1016,12 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        const name = this.identifier(ctx._name);
+
         this.includeContextStack.push(IncludeContext.component);
+
+        const oldScope = this.scope;
+        this.scope = [...this.scope, name];
 
         const members: Fpp.ComponentMember[] = [];
         for (const memberCtx of ctx.componentMember()) {
@@ -1012,11 +1032,14 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         this.includeContextStack.pop();
 
+        this.scope = oldScope;
+
         return {
             type: "ComponentDecl",
+            scope: [...this.scope],
             fppType: undefined,
             location: this.loc(ctx),
-            name: this.identifier(ctx._name),
+            name,
             kind: this.visitComponentKind(ctx._kind),
             members
         };
@@ -1034,6 +1057,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "PortDecl",
+            scope: [...this.scope],
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
@@ -1093,6 +1117,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "DirectGraphDecl",
+            scope: [...this.scope],
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
@@ -1161,6 +1186,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             type: "TopologyDecl",
+            scope: [...this.scope],
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
@@ -1195,7 +1221,12 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        const name = this.identifier(ctx._name);
+
         this.includeContextStack.push(IncludeContext.module);
+
+        const oldScope = this.scope;
+        this.scope = [...this.scope, name];
 
         const members: Fpp.ModuleMember[] = [];
         for (const memberCtx of ctx.moduleMember()) {
@@ -1204,13 +1235,15 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             } catch (e) { }
         }
 
+        this.scope = oldScope;
         this.includeContextStack.pop();
 
         return {
             type: "ModuleDecl",
+            scope: [...this.scope],
             fppType: undefined,
             location: this.loc(ctx),
-            name: this.identifier(ctx._name),
+            name,
             members
         };
     }

@@ -16,7 +16,7 @@ interface RangeAssociation<T> {
 // [startLine, endLine, startCol, endCol, value][]
 export type IRangeAssociation = [number, number, number, number, string][];
 
-export class RangeAssociator<T> {
+export class RangeAssociator<T> implements Iterable<[IRange, T]> {
     private lines = new Map<number, RangeAssociation<T>[]>();
     private serializeT: (value: T) => string;
 
@@ -44,6 +44,14 @@ export class RangeAssociator<T> {
                         value: deserialize(value)
                     });
                 }
+            }
+        }
+    }
+
+    *[Symbol.iterator](): Iterator<[IRange, T]> {
+        for (const [_, associations] of this.lines) {
+            for (const association of associations) {
+                yield [association.range, association.value];
             }
         }
     }

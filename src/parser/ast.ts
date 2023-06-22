@@ -107,7 +107,7 @@ export interface StringLiteral extends Ast {
 }
 
 export interface Decl extends Annotatable {
-    scope?: QualifiedIdentifier;
+    scope: QualifiedIdentifier;
     type: string;
     fppType?: TypeName;
     name: Identifier;
@@ -523,7 +523,7 @@ export type Expr = (
     PrimaryExpr
 );
 
-export type QualifiedIdentifier = Identifier[];
+export type QualifiedIdentifier = readonly Identifier[];
 
 
 export type Member = ( ModuleMember | TopologyMember | ComponentMember );

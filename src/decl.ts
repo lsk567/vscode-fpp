@@ -1,7 +1,10 @@
 import * as vscode from 'vscode';
+import * as Fpp from './parser/ast';
 
 import { MemberTraverser } from './traverser';
-import * as Fpp from './parser/ast';
+import { ReferenceTracker } from './referenceTracker';
+import { RangeAssociator } from './associator';
+import { DiangosicManager } from './diagnostics';
 
 export type TypeDecl = Fpp.AbstractTypeDecl | Fpp.StructDecl | Fpp.ArrayDecl | Fpp.EnumDecl;
 
@@ -27,9 +30,66 @@ export enum FppTokenType {
     modifier, // keyword
     inputPortInstance, // function
     outputPortInstance, // function
+    inputPortDecl, // function
+    outputPortDecl, // function
     cppInterface, // function
     parameter,  // parameter
 }
+
+export const tokenTypeNames: string[] = [
+    "Module",
+    "Topology",
+    "Component",
+    "Component Instance",
+    "Constant",
+    "Graph Group",
+    "Port",
+    "Type",
+    "Modifier",
+    "Input Port Instance",
+    "Output Port Instance",
+    "Input Port",
+    "Output Port",
+    "C++ interface",
+    "Parameter"
+];
+
+// Denotes how declarations can be referenced in other areas
+// The resolver uses this to provide the correct semantic coloring
+export const tokenParents = new Map<FppTokenType, FppTokenType[]>([
+    [FppTokenType.topology, [FppTokenType.module]],
+    [FppTokenType.component, [FppTokenType.module]],
+    [FppTokenType.componentInstance, [FppTokenType.module]],
+    [FppTokenType.constant, [FppTokenType.module, FppTokenType.type, FppTokenType.component]],
+    [FppTokenType.graphGroup, [FppTokenType.topology]],
+    [FppTokenType.port, [FppTokenType.module]],
+    [FppTokenType.type, [FppTokenType.module, FppTokenType.component]],
+    [FppTokenType.inputPortInstance, [FppTokenType.componentInstance]],
+    [FppTokenType.outputPortInstance, [FppTokenType.componentInstance]],
+    [FppTokenType.inputPortDecl, [FppTokenType.component]],
+    [FppTokenType.outputPortDecl, [FppTokenType.component]],
+]);
+
+export const fppLegend = new vscode.SemanticTokensLegend(
+    [
+        'namespace',
+        'macro',
+        'class',
+        'variable',
+        'enumMember',
+        'label',
+        'interface',
+        'type',
+        'keyword',
+        'function',
+        'function',
+        'function',
+        'function',
+        'function',
+        'parameter'
+    ],
+    []
+);
 
 export class DeclCollector extends MemberTraverser {
     components = new Map<string, Fpp.ComponentDecl>();
@@ -37,12 +97,15 @@ export class DeclCollector extends MemberTraverser {
     constants = new Map<string, ConstantDefinition>();
     generalInputPortInstances = new Map<string, Fpp.GeneralPortInstanceDecl>();
     generalOutputPortInstances = new Map<string, Fpp.GeneralPortInstanceDecl>();
+    generalInputPortDecl = new Map<string, Fpp.GeneralPortInstanceDecl>();
+    generalOutputPortDecl = new Map<string, Fpp.GeneralPortInstanceDecl>();
     graphGroups = new Map<string, Fpp.DirectGraphDecl>();
     ports = new Map<string, Fpp.PortDecl>();
     topologies = new Map<string, Fpp.TopologyDecl>();
     types = new Map<string, TypeDecl>();
 
-    translationUnitDeclarations = new Map<string, [FppTokenType, string][]>();
+    references = new ReferenceTracker<vscode.Range>();
+    translationUnitDeclarations = new Map<string, RangeAssociator<[FppTokenType, string]>>();
 
     // If a translation unit includes component instances,
     // there is a second stage of reference depth that should
@@ -70,18 +133,19 @@ export class DeclCollector extends MemberTraverser {
             if (componentAst) {
                 for (const member of componentAst.members) {
                     if (member.type === "GeneralPortInstanceDecl") {
-                        member.scope = componentScope;
                         const portName = MemberTraverser.flat(componentScope, member.name);
                         if (member.kind.isOutput) {
                             this.parent.generalOutputPortInstances.set(portName, member);
-                            this.parent.translationUnitDeclarations.get(ast.location.source)!.push([
-                                FppTokenType.outputPortInstance, portName,
-                            ]);
+                            this.parent.translationUnitDeclarations.get(ast.location.source)!.add(
+                                DiangosicManager.asRange(ast.name.location),
+                                [FppTokenType.outputPortInstance, portName]
+                            );
                         } else {
                             this.parent.generalInputPortInstances.set(portName, member);
-                            this.parent.translationUnitDeclarations.get(ast.location.source)!.push([
-                                FppTokenType.inputPortInstance, portName,
-                            ]);
+                            this.parent.translationUnitDeclarations.get(ast.location.source)!.add(
+                                DiangosicManager.asRange(ast.name.location),
+                                [FppTokenType.inputPortInstance, portName]
+                            );
                         }
                     }
                 }
@@ -99,7 +163,7 @@ export class DeclCollector extends MemberTraverser {
     clearDecls(grammarSource: string) {
         const alreadyDeclared = this.translationUnitDeclarations.get(grammarSource);
         if (alreadyDeclared) {
-            for (const declTup of alreadyDeclared) {
+            for (const [_, declTup] of alreadyDeclared) {
                 const [type, decl] = declTup;
                 switch (type) {
                     case FppTokenType.component:
@@ -113,6 +177,12 @@ export class DeclCollector extends MemberTraverser {
                         break;
                     case FppTokenType.outputPortInstance:
                         this.generalOutputPortInstances.delete(decl);
+                        break;
+                    case FppTokenType.inputPortDecl:
+                        this.generalInputPortDecl.delete(decl);
+                        break;
+                    case FppTokenType.outputPortDecl:
+                        this.generalOutputPortDecl.delete(decl);
                         break;
                     case FppTokenType.constant:
                         this.constants.delete(decl);
@@ -137,7 +207,8 @@ export class DeclCollector extends MemberTraverser {
             }
         }
 
-        this.translationUnitDeclarations.set(grammarSource, []);
+        this.translationUnitDeclarations.set(grammarSource, new RangeAssociator<[FppTokenType, string]>());
+        this.references.dispose(grammarSource);
     }
 
     pass(ast: Fpp.TranslationUnit, scope: Fpp.QualifiedIdentifier = []): void {
@@ -155,7 +226,11 @@ export class DeclCollector extends MemberTraverser {
 
         decl.scope = scope;
         this.types.set(name, decl);
-        this.translationUnitDeclarations.get(decl.location.source)!.push([FppTokenType.type, name]);
+
+        this.translationUnitDeclarations.get(decl.location.source)!.add(
+            DiangosicManager.asRange(decl.name.location),
+            [FppTokenType.type, name]
+        );
     }
 
     private constantCollect(decl: Fpp.ConstantDecl | Fpp.EnumMember, scope: Fpp.QualifiedIdentifier, defaultValue: Fpp.Expr) {
@@ -172,7 +247,10 @@ export class DeclCollector extends MemberTraverser {
             value: decl.value ?? defaultValue,
             annotation: decl.annotation
         });
-        this.translationUnitDeclarations.get(decl.location.source)!.push([FppTokenType.constant, name]);
+        this.translationUnitDeclarations.get(decl.location.source)!.add(
+            DiangosicManager.asRange(decl.name.location),
+            [FppTokenType.constant, name]
+        );
     }
 
     abstractTypeDecl(ast: Fpp.AbstractTypeDecl, scope: Fpp.QualifiedIdentifier): void {
@@ -218,7 +296,10 @@ export class DeclCollector extends MemberTraverser {
 
         ast.scope = scope;
         this.componentInstances.set(name, ast);
-        this.translationUnitDeclarations.get(ast.location.source)!.push([FppTokenType.componentInstance, name]);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.componentInstance, name]
+        );
     }
 
     portDecl(ast: Fpp.PortDecl, scope: Fpp.QualifiedIdentifier): void {
@@ -229,7 +310,10 @@ export class DeclCollector extends MemberTraverser {
 
         ast.scope = scope;
         this.ports.set(name, ast);
-        this.translationUnitDeclarations.get(ast.location.source)!.push([FppTokenType.port, name]);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.port, name]
+        );
     }
 
     directGraphDecl(ast: Fpp.DirectGraphDecl, scope: Fpp.QualifiedIdentifier): void {
@@ -241,7 +325,10 @@ export class DeclCollector extends MemberTraverser {
 
         ast.scope = scope;
         this.graphGroups.set(name, ast);
-        this.translationUnitDeclarations.get(ast.location.source)!.push([FppTokenType.graphGroup, name]);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.graphGroup, name]
+        );
     }
 
     componentDecl(ast: Fpp.ComponentDecl, scope: Fpp.QualifiedIdentifier): void {
@@ -252,7 +339,10 @@ export class DeclCollector extends MemberTraverser {
 
         ast.scope = scope;
         this.components.set(name, ast);
-        this.translationUnitDeclarations.get(ast.location.source)!.push([FppTokenType.component, name]);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.component, name]
+        );
         super.componentDecl(ast, scope);
     }
 
@@ -264,9 +354,29 @@ export class DeclCollector extends MemberTraverser {
 
         ast.scope = scope;
         this.topologies.set(name, ast);
-        this.translationUnitDeclarations.get(ast.location.source)!.push([FppTokenType.topology, name]);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.topology, name]
+        );
 
         super.topologyDecl(ast, scope);
+    }
+
+    generalPortInstanceDecl(ast: Fpp.GeneralPortInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
+        const portName = MemberTraverser.flat(scope, ast.name);
+        if (ast.kind.isOutput) {
+            this.generalOutputPortDecl.set(portName, ast);
+            this.translationUnitDeclarations.get(ast.location.source)!.add(
+                DiangosicManager.asRange(ast.name.location),
+                [FppTokenType.outputPortDecl, portName]
+            );
+        } else {
+            this.generalInputPortDecl.set(portName, ast);
+            this.translationUnitDeclarations.get(ast.location.source)!.add(
+                DiangosicManager.asRange(ast.name.location),
+                [FppTokenType.inputPortDecl, portName]
+            );
+        }
     }
 
     private conflict(name: string, original: Fpp.Identifier, conflict: Fpp.Identifier) {
@@ -285,16 +395,6 @@ export class DeclCollector extends MemberTraverser {
 
         this.conflicts.push({ original, conflict });
     }
-
-    // get(name: string, type: FppTokenType.component): Fpp.ComponentDecl | undefined;
-    // get(name: string, type: FppTokenType.componentInstance): Fpp.ComponentInstanceDecl | undefined;
-    // get(name: string, type: FppTokenType.constant): Fpp.ConstantDecl | undefined;
-    // get(name: string, type: FppTokenType.outputPortInstance): Fpp.GeneralPortInstanceDecl | undefined;
-    // get(name: string, type: FppTokenType.inputPortInstance): Fpp.GeneralPortInstanceDecl | undefined;
-    // get(name: string, type: FppTokenType.graphGroup): Fpp.DirectGraphDecl | undefined;
-    // get(name: string, type: FppTokenType.port): Fpp.PortDecl | undefined;
-    // get(name: string, type: FppTokenType.topology): Fpp.TopologyDecl | undefined;
-    // get(name: string, type: FppTokenType.type): TypeDecl | undefined;
 
     get(name: string, type: FppTokenType): Fpp.Decl | undefined {
         switch (type) {
@@ -368,7 +468,7 @@ export class DeclCollector extends MemberTraverser {
         // To resolve an identifier we need to try all implicit combinations
         // of the current scope
 
-        const tryScope: Fpp.QualifiedIdentifier = [];
+        let tryScope: Fpp.QualifiedIdentifier = [];
         for (const subScope of scope) {
             const full = tryScope.concat(ident);
             const name = MemberTraverser.flat(full);
@@ -379,10 +479,10 @@ export class DeclCollector extends MemberTraverser {
             }
 
             // The scope is infered and therefore has no location
-            tryScope.push({
+            tryScope = [...tryScope, {
                 value: subScope.value,
                 location: Fpp.implicitLocation
-            });
+            }];
         }
 
         const full = tryScope.concat(ident);

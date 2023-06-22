@@ -48,7 +48,7 @@ let subFile: {
 } | undefined = undefined;
 
 const textDecoder = new TextDecoder();
-async function parse(path: string, pathStack: readonly string[], context: IncludeContext): Promise<[IncludeProduct, Fpp.TranslationUnit<Fpp.Member>]> {
+async function parse(path: string, pathStack: readonly string[], scope: Fpp.QualifiedIdentifier, context: IncludeContext): Promise<[IncludeProduct, Fpp.TranslationUnit<Fpp.Member>]> {
     if (pathStack.includes(path)) {
         // Cyclic dependency, stop parsing or we'll be here all week
         throw new Error("Cyclic dependency detected");
@@ -79,7 +79,7 @@ async function parse(path: string, pathStack: readonly string[], context: Includ
     parser.removeErrorListeners();
     parser.addErrorListener(listener);
 
-    const visitor = new AstVisitor([...pathStack, path], parse);
+    const visitor = new AstVisitor([...pathStack, path], scope, parse);
     let out: Fpp.TranslationUnit<Fpp.Member>;
     switch (context) {
         case IncludeContext.module:
@@ -120,7 +120,7 @@ parentPort?.on("message", async (message: IFppWorkerRequest) => {
         parser.addErrorListener(listener);
 
         // Lower the ANTLR parsing tree to an AST
-        const visitor = new AstVisitor([message.path], parse);
+        const visitor = new AstVisitor([message.path], [], parse);
         const ast = visitor.visitProg(parser.prog());
 
         // Wait for any includes to finish up

@@ -5,8 +5,9 @@ import * as fs from 'fs';
 
 import * as Fpp from './parser/ast';
 import { RangeAssociator } from './associator';
-import { DeclCollector, FppTokenType, TypeDecl } from './decl';
+import { DeclCollector, FppTokenType, TypeDecl, fppLegend, tokenParents, tokenTypeNames } from './decl';
 import { ExpressionTraverser, MemberTraverser } from './traverser';
+import { DiangosicManager } from './diagnostics';
 
 enum PrimitiveExpressionType {
     integer = "integer",
@@ -34,57 +35,6 @@ type ExpressionType = (
     PrimitiveExpressionType |
     StructExpressionType |
     ArrayExpressionType
-);
-
-
-
-const tokenTypeNames: string[] = [
-    "Module",
-    "Topology",
-    "Component",
-    "Component Instance",
-    "Constant",
-    "Graph Group",
-    "Port",
-    "Type",
-    "Modifier",
-    "Input Port",
-    "Output Port",
-    "C++ interface",
-    "Parameter"
-];
-
-// Denotes how declarations can be referenced in other areas
-// The resolver uses this to provide the correct semantic coloring
-const tokenParents = new Map<FppTokenType, FppTokenType[]>([
-    [FppTokenType.topology, [FppTokenType.module]],
-    [FppTokenType.component, [FppTokenType.module]],
-    [FppTokenType.componentInstance, [FppTokenType.module]],
-    [FppTokenType.constant, [FppTokenType.module, FppTokenType.type, FppTokenType.component]],
-    [FppTokenType.graphGroup, [FppTokenType.topology]],
-    [FppTokenType.port, [FppTokenType.module]],
-    [FppTokenType.type, [FppTokenType.module, FppTokenType.component]],
-    [FppTokenType.inputPortInstance, [FppTokenType.componentInstance]],
-    [FppTokenType.outputPortInstance, [FppTokenType.componentInstance]],
-]);
-
-export const fppLegend = new vscode.SemanticTokensLegend(
-    [
-        'namespace',
-        'macro',
-        'class',
-        'variable',
-        'enumMember',
-        'label',
-        'interface',
-        'type',
-        'keyword',
-        'function',
-        'function',
-        'function',
-        'parameter'
-    ],
-    []
 );
 
 /**
@@ -296,6 +246,7 @@ export class FppAnnotator extends MemberTraverser {
                             location: Fpp.implicitLocation
                         }, {
                             name: typeNameTok,
+                            scope: [...this.scope],
                             type: "ArrayDecl",
                             fppType: memberDefinition.fppType,
                             size: memberDefinition.size,
@@ -383,6 +334,8 @@ export class FppAnnotator extends MemberTraverser {
             this.definitions.set(source, associator);
         }
 
+        const fullQualified = [...value.scope, value.name];
+        this.decl.references.add(DiangosicManager.flat(fullQualified), source, range);
         associator.add(range, value);
     }
 
@@ -424,7 +377,7 @@ export class FppAnnotator extends MemberTraverser {
         // Attach the definition to this token
         this.addDefinition(finalTok.location.source, FppAnnotator.asRange(resolved[resolved.length - 1].location), resolveDecl);
 
-        const fullyResolvedQualifier = [...(resolveDecl.scope ?? scope), resolveDecl.name];
+        const fullyResolvedQualifier = [...resolveDecl.scope, resolveDecl.name];
 
         if (resolved.length === 1) {
             return resolveDecl;
@@ -465,9 +418,6 @@ export class FppAnnotator extends MemberTraverser {
                 // unique and just provide namespacing to declarations
                 // They do not have a single declaration
 
-                // We don't actually keep track of module AST positions
-                // outside of their own scope so we should do anything more
-                // than color the token semantics
                 this.addDefinition(tok.location.source, FppAnnotator.asRange(tok.location), {
                     location: fullyResolvedQualifier[resolved.length - i - 1].location,
                     scope: resolved.slice(0, resolved.length - i - 1),
@@ -712,10 +662,29 @@ export class FppAnnotator extends MemberTraverser {
     directGraphDecl(ast: Fpp.DirectGraphDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.graphGroup);
         for (const conn of ast.connections) {
-            this.identifier(conn.source.node, scope, FppTokenType.outputPortInstance);
+            const outputDecl = this.identifier(conn.source.node, scope, FppTokenType.outputPortInstance);
             this.expr(conn.source.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
-            this.identifier(conn.destination.node, scope, FppTokenType.inputPortInstance);
+            const inputDecl = this.identifier(conn.destination.node, scope, FppTokenType.inputPortInstance);
             this.expr(conn.destination.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
+
+            // There is one layer of removal between the port instances
+            // that belong to component instances and their parent
+            // component declaration
+            // This is why we must manually add it to the reference tracker
+            if (outputDecl) {
+                this.decl.references.add(
+                    DiangosicManager.flat(outputDecl.scope, outputDecl.name),
+                    ast.location.source,
+                    DiangosicManager.asRange(conn.source.location)
+                );
+            }
+            if (inputDecl) {
+                this.decl.references.add(
+                    DiangosicManager.flat(inputDecl.scope, inputDecl.name),
+                    ast.location.source,
+                    DiangosicManager.asRange(conn.destination.location)
+                );
+            }
         }
     }
 
