@@ -135,7 +135,7 @@ internalPortDecl:
     queueFull=queueFullBehavior?
     ;
 
-initSpecifier: annotation? PHASE phase=expr code=LIT_STRING;
+initSpecifier: annotation? PHASE phaseExpr=expr code=LIT_STRING;
 componentInstanceDecl:
     INSTANCE name=IDENTIFIER ':' fppType=qualIdent
     BASE ID base_id=expr

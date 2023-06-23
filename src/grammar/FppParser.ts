@@ -2285,7 +2285,7 @@ export class FppParser extends Parser {
 			this.state = 544;
 			this.match(FppParser.PHASE);
 			this.state = 545;
-			_localctx._phase = this.expr(0);
+			_localctx._phaseExpr = this.expr(0);
 			this.state = 546;
 			_localctx._code = this.match(FppParser.LIT_STRING);
 			}
@@ -6694,7 +6694,7 @@ export class InternalPortDeclContext extends ParserRuleContext {
 
 
 export class InitSpecifierContext extends ParserRuleContext {
-	public _phase!: ExprContext;
+	public _phaseExpr!: ExprContext;
 	public _code!: Token;
 	public PHASE(): TerminalNode { return this.getToken(FppParser.PHASE, 0); }
 	public expr(): ExprContext {

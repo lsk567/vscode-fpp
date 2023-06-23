@@ -931,12 +931,12 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         }
 
         this.associate(ctx.tryGetToken(FppParser.FppParser.PHASE, 0)?._symbol, ctx.ruleIndex, "phase");
-        this.associate(ctx._phase, ctx.ruleIndex, "phaseExpr");
+        this.associate(ctx._phaseExpr, ctx.ruleIndex, "phaseExpr");
         this.associate(ctx._code, ctx.ruleIndex, "codeLiteral");
 
         return {
             location: this.loc(ctx),
-            phase: this.visitExpr(ctx._phase),
+            phase: this.visitExpr(ctx._phaseExpr),
             code: this.stringLiteral(ctx._code),
             annotation: this.annotation(ctx.annotation())
         };
