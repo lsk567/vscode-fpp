@@ -18,10 +18,7 @@ import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor
 import { FppVisitor } from './grammar/FppVisitor';
 
 class AtCursor {
-    recognitionException?: RecognitionException = undefined;
-
     constructor(
-        readonly atn: ATN,
         readonly state: number,
         readonly context: ParserRuleContext,
         readonly nextToken: Token,
@@ -31,7 +28,11 @@ class AtCursor {
 }
 
 class ConsumeAtCursorError extends Error {
-    constructor(readonly lookAheads: AtCursor[]) {
+    constructor(
+        readonly atn: ATN,
+        readonly lookAheads: AtCursor[],
+        readonly recognitionException?: RecognitionException
+    ) {
         super();
     }
 }
@@ -44,6 +45,7 @@ interface BasicParser {
 
 class CandidateListener extends CommonTokenStream implements ANTLRErrorListener<Token> {
     lookAheadsAtCursor: AtCursor[] = [];
+    atCursorReported = false;
 
     constructor(
         readonly caretOffset: number,
@@ -63,7 +65,6 @@ class CandidateListener extends CommonTokenStream implements ANTLRErrorListener<
         if (token) {
             if (token.stopIndex + 1 > this.caretOffset) {
                 this.lookAheadsAtCursor.push(new AtCursor(
-                    this.parser.atn,
                     this.parser.state,
                     this.parser.ctx,
                     token,
@@ -84,13 +85,19 @@ class CandidateListener extends CommonTokenStream implements ANTLRErrorListener<
         e: RecognitionException | undefined
     ): void {
         if (this.lookAheadsAtCursor.length) {
-            this.lookAheadsAtCursor[this.lookAheadsAtCursor.length - 1].recognitionException = e;
-            this.atCursor();
+            this.atCursor(e);
         }
     }
 
-    atCursor() {
-        throw new ConsumeAtCursorError(this.lookAheadsAtCursor);
+    atCursor(re?: RecognitionException) {
+        if (!this.atCursorReported) {
+            this.atCursorReported = true;
+            throw new ConsumeAtCursorError(
+                this.parser.atn,
+                this.lookAheadsAtCursor,
+                re
+            );
+        }
     }
 
     consume(): void {
@@ -133,6 +140,15 @@ class FppParserWrapper extends FppParser {
 
     get ctx() {
         return this._ctx;
+    }
+
+    match(ttype: number): Token {
+        let t = this.currentToken;
+        if (this.tokenStream.lookAheadsAtCursor.length) {
+            this.tokenStream.atCursor();
+        }
+
+        return super.match(ttype);
     }
 
     exitRule(): void {
@@ -246,29 +262,14 @@ function getRuleMetadata(context: ParserRuleContext, state: number, relevantRule
 }
 
 function processAtCursor(
+    atn: ATN,
     input: AtCursor,
     relevantRules?: Set<number>
 ) {
-    let tokens = new Set<number>();
-    if (input.recognitionException) {
-        const deadEndConfigs: ATNConfigSet | undefined = (input.recognitionException as any).deadEndConfigs;
-        if (deadEndConfigs) {
-            for (const cfg of deadEndConfigs?.toArray() ?? []) {
-                for (const token of input.atn.nextTokens(cfg.state).toSet()) {
-                    if (token !== Token.EPSILON) {
-                        tokens.add(token);
-                    }
-                }
-            }
-
-        } else {
-            tokens = input.recognitionException.expectedTokens?.toSet() ?? tokens;
-        }
-    } else {
-        tokens = getNextOf(input.atn, input.state, input.context);
-    }
-
-    return { tokens, ...getRuleMetadata(input.context, input.state, relevantRules) };
+    return {
+        tokens: getNextOf(atn, input.state, input.context),
+        ...getRuleMetadata(input.context, input.state, relevantRules)
+    };
 }
 
 function processCandiates(
@@ -281,23 +282,39 @@ function processCandiates(
         scope: []
     };
 
-    for (const candidate of input.lookAheads) {
-        const candidateResult = processAtCursor(candidate, relevantRules);
-        for (const tok of candidateResult.tokens) {
-            result.tokens.add(tok);
-        }
-
-        for (const [key, value] of candidateResult.rules) {
-            // The first rule context is best since that makes the
-            // most sense syntactically
-            if (!result.rules.has(key)) {
-                result.rules.set(key, value);
+    if (input.recognitionException) {
+        const deadEndConfigs: ATNConfigSet | undefined = (input.recognitionException as any).deadEndConfigs;
+        if (deadEndConfigs) {
+            for (const cfg of deadEndConfigs?.toArray() ?? []) {
+                for (const token of input.atn.nextTokens(cfg.state).toSet()) {
+                    if (token !== Token.EPSILON) {
+                        result.tokens.add(token);
+                    }
+                }
             }
-        }
 
-        // All scopes should be the same (hopefully)
-        // The last one should be good enough
-        result.scope = candidateResult.scope;
+        } else {
+            result.tokens = input.recognitionException.expectedTokens?.toSet() ?? result.tokens;
+        }
+    } else {
+        for (const candidate of input.lookAheads) {
+            const candidateResult = processAtCursor(input.atn, candidate, relevantRules);
+            for (const tok of candidateResult.tokens) {
+                result.tokens.add(tok);
+            }
+
+            for (const [key, value] of candidateResult.rules) {
+                // The first rule context is best since that makes the
+                // most sense syntactically
+                if (!result.rules.has(key)) {
+                    result.rules.set(key, value);
+                }
+            }
+
+            // All scopes should be the same (hopefully)
+            // The last one should be good enough
+            result.scope = candidateResult.scope;
+        }
     }
 
     return result;
