@@ -127,9 +127,7 @@ export abstract class MemberTraverser extends DiangosicManager {
         if (ast.resolved) {
             try {
                 this.pass(ast.resolved, scope);
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { }
         }
     }
 

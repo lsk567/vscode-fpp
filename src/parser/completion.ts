@@ -1,20 +1,25 @@
 import * as vscode from 'vscode';
 
 import {
+    ANTLRErrorListener,
     CharStreams,
     CommonTokenStream,
     ParserRuleContext,
+    RecognitionException,
+    Recognizer,
     Token,
     TokenSource
 } from 'antlr4ts';
 
 import { FppLexer } from '../grammar/FppLexer';
 import { ComponentDeclContext, FppParser, ModuleDeclContext } from '../grammar/FppParser';
-import { ATN, ATNState, RuleTransition } from 'antlr4ts/atn';
+import { ATN, ATNConfigSet, ATNState, RuleTransition } from 'antlr4ts/atn';
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
 import { FppVisitor } from '../grammar/FppVisitor';
 
 class AtCursorException extends Error {
+    recognitionException?: RecognitionException;
+
     constructor(
         readonly atn: ATN,
         readonly state: number,
@@ -32,7 +37,9 @@ interface BasicParser {
     ctx: ParserRuleContext;
 }
 
-class CandidateListener extends CommonTokenStream {
+class CandidateListener extends CommonTokenStream implements ANTLRErrorListener<Token> {
+    atCursor?: AtCursorException = undefined;
+
     constructor(
         readonly caretOffset: number,
         tokenSource: TokenSource, channel?: number
@@ -50,7 +57,7 @@ class CandidateListener extends CommonTokenStream {
         const token = super.tryLT(k);
         if (token) {
             if (token.stopIndex + 1 > this.caretOffset) {
-                throw new AtCursorException(
+                this.atCursor = new AtCursorException(
                     this.parser.atn,
                     this.parser.state,
                     this.parser.ctx,
@@ -62,6 +69,27 @@ class CandidateListener extends CommonTokenStream {
 
         this.lastToken = token;
         return token;
+    }
+
+    syntaxError(
+        recognizer: Recognizer<Token, any>,
+        offendingSymbol: Token | undefined,
+        line: number, charPositionInLine: number,
+        msg: string,
+        e: RecognitionException | undefined
+    ): void {
+        if (this.atCursor) {
+            this.atCursor.recognitionException = e;
+            throw this.atCursor;
+        }
+    }
+
+    consume(): void {
+        if (this.atCursor) {
+            throw this.atCursor;
+        }
+
+        super.consume();
     }
 }
 
@@ -163,19 +191,13 @@ function getNextOf(
     return Array.from(out);
 }
 
-function processCandiates(
-    input: AtCursorException,
-    relevantRules?: Set<number>
-): CandidateResult {
-    const { atn, state, context } = input;
-
-    const tokens = getNextOf(atn, state, context);
-    const rules = new Map<number, CompletionRelevantInfo>();
-
-    let relevantContext: ParserRuleContext | undefined = input.context;
-    let invokingState = input.state;
-
+function getRuleMetadata(context: ParserRuleContext, state: number, relevantRules?: Set<number>): { scope: string[], rules: Map<number, CompletionRelevantInfo> } {
     let scope: string[] = [];
+
+    let relevantContext: ParserRuleContext | undefined = context;
+    let invokingState = state;
+
+    const rules = new Map<number, CompletionRelevantInfo>();
 
     for (; relevantContext; invokingState = relevantContext.invokingState, relevantContext = relevantContext.parent) {
         if (relevantContext.ruleIndex === FppParser.RULE_moduleDecl ||
@@ -199,7 +221,30 @@ function processCandiates(
         });
     }
 
-    return { tokens, rules, scope: scope.reverse() };
+    return { scope: scope.reverse(), rules };
+}
+
+function processCandiates(
+    input: AtCursorException,
+    relevantRules?: Set<number>
+): CandidateResult {
+    let tokens: number[];
+    if (input.recognitionException) {
+        const deadEndConfigs: ATNConfigSet | undefined = (input.recognitionException as any).deadEndConfigs;
+
+        tokens = [];
+        for (const cfg of deadEndConfigs?.toArray() ?? []) {
+            for (const token of input.atn.nextTokens(cfg.state).toSet()) {
+                if (token !== Token.EPSILON) {
+                    tokens.push(token);
+                }
+            }
+        }
+    } else {
+        tokens = getNextOf(input.atn, input.state, input.context);
+    }
+
+    return { tokens, ...getRuleMetadata(input.context, input.state, relevantRules) };
 }
 
 export function getCandidates(
@@ -215,6 +260,8 @@ export function getCandidates(
     const caretOffset: number = document.offsetAt(caret);
     const tokenStream = new CandidateListener(caretOffset, lexer);
     const parser = new FppParserWrapper(tokenStream);
+    parser.removeErrorListeners();
+    parser.addErrorListener(tokenStream);
 
     tokenStream.setParser(parser);
 
@@ -238,6 +285,7 @@ export function getCandidates(
                 parser
             };
         } else {
+            console.log(e);
             throw e;
         }
     }

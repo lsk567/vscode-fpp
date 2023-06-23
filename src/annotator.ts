@@ -662,9 +662,9 @@ export class FppAnnotator extends MemberTraverser {
     directGraphDecl(ast: Fpp.DirectGraphDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.graphGroup);
         for (const conn of ast.connections) {
-            const outputDecl = this.identifier(conn.source.node, scope, FppTokenType.outputPortInstance);
+            this.identifier(conn.source.node, scope, FppTokenType.outputPortInstance);
             this.expr(conn.source.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
-            const inputDecl = this.identifier(conn.destination.node, scope, FppTokenType.inputPortInstance);
+            this.identifier(conn.destination.node, scope, FppTokenType.inputPortInstance);
             this.expr(conn.destination.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
         }
     }

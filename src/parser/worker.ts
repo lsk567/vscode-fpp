@@ -48,7 +48,12 @@ let subFile: {
 } | undefined = undefined;
 
 const textDecoder = new TextDecoder();
-async function parse(path: string, pathStack: readonly string[], scope: Fpp.QualifiedIdentifier, context: IncludeContext): Promise<[IncludeProduct, Fpp.TranslationUnit<Fpp.Member>]> {
+async function parse(
+    path: string,
+    pathStack: readonly string[],
+    scope: Fpp.QualifiedIdentifier,
+    context: IncludeContext
+): Promise<[IncludeProduct, Fpp.TranslationUnit<Fpp.Member>]> {
     if (pathStack.includes(path)) {
         // Cyclic dependency, stop parsing or we'll be here all week
         throw new Error("Cyclic dependency detected");
@@ -143,7 +148,6 @@ parentPort?.on("message", async (message: IFppWorkerRequest) => {
             msg: retMessage
         });
     } catch (e) {
-        console.error(e);
         parentPort?.postMessage({
             code: "error",
             msg: `${e}`
