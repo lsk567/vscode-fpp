@@ -4,6 +4,8 @@ import { FppVisitor } from '../grammar/FppVisitor';
 import { ParserRuleContext, Token } from "antlr4ts";
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
 
+import * as fs from 'fs';
+
 import * as Fpp from './ast';
 import * as FppParser from '../grammar/FppParser';
 import { IRangeAssociation, RangeAssociator } from '../associator';
@@ -94,7 +96,8 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
     private resolvePath(lit: Fpp.StringLiteral): Fpp.StringLiteral {
         return {
             location: lit.location,
-            value: path.resolve(path.dirname(lit.location.source), lit.value)
+            value: fs.realpathSync(path.resolve(path.dirname(lit.location.source), lit.value), { encoding: "utf-8" })
+            // value: path.resolve(path.dirname(lit.location.source), lit.value)
         };
     }
 

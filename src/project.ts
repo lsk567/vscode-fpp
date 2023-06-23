@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import * as Fpp from './parser/ast';
 import { AstManager } from './parser/manager';
 import { MemberTraverser } from './traverser';
+import { symLinkCache } from './annotator';
 
 export class FppProject implements vscode.Disposable {
     private locs = new Set<string>();
@@ -62,6 +63,8 @@ export class FppProject implements vscode.Disposable {
         if (!this.locsFile) {
             throw new Error('No locs loaded');
         }
+
+        symLinkCache.clear();
 
         progress.report({
             message: "Scanning locs file",

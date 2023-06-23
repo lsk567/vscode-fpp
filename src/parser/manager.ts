@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
 
+import { TextDecoder } from 'util';
+import path from 'path';
+import * as fs from 'fs/promises';
+
 import { Worker } from 'worker_threads';
 
 import * as Fpp from './ast';
 import { IFppMessage, IFppWorkerRequest } from './message';
-import { TextDecoder } from 'util';
-import path from 'path';
 import { RangeAssociator } from '../associator';
 import { RangeRuleAssociation } from './common';
 import { DiangosicManager } from '../diagnostics';
@@ -345,9 +347,14 @@ export class AstManager implements vscode.Disposable {
         token?: vscode.CancellationToken,
         options?: ParsingOptions
     ): Promise<FppMessage> {
+        // Symlinks cause issues since there are two different paths referencing
+        // the same file, we should resolve the symlinks here before going further.
+        document.path = await fs.realpath(document.path);
+
         // If we are attempting to parse a file that has been included by another file
         // We actually need to parse the parent file so the declarations work properly
-        const parentFile = this.parentFile.get(document.path);
+        let parentFile = this.parentFile.get(document.path);
+
         if (parentFile) {
             const [version, text] = await this.getTextOf(vscode.Uri.file(parentFile));
             return await this.parseImpl2({
@@ -384,6 +391,11 @@ export class AstManager implements vscode.Disposable {
 
         for (const dep of msg.dependencies) {
             this.clear(dep);
+            // const realPath = await fs.realpath(dep);
+            // if (realPath !== dep) {
+            //     this.clear(realPath);
+            // }
+
             this.parentFile.set(dep, key);
         }
 

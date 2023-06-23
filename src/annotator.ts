@@ -37,6 +37,33 @@ type ExpressionType = (
     ArrayExpressionType
 );
 
+export let symLinkCache = new Map<string, string>();
+
+class SymlinkedMap<V> extends Map<string, V> {
+    private real(key: string): string {
+        const cached = symLinkCache.get(key);
+        if (cached) {
+            return cached;
+        }
+
+        let realpath = fs.realpathSync(key, { encoding: 'utf-8' });
+        symLinkCache.set(key, realpath);
+        return realpath;
+    }
+
+    get(key: string): V | undefined {
+        return super.get(this.real(key));
+    }
+
+    delete(key: string): boolean {
+        return super.delete(this.real(key));
+    }
+
+    set(key: string, value: V) {
+        return super.set(this.real(key), value);
+    }
+}
+
 /**
  * Annotates the following on a single AST:
  *   - token highlighting semantics
@@ -44,9 +71,9 @@ type ExpressionType = (
  *   - document links
  */
 export class FppAnnotator extends MemberTraverser {
-    tokens = new Map<string, vscode.SemanticTokensBuilder>();
-    definitions = new Map<string, RangeAssociator<Fpp.Decl>>();
-    links = new Map<string, vscode.DocumentLink[]>();
+    tokens = new SymlinkedMap<vscode.SemanticTokensBuilder>();
+    definitions = new SymlinkedMap<RangeAssociator<Fpp.Decl>>();
+    links = new SymlinkedMap<vscode.DocumentLink[]>();
 
     exprTrav = new (class extends ExpressionTraverser {
         parent!: FppAnnotator;
@@ -482,6 +509,7 @@ export class FppAnnotator extends MemberTraverser {
         this.semantic(ast.name, FppTokenType.type);
         for (const member of ast.members) {
             this.semantic(member.name, FppTokenType.parameter);
+            this.expr(member.size, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
             this.type(member.fppType, scope);
         }
     }
