@@ -296,6 +296,22 @@ function processCandiates(
         } else {
             result.tokens = input.recognitionException.expectedTokens?.toSet() ?? result.tokens;
         }
+
+        for (const candidate of input.lookAheads) {
+            const candidateResult = processAtCursor(input.atn, candidate, relevantRules);
+
+            for (const [key, value] of candidateResult.rules) {
+                // The first rule context is best since that makes the
+                // most sense syntactically
+                if (!result.rules.has(key)) {
+                    result.rules.set(key, value);
+                }
+            }
+
+            // All scopes should be the same (hopefully)
+            // The last one should be good enough
+            result.scope = candidateResult.scope;
+        }
     } else {
         for (const candidate of input.lookAheads) {
             const candidateResult = processAtCursor(input.atn, candidate, relevantRules);
