@@ -8,7 +8,7 @@ interface IRange {
     end: IPosition;
 }
 
-interface RangeAssociation<T> {
+export interface RangeAssociation<T> {
     range: IRange;
     value: T;
 }

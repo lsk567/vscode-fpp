@@ -11,14 +11,14 @@ import {
     TokenSource
 } from 'antlr4ts';
 
-import { FppLexer } from '../grammar/FppLexer';
-import { ComponentDeclContext, FppParser, ModuleDeclContext } from '../grammar/FppParser';
+import { FppLexer } from './grammar/FppLexer';
+import { ComponentDeclContext, FppParser, ModuleDeclContext } from './grammar/FppParser';
 import { ATN, ATNConfigSet, ATNState, RuleTransition } from 'antlr4ts/atn';
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
-import { FppVisitor } from '../grammar/FppVisitor';
+import { FppVisitor } from './grammar/FppVisitor';
 
-class AtCursorException extends Error {
-    recognitionException?: RecognitionException;
+class AtCursor {
+    recognitionException?: RecognitionException = undefined;
 
     constructor(
         readonly atn: ATN,
@@ -27,6 +27,11 @@ class AtCursorException extends Error {
         readonly nextToken: Token,
         readonly lastToken?: Token,
     ) {
+    }
+}
+
+class ConsumeAtCursorError extends Error {
+    constructor(readonly lookAheads: AtCursor[]) {
         super();
     }
 }
@@ -38,7 +43,7 @@ interface BasicParser {
 }
 
 class CandidateListener extends CommonTokenStream implements ANTLRErrorListener<Token> {
-    atCursor?: AtCursorException = undefined;
+    lookAheadsAtCursor: AtCursor[] = [];
 
     constructor(
         readonly caretOffset: number,
@@ -57,13 +62,13 @@ class CandidateListener extends CommonTokenStream implements ANTLRErrorListener<
         const token = super.tryLT(k);
         if (token) {
             if (token.stopIndex + 1 > this.caretOffset) {
-                this.atCursor = new AtCursorException(
+                this.lookAheadsAtCursor.push(new AtCursor(
                     this.parser.atn,
                     this.parser.state,
                     this.parser.ctx,
                     token,
                     this.lastToken
-                );
+                ));
             }
         }
 
@@ -78,15 +83,19 @@ class CandidateListener extends CommonTokenStream implements ANTLRErrorListener<
         msg: string,
         e: RecognitionException | undefined
     ): void {
-        if (this.atCursor) {
-            this.atCursor.recognitionException = e;
-            throw this.atCursor;
+        if (this.lookAheadsAtCursor.length) {
+            this.lookAheadsAtCursor[this.lookAheadsAtCursor.length - 1].recognitionException = e;
+            this.atCursor();
         }
     }
 
+    atCursor() {
+        throw new ConsumeAtCursorError(this.lookAheadsAtCursor);
+    }
+
     consume(): void {
-        if (this.atCursor) {
-            throw this.atCursor;
+        if (this.lookAheadsAtCursor.length) {
+            this.atCursor();
         }
 
         super.consume();
@@ -118,8 +127,20 @@ class BasicVisitor extends AbstractParseTreeVisitor<void> implements FppVisitor<
 }
 
 class FppParserWrapper extends FppParser {
+    constructor(private readonly tokenStream: CandidateListener) {
+        super(tokenStream);
+    }
+
     get ctx() {
         return this._ctx;
+    }
+
+    exitRule(): void {
+        if (this.tokenStream.lookAheadsAtCursor.length) {
+            this.tokenStream.atCursor();
+        }
+
+        super.exitRule();
     }
 }
 
@@ -132,7 +153,7 @@ interface CandidateResult {
     /**
      * Possible tokens that can follow the caret
      */
-    tokens: number[];
+    tokens: Set<number>;
 
     /**
      * Get the parsing state most relevant where the cursor is sitting
@@ -166,7 +187,7 @@ function getNextOf(
     atn: ATN,
     state: number,
     context_: ParserRuleContext
-): number[] {
+): Set<number> {
     const out = new Set<number>();
 
     let atnState: ATNState | undefined = atn.states[state];
@@ -188,7 +209,7 @@ function getNextOf(
         context = context.parent;
     }
 
-    return Array.from(out);
+    return out;
 }
 
 function getRuleMetadata(context: ParserRuleContext, state: number, relevantRules?: Set<number>): { scope: string[], rules: Map<number, CompletionRelevantInfo> } {
@@ -224,27 +245,62 @@ function getRuleMetadata(context: ParserRuleContext, state: number, relevantRule
     return { scope: scope.reverse(), rules };
 }
 
-function processCandiates(
-    input: AtCursorException,
+function processAtCursor(
+    input: AtCursor,
     relevantRules?: Set<number>
-): CandidateResult {
-    let tokens: number[];
+) {
+    let tokens = new Set<number>();
     if (input.recognitionException) {
         const deadEndConfigs: ATNConfigSet | undefined = (input.recognitionException as any).deadEndConfigs;
-
-        tokens = [];
-        for (const cfg of deadEndConfigs?.toArray() ?? []) {
-            for (const token of input.atn.nextTokens(cfg.state).toSet()) {
-                if (token !== Token.EPSILON) {
-                    tokens.push(token);
+        if (deadEndConfigs) {
+            for (const cfg of deadEndConfigs?.toArray() ?? []) {
+                for (const token of input.atn.nextTokens(cfg.state).toSet()) {
+                    if (token !== Token.EPSILON) {
+                        tokens.add(token);
+                    }
                 }
             }
+
+        } else {
+            tokens = input.recognitionException.expectedTokens?.toSet() ?? tokens;
         }
     } else {
         tokens = getNextOf(input.atn, input.state, input.context);
     }
 
     return { tokens, ...getRuleMetadata(input.context, input.state, relevantRules) };
+}
+
+function processCandiates(
+    input: ConsumeAtCursorError,
+    relevantRules?: Set<number>
+): CandidateResult {
+    const result: CandidateResult = {
+        tokens: new Set<number>(),
+        rules: new Map<number, CompletionRelevantInfo>(),
+        scope: []
+    };
+
+    for (const candidate of input.lookAheads) {
+        const candidateResult = processAtCursor(candidate, relevantRules);
+        for (const tok of candidateResult.tokens) {
+            result.tokens.add(tok);
+        }
+
+        for (const [key, value] of candidateResult.rules) {
+            // The first rule context is best since that makes the
+            // most sense syntactically
+            if (!result.rules.has(key)) {
+                result.rules.set(key, value);
+            }
+        }
+
+        // All scopes should be the same (hopefully)
+        // The last one should be good enough
+        result.scope = candidateResult.scope;
+    }
+
+    return result;
 }
 
 export function getCandidates(
@@ -273,13 +329,13 @@ export function getCandidates(
         // EOF was reached before the cursor was hit
         // Syntax errors should tell us what is expected next
         return {
-            tokens: [],
+            tokens: new Set<number>(),
             rules: new Map(),
             scope: [],
             parser
         };
     } catch (e: unknown) {
-        if (e instanceof AtCursorException) {
+        if (e instanceof ConsumeAtCursorError) {
             return {
                 ...processCandiates(e, relevantRules),
                 parser

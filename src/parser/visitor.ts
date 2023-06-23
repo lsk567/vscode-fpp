@@ -619,7 +619,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         }
 
         this.associate(ctx._kind, ctx.ruleIndex, "generalPortKind");
-        this.associate(ctx.PORT().symbol, ctx.ruleIndex, "port");
+        this.associate(ctx.tryGetToken(FppParser.FppParser.PORT, 0)?._symbol, ctx.ruleIndex, "port");
         this.associate(ctx._name, ctx.ruleIndex, "name");
         this.associate(ctx._n, ctx.ruleIndex, "portNum");
         this.associate(ctx._type, ctx.ruleIndex, "port-instance-type");

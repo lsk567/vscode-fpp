@@ -363,6 +363,10 @@ export class DeclCollector extends MemberTraverser {
     }
 
     generalPortInstanceDecl(ast: Fpp.GeneralPortInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
+        if (!ast.name || ast.name.isError) {
+            return;
+        }
+
         const portName = MemberTraverser.flat(scope, ast.name);
         if (ast.kind.isOutput) {
             this.generalOutputPortDecl.set(portName, ast);
@@ -423,6 +427,10 @@ export class DeclCollector extends MemberTraverser {
                 return this.generalInputPortInstances.get(name);
             case FppTokenType.outputPortInstance:
                 return this.generalOutputPortInstances.get(name);
+            case FppTokenType.inputPortDecl:
+                return this.generalInputPortDecl.get(name);
+            case FppTokenType.outputPortDecl:
+                return this.generalOutputPortDecl.get(name);
         }
     }
 

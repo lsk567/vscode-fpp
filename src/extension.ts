@@ -6,13 +6,14 @@ import * as Fpp from './parser/ast';
 
 import Signatures from "./signatures.json";
 import { AstManager } from './parser/manager';
-import { CompletionRelevantInfo, getCandidates } from './parser/completion';
+import { CompletionRelevantInfo, getCandidates } from './completion';
 import { declRules, ignoreTokens } from './parser/common';
 import { FppProject } from './project';
 import { FppAnnotator } from './annotator';
 import { MemberTraverser } from './traverser';
 import { FppTokenType, fppLegend } from './decl';
 import { DiangosicManager } from './diagnostics';
+import { RangeAssociation } from './associator';
 
 const signaturesDefinitions = (Signatures as Record<string, ISignature>);
 
@@ -141,6 +142,10 @@ class FppExtension implements
         token: vscode.CancellationToken
     ): Promise<vscode.Location[] | undefined> {
 
+        if (this.inComment(document, position)) {
+            return;
+        }
+
         // Check if this definition exists
         let fullyQualified: string | undefined = this.manager.decls.translationUnitDeclarations.get(document.uri.path)?.get(position)?.[1];
         if (!fullyQualified) {
@@ -202,8 +207,18 @@ class FppExtension implements
             return;
         }
 
-        // Check if we are hovering over a variable reference
-        const association = (await this.manager.get(document, token)).definitions.get(document.uri.path)?.getAssociation(position);
+        let association: RangeAssociation<Fpp.Decl> | undefined;
+
+        // Check if this definition exists
+        const declAssociation = this.manager.decls.translationUnitDeclarations.get(document.uri.path)?.getAssociation(position);
+        if (declAssociation) {
+            const { range, value } = declAssociation;
+            const decl = this.manager.decls.get(value[1], value[0]);
+            association = decl ? { range: range, value: decl } : undefined;
+        } else {
+            // Check if we are hovering over a variable reference
+            association = (await this.manager.get(document, token)).definitions.get(document.uri.path)?.getAssociation(position);
+        }
 
         let range: vscode.Range | undefined = undefined;
         const md: vscode.MarkdownString[] = [];
@@ -214,12 +229,32 @@ class FppExtension implements
             if (definition.fppType) {
                 if (definition.fppType.complex) {
                     typeName = MemberTraverser.flat(definition.fppType.type);
+
+                    const possibleFppTypes: FppTokenType[] = [
+                        FppTokenType.type,
+                        FppTokenType.port,
+                        FppTokenType.component
+                    ];
+
+                    let resolved = false;
+                    for (const fppTokType of possibleFppTypes) {
+                        const resolvedFppType = this.manager.decls.resolve(definition.fppType.type, definition.scope, fppTokType);
+                        if (resolvedFppType) {
+                            typeName = MemberTraverser.flat(resolvedFppType);
+                            resolved = true;
+                            break;
+                        }
+                    }
+
+                    if (!resolved) {
+                        typeName = `${typeName} (Unresolved)`;
+                    }
                 } else {
                     typeName = definition.fppType.type;
                 }
             }
 
-            const fullName = FppAnnotator.flat(definition.scope ?? [], definition.name);
+            const fullName = FppAnnotator.flat(definition.scope, definition.name);
 
             const mdAssociation = new vscode.MarkdownString();
             mdAssociation.appendCodeblock(
@@ -360,8 +395,9 @@ class FppExtension implements
         }
 
         const candidates = getCandidates(document, position);
-        let out: vscode.CompletionItem[] = [];
+        const out: vscode.CompletionItem[] = [];
 
+        const keywords: string[] = [];
         for (const candidate of candidates.tokens) {
             if (ignoreTokens.has(candidate)) {
                 continue;
@@ -369,19 +405,15 @@ class FppExtension implements
 
             const displayName = candidates.parser.vocabulary.getDisplayName(candidate);
             if (displayName.startsWith("'")) {
-                out.push(
-                    new vscode.CompletionItem(
-                        displayName.replaceAll("'", ""),
-                        vscode.CompletionItemKind.Keyword)
-                );
+                keywords.push(displayName.replaceAll("'", ""));
             }
         }
 
-        if (out.length > 0) {
-            // The ATN could tell us what to write
-            // This means a simple keyword could follow the caret
-            return out;
-        }
+        keywords.sort().map(keyword => {
+            out.push(
+                new vscode.CompletionItem(keyword, vscode.CompletionItemKind.Keyword)
+            );
+        });
 
         const qualIdentInfo = candidates.rules.get(FppParser.RULE_qualIdent);
         if (qualIdentInfo) {
@@ -409,19 +441,21 @@ class FppExtension implements
 
             for (const [ruleIdx, type] of singleQualIdentMappings) {
                 if (candidates.rules.has(ruleIdx)) {
-                    return this.referenceCompletion(type, qualIdentInfo.context as QualIdentContext, candidates.scope);
+                    return out.concat(this.referenceCompletion(type, qualIdentInfo.context as QualIdentContext, candidates.scope));
                 }
             }
 
             // Rule the manual rules
             const connectionInfo = candidates.rules.get(FppParser.RULE_connection);
             if (connectionInfo) {
-                return this.referenceCompletion(
+                return out.concat(this.referenceCompletion(
                     connectionInfo.context.childCount <= 1 ? FppTokenType.outputPortInstance : FppTokenType.inputPortInstance,
                     qualIdentInfo.context as QualIdentContext, candidates.scope
-                );
+                ));
             }
         }
+
+        return out;
     }
 
     private getSignatureRelevantInfo(ruleIdx: number, relevant: CompletionRelevantInfo) {
