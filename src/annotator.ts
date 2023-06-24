@@ -387,13 +387,23 @@ export class FppAnnotator extends MemberTraverser {
                 return;
             }
 
-            this.emit(
-                vscode.Uri.file(ident[0].location.source),
-                new vscode.Diagnostic(
-                    MemberTraverser.getQualifiedRange(ident),
-                    `No ${tokenTypeNames[type].toLowerCase()} named '${MemberTraverser.flat(ident)}' found`
-                )
-            );
+            // Make some assumptions about semantic annotations to keep things pretty
+            for(let i = 0; i < ident.length; i++) {
+                if (i + 1 === ident.length) {
+                    this.semantic(ident[i], type);
+
+                    this.emit(
+                        vscode.Uri.file(ident[i].location.source),
+                        new vscode.Diagnostic(
+                            MemberTraverser.asRange(ident[i].location),
+                            `No ${tokenTypeNames[type].toLowerCase()} '${ident[i].value}' found in ${MemberTraverser.flat(ident.slice(0, 1))}`
+                        )
+                    );
+                } else {
+                    this.semantic(ident[i], FppTokenType.module);
+                }
+            }
+
             return;
         }
 
