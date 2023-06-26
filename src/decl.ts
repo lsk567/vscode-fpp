@@ -247,20 +247,25 @@ export class DeclCollector extends MemberTraverser {
         this.topologyPortsTrav.pass(ast, scope);
     }
 
+    private static typeName(type: Fpp.TypeName) {
+        if (type.complex) {
+            return DiangosicManager.flat(type.type);
+        } else if ('size' in type && type.size !== undefined) {
+            return `${type.type} size ${type.size}`;
+        } else {
+            return type.type;
+        }
+    }
+
     private static annotateParameters(prms: Fpp.FormalParameter[]): string {
         if (prms.length === 0) {
             return '()';
         }
 
         const parameterString = prms.map(prm => {
-            let typeName: string;
-            if (prm.type.complex) {
-                typeName = DiangosicManager.flat(prm.type.type);
-            } else {
-                typeName = prm.type.type;
-            }
-
-            return `${prm.name.value}: ${typeName}${prm.ref ? '&' : ''},` + (prm.annotation ? ` // ${prm.annotation}` : '');
+            return `${prm.name.value}: ${DeclCollector.typeName(prm.type)}${prm.ref ? '&' : ''},` + (
+                prm.annotation ? ` // ${prm.annotation}` : ''
+            );
         }).join('\n    ');
 
         return `(\n    ${parameterString}\n)`;
@@ -355,6 +360,9 @@ export class DeclCollector extends MemberTraverser {
         }
 
         ast.annotatedValue = DeclCollector.annotateParameters(ast.params);
+        if (ast.returnType) {
+            ast.annotatedValue += `: ${DeclCollector.typeName(ast.returnType)}`;
+        }
 
         this.ports.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
