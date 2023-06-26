@@ -251,8 +251,6 @@ export class DeclCollector extends MemberTraverser {
         if (type.complex) {
             return DiangosicManager.flat(type.type);
         } else if ('size' in type && type.size !== undefined) {
-            return `${type.type} size ${type.size}`;
-        } else {
             return type.type;
         }
     }

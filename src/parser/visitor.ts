@@ -1305,9 +1305,10 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         return {
             complex: false,
-            type: ctx.text! as Fpp.PrimitiveTypeKey,
-            location: this.loc(ctx)
-        };
+            type: ctx.getChild(0).text! as Fpp.PrimitiveTypeKey,
+            location: this.loc(ctx),
+            size: ctx._size ? this.visitExpr(ctx._size) : undefined
+        } as Fpp.TypeName;
     }
 
     visitTypeName(ctx: FppParser.TypeNameContext): Fpp.TypeName {
