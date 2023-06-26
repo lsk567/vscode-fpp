@@ -318,8 +318,8 @@ class FppExtension implements
 
         const out: vscode.CompletionItem[] = [];
 
-        const scopeBuildUp: string[] = [];
-        const scopeTeardown = [...scope];
+        let scopeBuildUp: string[] = [];
+        const scopeTeardown = [...scope].reverse();
 
         const keys = Array.from(map.keys());
 
@@ -363,19 +363,19 @@ class FppExtension implements
             [FppTokenType.component, [this.manager.decls.components, vscode.CompletionItemKind.Class]],
             [FppTokenType.componentInstance, [this.manager.decls.componentInstances, vscode.CompletionItemKind.Variable]],
             [FppTokenType.constant, [this.manager.decls.constants, vscode.CompletionItemKind.EnumMember]],
-            [FppTokenType.port, [this.manager.decls.ports, vscode.CompletionItemKind.TypeParameter]],
-            [FppTokenType.type, [this.manager.decls.types, vscode.CompletionItemKind.TypeParameter]],
+            [FppTokenType.port, [this.manager.decls.ports, vscode.CompletionItemKind.Class]],
+            [FppTokenType.type, [this.manager.decls.types, vscode.CompletionItemKind.Class]],
             [FppTokenType.inputPortInstance, [this.manager.decls.generalInputPortInstances, vscode.CompletionItemKind.Function]],
             [FppTokenType.outputPortInstance, [this.manager.decls.generalOutputPortInstances, vscode.CompletionItemKind.Function]],
         ]);
 
-        const simpleMapping = declTypeMap.get(declType);
-        if (simpleMapping) {
+        const mapping = declTypeMap.get(declType);
+        if (mapping) {
             return this.generateReferenceListFromScope(
-                simpleMapping[0],
+                mapping[0],
                 context,
                 scope,
-                simpleMapping[1]
+                mapping[1]
             );
         }
 
@@ -418,8 +418,16 @@ class FppExtension implements
             );
         });
 
+        // Check if we either expected an identifier next or if we are currently
+        // trying to resolve a qualified identifier.
+        // It can't just be a simple identifier because that could be the declaration
+        // name which shouldn't bring up any completion items.
+        // If RULE_qualIdent does not should up in the candiate.rules its because we expect
+        // EITHER a qualIdent or a keyword next. This means that we did not create a qualIdent
+        // context in the parser.
+        const expectsQualIdent = candidates.tokens.has(FppParser.IDENTIFIER) && keywords.length > 0;
         const qualIdentInfo = candidates.rules.get(FppParser.RULE_qualIdent);
-        if (qualIdentInfo) {
+        if (qualIdentInfo || expectsQualIdent) {
             // A qualified identifier references some declaration
             // We need to figure out what type this is referencing
 
@@ -436,6 +444,7 @@ class FppExtension implements
                 // [FppParser.RULE_connectionNode, FppTokenType.componentInstance],
                 [FppParser.RULE_patternGraphSources, FppTokenType.componentInstance],
                 [FppParser.RULE_topologyImportStmt, FppTokenType.topology],
+                [FppParser.RULE_generalPortInstanceDecl, FppTokenType.port],
 
                 // I'm not doing this cause its annoying ;)
                 // Also who the hell writes these manually
@@ -444,7 +453,9 @@ class FppExtension implements
 
             for (const [ruleIdx, type] of singleQualIdentMappings) {
                 if (candidates.rules.has(ruleIdx)) {
-                    return out.concat(this.referenceCompletion(type, qualIdentInfo.context as QualIdentContext, candidates.scope));
+                    return out.concat(this.referenceCompletion(
+                        type, qualIdentInfo?.context as QualIdentContext, candidates.scope
+                    ));
                 }
             }
 
@@ -453,7 +464,7 @@ class FppExtension implements
             if (connectionInfo) {
                 return out.concat(this.referenceCompletion(
                     connectionInfo.context.childCount <= 1 ? FppTokenType.outputPortInstance : FppTokenType.inputPortInstance,
-                    qualIdentInfo.context as QualIdentContext, candidates.scope
+                    qualIdentInfo?.context as QualIdentContext, candidates.scope
                 ));
             }
         }

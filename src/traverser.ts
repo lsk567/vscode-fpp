@@ -26,81 +26,85 @@ export abstract class MemberTraverser extends DiangosicManager {
             return;
         }
 
-        switch (ast.type) {
-            case 'AbstractTypeDecl':
-                this.abstractTypeDecl(ast, scope);
-                break;
-            case 'ArrayDecl':
-                this.arrayDecl(ast, scope);
-                break;
-            case 'ConstantDecl':
-                this.constantDecl(ast, scope);
-                break;
-            case 'StructDecl':
-                this.structDecl(ast, scope);
-                break;
-            case 'CommandDecl':
-                this.commandDecl(ast, scope);
-                break;
-            case 'ParamDecl':
-                this.paramDecl(ast, scope);
-                break;
-            case 'GeneralPortInstanceDecl':
-                this.generalPortInstanceDecl(ast, scope);
-                break;
-            case 'SpecialPortInstanceDecl':
-                this.specialPortInstanceDecl(ast, scope);
-                break;
-            case 'TelemetryChannelDecl':
-                this.telemetryChannelDecl(ast, scope);
-                break;
-            case 'EnumDecl':
-                this.enumDecl(ast, scope);
-                break;
-            case 'EventDecl':
-                this.eventDecl(ast, scope);
-                break;
-            case 'IncludeStmt':
-                this.includeStmt(ast, scope);
-                break;
-            case 'InternalPortDecl':
-                this.internalPortDecl(ast, scope);
-                break;
-            case 'MatchStmt':
-                this.matchStmt(ast, scope);
-                break;
-            case 'ComponentDecl':
-                this.componentDecl(ast, scope);
-                break;
-            case 'ComponentInstanceDecl':
-                this.componentInstanceDecl(ast, scope);
-                break;
-            case 'ModuleDecl':
-                this.moduleDecl(ast, scope);
-                break;
-            case 'PortDecl':
-                this.portDecl(ast, scope);
-                break;
-            case 'TopologyDecl':
-                this.topologyDecl(ast, scope);
-                break;
-            case 'LocationStmt':
-                this.locationStmt(ast, scope);
-                break;
-            case 'ComponentInstanceSpec':
-                this.componentInstanceSpec(ast, scope);
-                break;
-            case 'DirectGraphDecl':
-                this.directGraphDecl(ast, scope);
-                break;
-            case 'PatternGraphStmt':
-                this.patternGraphStmt(ast, scope);
-                break;
-            case 'TopologyImportStmt':
-                this.topologyImportStmt(ast, scope);
-                break;
-            default:
-                throw new Error(`Unhandled declaration type ${(ast as any).type}: ${ast}`);
+        try {
+            switch (ast.type) {
+                case 'AbstractTypeDecl':
+                    this.abstractTypeDecl(ast, scope);
+                    break;
+                case 'ArrayDecl':
+                    this.arrayDecl(ast, scope);
+                    break;
+                case 'ConstantDecl':
+                    this.constantDecl(ast, scope);
+                    break;
+                case 'StructDecl':
+                    this.structDecl(ast, scope);
+                    break;
+                case 'CommandDecl':
+                    this.commandDecl(ast, scope);
+                    break;
+                case 'ParamDecl':
+                    this.paramDecl(ast, scope);
+                    break;
+                case 'GeneralPortInstanceDecl':
+                    this.generalPortInstanceDecl(ast, scope);
+                    break;
+                case 'SpecialPortInstanceDecl':
+                    this.specialPortInstanceDecl(ast, scope);
+                    break;
+                case 'TelemetryChannelDecl':
+                    this.telemetryChannelDecl(ast, scope);
+                    break;
+                case 'EnumDecl':
+                    this.enumDecl(ast, scope);
+                    break;
+                case 'EventDecl':
+                    this.eventDecl(ast, scope);
+                    break;
+                case 'IncludeStmt':
+                    this.includeStmt(ast, scope);
+                    break;
+                case 'InternalPortDecl':
+                    this.internalPortDecl(ast, scope);
+                    break;
+                case 'MatchStmt':
+                    this.matchStmt(ast, scope);
+                    break;
+                case 'ComponentDecl':
+                    this.componentDecl(ast, scope);
+                    break;
+                case 'ComponentInstanceDecl':
+                    this.componentInstanceDecl(ast, scope);
+                    break;
+                case 'ModuleDecl':
+                    this.moduleDecl(ast, scope);
+                    break;
+                case 'PortDecl':
+                    this.portDecl(ast, scope);
+                    break;
+                case 'TopologyDecl':
+                    this.topologyDecl(ast, scope);
+                    break;
+                case 'LocationStmt':
+                    this.locationStmt(ast, scope);
+                    break;
+                case 'ComponentInstanceSpec':
+                    this.componentInstanceSpec(ast, scope);
+                    break;
+                case 'DirectGraphDecl':
+                    this.directGraphDecl(ast, scope);
+                    break;
+                case 'PatternGraphStmt':
+                    this.patternGraphStmt(ast, scope);
+                    break;
+                case 'TopologyImportStmt':
+                    this.topologyImportStmt(ast, scope);
+                    break;
+                default:
+                    throw new Error(`Unhandled declaration type ${(ast as any).type}: ${ast}`);
+            }
+        } catch(e) {
+            // console.error(e);
         }
     }
 
