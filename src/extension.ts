@@ -436,6 +436,7 @@ class FppExtension implements
                 // Only the first two need to be injested first
                 [FppParser.RULE_expr, FppTokenType.constant],
                 [FppParser.RULE_typeName, FppTokenType.type],
+                [FppParser.RULE_formalParameterList, FppTokenType.type],
 
                 [FppParser.RULE_generalPortInstanceType, FppTokenType.port],
                 [FppParser.RULE_componentInstanceDecl, FppTokenType.component],

@@ -247,12 +247,8 @@ export class DeclCollector extends MemberTraverser {
         this.topologyPortsTrav.pass(ast, scope);
     }
 
-    private static typeName(type: Fpp.TypeName) {
-        if (type.complex) {
-            return DiangosicManager.flat(type.type);
-        } else if ('size' in type && type.size !== undefined) {
-            return type.type;
-        }
+    private static typeName(type: Fpp.TypeName): string {
+        return type.complex ? DiangosicManager.flat(type.type) : type.type;
     }
 
     private static annotateParameters(prms: Fpp.FormalParameter[]): string {
