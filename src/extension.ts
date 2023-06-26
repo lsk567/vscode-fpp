@@ -114,24 +114,27 @@ class FppExtension implements
         // Once the worker boots up, load the project
         this.subscriptions = [];
         this.manager.ready().then(() => {
-            this.subscriptions = [
-                vscode.languages.registerDocumentSemanticTokensProvider(this.manager.documentSelector, this, fppLegend),
-                vscode.languages.registerDefinitionProvider(this.manager.documentSelector, this),
-                vscode.workspace.onDidChangeTextDocument((e) => {
-                    if (vscode.languages.match(this.manager.documentSelector, e.document)) {
-                        // Reparse the document to update the information
-                        this.manager.parse(e.document);
-                    }
-                }),
-                vscode.languages.registerDocumentLinkProvider(this.manager.documentSelector, this),
-                vscode.languages.registerHoverProvider(this.manager.documentSelector, this),
-                vscode.languages.registerCompletionItemProvider(this.manager.documentSelector, this, " ", ".", ":"),
-                vscode.languages.registerSignatureHelpProvider(this.manager.documentSelector, this, " ", ",", "[", "(", "{", "=", ":"),
-                vscode.languages.registerReferenceProvider(this.manager.documentSelector, this)
-            ];
-
             const file = this.context.workspaceState.get<string>("fpp.locsFile");
-            this.setLocs(file ? vscode.Uri.file(file) : undefined);
+
+            // Don't allow the language providers interfere with the project loading
+            this.setLocs(file ? vscode.Uri.file(file) : undefined)
+                .finally(() => {
+                    this.subscriptions = [
+                        vscode.languages.registerDocumentSemanticTokensProvider(this.manager.documentSelector, this, fppLegend),
+                        vscode.languages.registerDefinitionProvider(this.manager.documentSelector, this),
+                        vscode.workspace.onDidChangeTextDocument((e) => {
+                            if (vscode.languages.match(this.manager.documentSelector, e.document)) {
+                                // Reparse the document to update the information
+                                this.manager.parse(e.document);
+                            }
+                        }),
+                        vscode.languages.registerDocumentLinkProvider(this.manager.documentSelector, this),
+                        vscode.languages.registerHoverProvider(this.manager.documentSelector, this),
+                        vscode.languages.registerCompletionItemProvider(this.manager.documentSelector, this, " ", ".", ":"),
+                        vscode.languages.registerSignatureHelpProvider(this.manager.documentSelector, this, " ", ",", "[", "(", "{", "=", ":"),
+                        vscode.languages.registerReferenceProvider(this.manager.documentSelector, this)
+                    ];
+                });
         });
     }
 
@@ -259,8 +262,8 @@ class FppExtension implements
             const mdAssociation = new vscode.MarkdownString();
             mdAssociation.appendCodeblock(
                 typeName ?
-                    `(${definition.type.replace("Decl", "")}) ${fullName}: ${typeName}`
-                    : `(${definition.type.replace("Decl", "")}) ${fullName}`,
+                    `(${definition.type.replace("Decl", "")}) ${fullName}: ${typeName} ${definition.annotatedValue ?? ''}`
+                    : `(${definition.type.replace("Decl", "")}) ${fullName} ${definition.annotatedValue ?? ''}`,
                 'typescript'
             );
 

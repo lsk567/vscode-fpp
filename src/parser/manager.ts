@@ -24,8 +24,8 @@ interface DocumentOrFile {
 interface PendingParse {
     key: string;
     document: DocumentOrFile;
-    resolve: (msg: FppMessage) => void;
-    reject: (err?: string) => void;
+    resolve: ((msg: FppMessage) => void)[];
+    reject: ((err?: string) => void)[];
 }
 
 export interface ParsingOptions {
@@ -98,6 +98,8 @@ class FppWorker extends Worker implements vscode.Disposable {
 
     private readonly queue: string[] = [];
 
+    private readyResolve?: () => void;
+
     constructor() {
         super(path.join(__dirname, 'worker.js'), {
             workerData: { path: './worker.ts' }
@@ -106,10 +108,16 @@ class FppWorker extends Worker implements vscode.Disposable {
         this.wasCancelled = false;
 
         this.readyPromise = new Promise<void>((resolve) => {
-            this.on('online', resolve);
+            this.readyResolve = resolve;
         });
 
-        this.on('message', (rawMsg: { code: "error", msg: string } | { code: "success", msg: IFppMessage }) => {
+        this.on('message', (rawMsg: { code: "error", msg: string } | { code: "success", msg: IFppMessage } | { code: "startup" }) => {
+            if (rawMsg.code === "startup") {
+                this.readyResolve?.();
+                this.readyResolve = undefined;
+                return;
+            }
+
             if (!this.inProgress) {
                 throw new Error("Got message reply when no parse in progress");
             }
@@ -117,17 +125,25 @@ class FppWorker extends Worker implements vscode.Disposable {
             if (!this.wasCancelled) {
                 if (rawMsg.code === "success") {
                     const msg = FppMessage.deserialize(rawMsg.msg);
-                    this.inProgress.resolve(msg);
+                    this.inProgress.resolve.map(v => v(msg));
                 } else {
-                    this.inProgress.reject(rawMsg.msg);
+                    this.inProgress.reject.map(v => v(rawMsg.msg));
                 }
             } else {
-                this.inProgress.reject();
+                this.inProgress.reject.map(v => v());
             }
 
             this.inProgress = undefined;
             this.wasCancelled = false;
             this.scheduleNext();
+        });
+
+        this.on('exit', (code) => {
+            vscode.window.showErrorMessage(`FPP worker exited unexpectedly with code: ${code}`);
+        });
+
+        this.on('error', (err) => {
+            vscode.window.showErrorMessage(`FPP worker ran into an error: ${err}`);
         });
     }
 
@@ -190,10 +206,13 @@ class FppWorker extends Worker implements vscode.Disposable {
                 pending.document = document;
             }
 
-            return this.promises.get(key)!;
+            return new Promise<FppMessage>((resolve, reject) => {
+                pending.resolve.push(resolve);
+                pending.reject.push(reject);
+            });
         } else {
             const promise = new Promise<FppMessage>((resolve, reject) => {
-                this.pending.set(key, { key, document, resolve, reject });
+                this.pending.set(key, { key, document, resolve: [resolve], reject: [reject] });
 
                 if (!this.queue.includes(key)) {
                     this.queue.push(key);
@@ -391,22 +410,8 @@ export class AstManager implements vscode.Disposable {
 
         for (const dep of msg.dependencies) {
             this.clear(dep);
-            // const realPath = await fs.realpath(dep);
-            // if (realPath !== dep) {
-            //     this.clear(realPath);
-            // }
-
             this.parentFile.set(dep, key);
         }
-
-        if (options?.disableDiagnostics) {
-            this.decl.disable();
-        }
-
-        // Update the project declarations
-        this.decl.pass(msg.ast);
-
-        this.decl.enable();
 
         if (this.decl.hasComponentInstances) {
             this.hasComponentInstances.add(key);
@@ -422,10 +427,13 @@ export class AstManager implements vscode.Disposable {
         }
 
         if (options?.disableDiagnostics) {
+            this.decl.disable();
             annotator.disable();
         }
 
         annotator.pass(msg.ast);
+
+        this.decl.enable();
         annotator.enable();
 
         this.syntaxListener.flush(key);

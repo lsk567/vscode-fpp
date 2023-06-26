@@ -8,11 +8,6 @@ import { DiangosicManager } from './diagnostics';
 
 export type TypeDecl = Fpp.AbstractTypeDecl | Fpp.StructDecl | Fpp.ArrayDecl | Fpp.EnumDecl;
 
-interface DeclConflict {
-    original: Fpp.Identifier;
-    conflict: Fpp.Identifier;
-}
-
 interface ConstantDefinition extends Fpp.Decl {
     name: Fpp.Identifier;
     value: Fpp.Expr;
@@ -33,7 +28,13 @@ export enum FppTokenType {
     inputPortDecl, // function
     outputPortDecl, // function
     cppInterface, // function
-    parameter,  // parameter
+    formalParameter,  // parameter
+
+    // Dictoinary entries
+    command,
+    event,
+    parameter,
+    telemetry,
 }
 
 export const tokenTypeNames: string[] = [
@@ -51,7 +52,12 @@ export const tokenTypeNames: string[] = [
     "Input Port",
     "Output Port",
     "C++ interface",
-    "Parameter"
+    "Parameter",
+
+    "Command",
+    "Event",
+    "Parameter",
+    "Telemetry"
 ];
 
 // Denotes how declarations can be referenced in other areas
@@ -86,7 +92,11 @@ export const fppLegend = new vscode.SemanticTokensLegend(
         'function',
         'function',
         'function',
-        'parameter'
+        'parameter',
+        'function',
+        'function',
+        'function',
+        'function',
     ],
     []
 );
@@ -103,6 +113,12 @@ export class DeclCollector extends MemberTraverser {
     ports = new Map<string, Fpp.PortDecl>();
     topologies = new Map<string, Fpp.TopologyDecl>();
     types = new Map<string, TypeDecl>();
+
+    // Dictionary entries
+    commands = new Map<string, Fpp.CommandDecl>();
+    events = new Map<string, Fpp.EventDecl>();
+    parameters = new Map<string, Fpp.ParamDecl>();
+    telemetry = new Map<string, Fpp.TelemetryChannelDecl>();
 
     references = new ReferenceTracker<vscode.Range>();
     translationUnitDeclarations = new Map<string, RangeAssociator<[FppTokenType, string]>>();
@@ -153,8 +169,6 @@ export class DeclCollector extends MemberTraverser {
         }
     };
 
-    conflicts: DeclConflict[] = [];
-
     constructor() {
         super();
         this.topologyPortsTrav.parent = this;
@@ -199,7 +213,22 @@ export class DeclCollector extends MemberTraverser {
                     case FppTokenType.type:
                         this.types.delete(decl);
                         break;
-                    default:
+                    case FppTokenType.command:
+                        this.commands.delete(decl);
+                        break;
+                    case FppTokenType.event:
+                        this.events.delete(decl);
+                        break;
+                    case FppTokenType.parameter:
+                        this.parameters.delete(decl);
+                        break;
+                    case FppTokenType.telemetry:
+                        this.telemetry.delete(decl);
+                        break;
+
+                    case FppTokenType.modifier:
+                    case FppTokenType.cppInterface:
+                    case FppTokenType.formalParameter:
                     case FppTokenType.module:
                         // ModuleDecls are not unique
                         break;
@@ -218,13 +247,31 @@ export class DeclCollector extends MemberTraverser {
         this.topologyPortsTrav.pass(ast, scope);
     }
 
+    private static annotateParameters(prms: Fpp.FormalParameter[]): string {
+        if (prms.length === 0) {
+            return '()';
+        }
+
+        const parameterString = prms.map(prm => {
+            let typeName: string;
+            if (prm.type.complex) {
+                typeName = DiangosicManager.flat(prm.type.type);
+            } else {
+                typeName = prm.type.type;
+            }
+
+            return `${prm.name.value}: ${typeName}${prm.ref ? '&' : ''},` + (prm.annotation ? ` // ${prm.annotation}` : '');
+        }).join('\n    ');
+
+        return `(\n    ${parameterString}\n)`;
+    }
+
     private typeCollect(decl: TypeDecl, scope: Fpp.QualifiedIdentifier) {
         const name = MemberTraverser.flat(scope, decl.name);
         if (this.check(name, FppTokenType.type, decl.name)) {
             return;
         }
 
-        decl.scope = scope;
         this.types.set(name, decl);
 
         this.translationUnitDeclarations.get(decl.location.source)!.add(
@@ -294,7 +341,6 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        ast.scope = scope;
         this.componentInstances.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
@@ -308,7 +354,8 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        ast.scope = scope;
+        ast.annotatedValue = DeclCollector.annotateParameters(ast.params);
+
         this.ports.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
@@ -323,7 +370,6 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        ast.scope = scope;
         this.graphGroups.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
@@ -333,40 +379,31 @@ export class DeclCollector extends MemberTraverser {
 
     componentDecl(ast: Fpp.ComponentDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
-        if (this.check(name, FppTokenType.component, ast.name)) {
-            return;
+        if (!this.check(name, FppTokenType.component, ast.name)) {
+            this.components.set(name, ast);
+            this.translationUnitDeclarations.get(ast.location.source)!.add(
+                DiangosicManager.asRange(ast.name.location),
+                [FppTokenType.component, name]
+            );
         }
 
-        ast.scope = scope;
-        this.components.set(name, ast);
-        this.translationUnitDeclarations.get(ast.location.source)!.add(
-            DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.component, name]
-        );
         super.componentDecl(ast, scope);
     }
 
     topologyDecl(ast: Fpp.TopologyDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
-        if (this.check(name, FppTokenType.topology, ast.name)) {
-            return;
+        if (!this.check(name, FppTokenType.topology, ast.name)) {
+            this.topologies.set(name, ast);
+            this.translationUnitDeclarations.get(ast.location.source)!.add(
+                DiangosicManager.asRange(ast.name.location),
+                [FppTokenType.topology, name]
+            );
         }
-
-        ast.scope = scope;
-        this.topologies.set(name, ast);
-        this.translationUnitDeclarations.get(ast.location.source)!.add(
-            DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.topology, name]
-        );
 
         super.topologyDecl(ast, scope);
     }
 
     generalPortInstanceDecl(ast: Fpp.GeneralPortInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
-        if (!ast.name || ast.name.isError) {
-            return;
-        }
-
         const portName = MemberTraverser.flat(scope, ast.name);
         if (ast.kind.isOutput) {
             this.generalOutputPortDecl.set(portName, ast);
@@ -383,8 +420,66 @@ export class DeclCollector extends MemberTraverser {
         }
     }
 
+    protected commandDecl(ast: Fpp.CommandDecl, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, FppTokenType.command, ast.name)) {
+            return;
+        }
+
+        ast.annotatedValue = `${DeclCollector.annotateParameters(ast.params)} @${ast.kind.value} `;
+
+        this.commands.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.command, name]
+        );
+    }
+
+    protected eventDecl(ast: Fpp.EventDecl, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, FppTokenType.event, ast.name)) {
+            return;
+        }
+
+        ast.annotatedValue = `${DeclCollector.annotateParameters(ast.params)} ${ast.severity.value}`;
+
+        this.events.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.event, name]
+        );
+    }
+
+    protected paramDecl(ast: Fpp.ParamDecl, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, FppTokenType.parameter, ast.name)) {
+            return;
+        }
+
+        this.parameters.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.parameter, name]
+        );
+    }
+
+    protected telemetryChannelDecl(ast: Fpp.TelemetryChannelDecl, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, FppTokenType.telemetry, ast.name)) {
+            return;
+        }
+
+        ast.annotatedValue = ast.format?.value;
+
+        this.telemetry.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.telemetry, name]
+        );
+    }
+
     private conflict(name: string, original: Fpp.Identifier, conflict: Fpp.Identifier) {
-        let diag = new vscode.Diagnostic(
+        const diag = new vscode.Diagnostic(
             MemberTraverser.asRange(conflict.location),
             `${name} already exists`,
             vscode.DiagnosticSeverity.Error
@@ -396,8 +491,6 @@ export class DeclCollector extends MemberTraverser {
         )];
 
         this.emit(vscode.Uri.file(conflict.location.source), diag);
-
-        this.conflicts.push({ original, conflict });
     }
 
     get(name: string, type: FppTokenType): Fpp.Decl | undefined {
@@ -405,7 +498,7 @@ export class DeclCollector extends MemberTraverser {
             case FppTokenType.module:
             case FppTokenType.modifier:
             case FppTokenType.cppInterface:
-            case FppTokenType.parameter:
+            case FppTokenType.formalParameter:
             default:
                 break;
 
@@ -431,38 +524,19 @@ export class DeclCollector extends MemberTraverser {
                 return this.generalInputPortDecl.get(name);
             case FppTokenType.outputPortDecl:
                 return this.generalOutputPortDecl.get(name);
+            case FppTokenType.command:
+                return this.commands.get(name);
+            case FppTokenType.event:
+                return this.events.get(name);
+            case FppTokenType.parameter:
+                return this.parameters.get(name);
+            case FppTokenType.telemetry:
+                return this.telemetry.get(name);
         }
     }
 
     private check(name: string, type: FppTokenType, token: Fpp.Identifier): boolean {
-        let t: Fpp.Decl | undefined;
-        switch (type) {
-            case FppTokenType.module:
-            case FppTokenType.graphGroup:
-                break;
-            case FppTokenType.topology:
-                t = this.topologies.get(name);
-                break;
-            case FppTokenType.component:
-                t = this.components.get(name);
-                break;
-            case FppTokenType.componentInstance:
-                t = this.componentInstances.get(name);
-                break;
-            case FppTokenType.constant:
-                t = this.constants.get(name);
-                break;
-            case FppTokenType.port:
-                t = this.ports.get(name);
-                break;
-            case FppTokenType.type:
-                t = this.types.get(name);
-                break;
-            case FppTokenType.modifier:
-            default:
-                break;
-        }
-
+        const t = this.get(name, type);
         if (t) {
             this.conflict(name, t.name, token);
             return true;

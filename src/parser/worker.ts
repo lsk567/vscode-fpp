@@ -154,3 +154,5 @@ parentPort?.on("message", async (message: IFppWorkerRequest) => {
         });
     }
 });
+
+parentPort?.postMessage({ code: "startup" });

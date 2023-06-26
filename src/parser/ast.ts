@@ -95,7 +95,25 @@ export interface Ast {
 }
 
 export interface Annotatable extends Ast {
+    /**
+     * The manually attached annotation denoted with
+     * the '@' or '@<' syntax. This is converted into
+     * a markdown compatible string and attached to
+     * syntax elements.
+     */
     annotation?: string;
+
+    /**
+     * When evaluating a declaration or expression
+     * we can attach some extra metadata to the hover
+     * information.
+     * 
+     * This will show up in declarations as:
+     * name: Type VALUE.
+     * This value should include the ' = ' syntax for
+     * values or '()' for other types of declarations.
+     */
+    annotatedValue?: string;
 }
 
 export interface Error extends Ast {

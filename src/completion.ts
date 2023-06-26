@@ -240,9 +240,11 @@ function getRuleMetadata(context: ParserRuleContext, state: number, relevantRule
         if (relevantContext.ruleIndex === FppParser.RULE_moduleDecl ||
             relevantContext.ruleIndex === FppParser.RULE_componentDecl
         ) {
-            const declName = (relevantContext as (ModuleDeclContext | ComponentDeclContext)).IDENTIFIER()?.text;
+            const declName = (relevantContext as (ModuleDeclContext | ComponentDeclContext)).tryGetToken(FppParser.IDENTIFIER, 0)?.text;
             if (declName) {
                 scope.push(declName);
+            } else {
+                break;
             }
         }
 

@@ -246,12 +246,12 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         const annotations = ctx.ANNOTATION().map(e => {
             if (e.text.startsWith("@<")) {
-                return e.text.substring(2); // @<
+                return e.text.substring(2).trim(); // @<
             } else {
-                return e.text.substring(1); // @
+                return e.text.substring(1).trim(); // @
             }
         });
-        return annotations.join(" ");
+        return annotations.join("\n").trim();
     }
 
     visitProg(ctx: FppParser.ProgContext): Fpp.TranslationUnit {

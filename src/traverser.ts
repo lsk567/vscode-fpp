@@ -22,6 +22,8 @@ export abstract class MemberTraverser extends DiangosicManager {
     protected traverse(ast: Fpp.Member, scope: Fpp.QualifiedIdentifier) {
         if (ast.isError) {
             return;
+        } else if ('name' in ast && !ast.name) {
+            return;
         }
 
         switch (ast.type) {

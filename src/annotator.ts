@@ -260,7 +260,7 @@ export class FppAnnotator extends MemberTraverser {
                     continue;
                 } else {
                     // Provide semantics and links to member names in struct expressions
-                    this.parent.semantic(member.name, FppTokenType.parameter);
+                    this.parent.semantic(member.name, FppTokenType.formalParameter);
                     memberDefinition.scope = this.scope;
                     this.parent.addDefinition(member.name.location.source, FppAnnotator.asRange(member.name.location), memberDefinition);
 
@@ -518,7 +518,7 @@ export class FppAnnotator extends MemberTraverser {
     structDecl(ast: Fpp.StructDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.type);
         for (const member of ast.members) {
-            this.semantic(member.name, FppTokenType.parameter);
+            this.semantic(member.name, FppTokenType.formalParameter);
             this.expr(member.size, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
             this.type(member.fppType, scope);
         }
@@ -534,7 +534,7 @@ export class FppAnnotator extends MemberTraverser {
     commandDecl(ast: Fpp.CommandDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.cppInterface);
         for (const member of ast.params) {
-            this.semantic(member.name, FppTokenType.parameter);
+            this.semantic(member.name, FppTokenType.formalParameter);
             this.type(member.type, scope);
         }
     }
@@ -570,20 +570,20 @@ export class FppAnnotator extends MemberTraverser {
     eventDecl(ast: Fpp.EventDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.cppInterface);
         for (const param of ast.params) {
-            this.semantic(param.name, FppTokenType.parameter);
+            this.semantic(param.name, FppTokenType.formalParameter);
             this.type(param.type, scope);
         }
     }
 
     matchStmt(ast: Fpp.MatchStmt, scope: Fpp.QualifiedIdentifier): void {
-        this.semantic(ast.match, FppTokenType.inputPortInstance);
-        this.semantic(ast.with, FppTokenType.outputPortInstance);
+        this.identifier([...scope, ast.match], scope, FppTokenType.outputPortDecl);
+        this.identifier([...scope, ast.with], scope, FppTokenType.inputPortDecl);
     }
 
     internalPortDecl(ast: Fpp.InternalPortDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.cppInterface);
         for (const param of ast.params) {
-            this.semantic(param.name, FppTokenType.parameter);
+            this.semantic(param.name, FppTokenType.formalParameter);
             this.type(param.type, scope);
         }
     }
@@ -645,7 +645,7 @@ export class FppAnnotator extends MemberTraverser {
         }
 
         for (const param of ast.params) {
-            this.semantic(param.name, FppTokenType.parameter);
+            this.semantic(param.name, FppTokenType.formalParameter);
             this.type(param.type, scope);
         }
     }
