@@ -315,17 +315,8 @@ class FppExtension implements
         kind: vscode.CompletionItemKind
     ): vscode.CompletionItem[] {
         let writtenSoFar: string = '';
-        let range: vscode.Range | undefined;
         if (context) {
             writtenSoFar = context.text.replaceAll(" ", "");
-            if (context.start) {
-                range = new vscode.Range(
-                    context.start.line - 1,
-                    context.start.charPositionInLine,
-                    context.start.line - 1,
-                    context.start.charPositionInLine + context.text.length
-                );
-            }
         }
 
         const out: vscode.CompletionItem[] = [];
@@ -335,27 +326,23 @@ class FppExtension implements
 
         const keys = Array.from(map.keys());
 
-        while (out.length === 0) {
+        while (true) {
             const prefix = [...scopeBuildUp, writtenSoFar].join(".");
             const foundItems = keys.filter(v => v.startsWith(prefix));
-            for (const found of foundItems) {
-                const decl = map.get(found)!;
 
-                // Simplify the key
-                // Expand the prefix as much as possible
-                let foundQualIdent = found.split(".");
-                let i = 0;
-                for (; i < foundQualIdent.length && i < scope.length; i++) {
-                    if (foundQualIdent[i] !== scope[i]) {
-                        break;
-                    }
+            const nextToks = new Set<string>(
+                foundItems.map(found => found.slice(prefix.length).split('.')[0])
+            );
+
+            for (const tok of nextToks) {
+                const decl = map.get(`${prefix}${tok}`);
+                if (decl) {
+                    const item = new vscode.CompletionItem(tok, kind);
+                    item.detail = decl.annotation;
+                    out.push(item);
+                } else {
+                    out.push(new vscode.CompletionItem(tok, kind));
                 }
-
-                const item = new vscode.CompletionItem(foundQualIdent.slice(i).join('.'), kind);
-                item.range = range;
-                item.detail = decl.annotation;
-
-                out.push(item);
             }
 
             const nextScope = scopeTeardown.pop();
