@@ -121,7 +121,8 @@ export interface Annotatable extends Ast {
      * as port, command or enum, each argument may be
      * annotated separately.
      */
-    annotatedParams?: [string, string][];
+    annotatedMembers?: [string, string][];
+    annotatedMemberName?: string;
 }
 
 export interface Error extends Ast {

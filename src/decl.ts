@@ -240,7 +240,7 @@ export class DeclCollector extends MemberTraverser {
         this.topologyPortsTrav.pass(ast, scope);
     }
 
-    private static typeName(type: Fpp.TypeName): string {
+    static typeName(type: Fpp.TypeName): string {
         return type.complex ? DiangosicManager.flat(type.type) : type.type;
     }
 
@@ -344,7 +344,7 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        [ast.annotatedValue, ast.annotatedParams] = DeclCollector.annotateParameters(ast.params);
+        [ast.annotatedValue, ast.annotatedMembers] = DeclCollector.annotateParameters(ast.params);
         if (ast.returnType) {
             ast.annotatedValue += `: ${DeclCollector.typeName(ast.returnType)}`;
         }
@@ -419,7 +419,7 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        [ast.annotatedValue, ast.annotatedParams] = DeclCollector.annotateParameters(ast.params);
+        [ast.annotatedValue, ast.annotatedMembers] = DeclCollector.annotateParameters(ast.params);
         ast.annotatedValue = `${ast.annotatedValue} @${ast.kind.value}`;
 
         this.commands.set(name, ast);
@@ -435,7 +435,7 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        [ast.annotatedValue, ast.annotatedParams] = DeclCollector.annotateParameters(ast.params);
+        [ast.annotatedValue, ast.annotatedMembers] = DeclCollector.annotateParameters(ast.params);
         ast.annotatedValue = `${ast.annotatedValue} ${ast.severity.value}`;
 
         this.events.set(name, ast);

@@ -278,8 +278,8 @@ class FppExtension implements
                 annotationStr = definition.annotation;
             }
 
-            if (definition.annotatedParams) {
-                annotationStr += '\n\n' + definition.annotatedParams.map(v => ` *@param* \`${v[0]}\` @< ${v[1]}`).join('\n\n');
+            if (definition.annotatedMembers) {
+                annotationStr += '\n\n' + definition.annotatedMembers.map(v => ` *@${definition.annotatedMemberName ?? 'param'}* \`${v[0]}\` @< ${v[1]}`).join('\n\n');
             }
 
             if (annotationStr.length > 0) {

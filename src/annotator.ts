@@ -300,6 +300,18 @@ export class FppAnnotator extends MemberTraverser {
             this.expr(member.size, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
             this.type(member.fppType, scope);
         }
+
+        if (ast.members.length > 0) {
+            const record: [string, string][] = [];
+            const memberString = ast.members.map(member => {
+                record.push([member.name.value, member.annotation ?? '']);
+                return `${member.name.value}: ${DeclCollector.typeName(member.fppType) + (member.size ? `[${member.size.evaluated?.value ?? 1}]` : '')}`;
+            }).join(', ');
+
+            ast.annotatedMemberName = "member";
+            ast.annotatedValue = `{${memberString}}`;
+            ast.annotatedMembers = record;
+        }
     }
 
     enumDecl(ast: Fpp.EnumDecl, scope: Fpp.QualifiedIdentifier): void {
