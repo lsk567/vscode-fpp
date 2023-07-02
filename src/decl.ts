@@ -244,18 +244,18 @@ export class DeclCollector extends MemberTraverser {
         return type.complex ? DiangosicManager.flat(type.type) : type.type;
     }
 
-    private static annotateParameters(prms: Fpp.FormalParameter[]): string {
+    private static annotateParameters(prms: Fpp.FormalParameter[]): [string, [string, string][] | undefined] {
         if (prms.length === 0) {
-            return '()';
+            return ['()', undefined];
         }
 
+        const record: [string, string][] = [];
         const parameterString = prms.map(prm => {
-            return `${prm.name.value}: ${DeclCollector.typeName(prm.type)}${prm.ref ? '&' : ''},` + (
-                prm.annotation ? ` // ${prm.annotation}` : ''
-            );
-        }).join('\n    ');
+            record.push([prm.name.value, prm.annotation ?? '']);
+            return `${prm.name.value}: ${DeclCollector.typeName(prm.type) + (prm.ref ? '&' : '')}`;
+        }).join(', ');
 
-        return `(\n    ${parameterString}\n)`;
+        return [`(${parameterString})`, record];
     }
 
     private typeCollect(decl: Fpp.TypeDecl, scope: Fpp.QualifiedIdentifier) {
@@ -342,7 +342,7 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        ast.annotatedValue = DeclCollector.annotateParameters(ast.params);
+        [ast.annotatedValue, ast.annotatedParams] = DeclCollector.annotateParameters(ast.params);
         if (ast.returnType) {
             ast.annotatedValue += `: ${DeclCollector.typeName(ast.returnType)}`;
         }
@@ -417,7 +417,8 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        ast.annotatedValue = `${DeclCollector.annotateParameters(ast.params)} @${ast.kind.value} `;
+        [ast.annotatedValue, ast.annotatedParams] = DeclCollector.annotateParameters(ast.params);
+        ast.annotatedValue = `${ast.annotatedValue} @${ast.kind.value}`;
 
         this.commands.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
@@ -432,7 +433,8 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        ast.annotatedValue = `${DeclCollector.annotateParameters(ast.params)} ${ast.severity.value}`;
+        [ast.annotatedValue, ast.annotatedParams] = DeclCollector.annotateParameters(ast.params);
+        ast.annotatedValue = `${ast.annotatedValue} ${ast.severity.value}`;
 
         this.events.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(

@@ -115,6 +115,13 @@ export interface Annotatable extends Ast {
      * values or '()' for other types of declarations.
      */
     annotatedValue?: string;
+
+    /**
+     * If this is a declaration with parameters such as
+     * as port, command or enum, each argument may be
+     * annotated separately.
+     */
+    annotatedParams?: [string, string][];
 }
 
 export interface Error extends Ast {

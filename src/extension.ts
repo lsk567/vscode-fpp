@@ -260,18 +260,30 @@ class FppExtension implements
             const fullName = FppAnnotator.flat(definition.scope, definition.name);
 
             const mdAssociation = new vscode.MarkdownString();
-            mdAssociation.appendCodeblock(
-                typeName ?
-                    `(${definition.type.replace("Decl", "")}) ${fullName}: ${typeName} ${definition.annotatedValue ?? ''}`
-                    : `(${definition.type.replace("Decl", "")}) ${fullName} ${definition.annotatedValue ?? ''}`,
-                'typescript'
-            );
+            let signatureBlock: string = `(${definition.type.replace("Decl", "")}) ${fullName}`;
+            if (typeName) {
+                signatureBlock += `: ${typeName}`;
+            }
 
+            if (definition.annotatedValue) {
+                signatureBlock += ' ' + definition.annotatedValue;
+            }
+
+            mdAssociation.appendCodeblock(signatureBlock, 'typescript');
             md.push(mdAssociation);
 
             // Add the optional annotation
+            let annotationStr: string = '';
             if (definition.annotation) {
-                md.push(new vscode.MarkdownString(definition.annotation));
+                annotationStr = definition.annotation;
+            }
+
+            if (definition.annotatedParams) {
+                annotationStr += '\n\n' + definition.annotatedParams.map(v => ` <i>@param</i> \`${v[0]}\` @< ${v[1]}`).join('\n\n');
+            }
+
+            if (annotationStr.length > 0) {
+                md.push(new vscode.MarkdownString(annotationStr));
             }
 
             range = new vscode.Range(
