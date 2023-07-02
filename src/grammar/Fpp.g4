@@ -30,8 +30,8 @@ structMember:
     type=typeName (FORMAT format=LIT_STRING)?
     ;
 
-structMemberN: structMember (commaDelim | commaDelim? annotation);
-structMemberL: structMember (commaDelim | commaDelim? annotation)?;
+structMemberN: preAnnotation? structMember (commaDelim | ','? postAnnotation);
+structMemberL: preAnnotation? structMember (commaDelim | ','? postAnnotation)?;
 structDecl:
     STRUCT name=IDENTIFIER '{'
         NL* (structMemberN* structMemberL)?
@@ -100,8 +100,8 @@ telemetryChannelDecl:
     ;
 
 enumMember: name=IDENTIFIER ('=' value=expr)?;
-enumMemberN: enumMember (commaDelim | commaDelim? annotation);
-enumMemberL: enumMember (commaDelim | commaDelim? annotation)?;
+enumMemberN: preAnnotation? enumMember (commaDelim | ','? postAnnotation);
+enumMemberL: preAnnotation? enumMember (commaDelim | ','? postAnnotation)?;
 enumDecl: ENUM name=IDENTIFIER (':' type=intType)?
     '{'
         NL* (enumMemberN* enumMemberL)?
@@ -135,7 +135,7 @@ internalPortDecl:
     queueFull=queueFullBehavior?
     ;
 
-initSpecifier: annotation? PHASE phaseExpr=expr code=LIT_STRING;
+initSpecifier: preAnnotation? PHASE phaseExpr=expr code=LIT_STRING;
 componentInstanceDecl:
     INSTANCE name=IDENTIFIER ':' fppType=qualIdent
     BASE ID base_id=expr
@@ -168,7 +168,7 @@ componentMemberTempl:
     | matchStmt
     ;
 
-componentMember: annotation? componentMemberTempl;
+componentMember: preAnnotation? componentMemberTempl;
 
 componentDecl:
     kind=componentKind COMPONENT name=IDENTIFIER '{'
@@ -214,7 +214,7 @@ topologyMemberTempl:
     | includeStmt
     ;
 
-topologyMember: annotation? topologyMemberTempl;
+topologyMember: preAnnotation? topologyMemberTempl;
 
 topologyDecl:
     TOPOLOGY name=IDENTIFIER '{'
@@ -249,7 +249,7 @@ moduleMemberTempl:
     | topologyDecl
     ;
 
-moduleMember: annotation? moduleMemberTempl;
+moduleMember: preAnnotation? moduleMemberTempl;
 
 moduleDecl: MODULE name=IDENTIFIER '{'
         NL* (moduleMember semiDelim)* NL*
@@ -263,8 +263,8 @@ moduleDecl: MODULE name=IDENTIFIER '{'
 formalParameter: REF? name=IDENTIFIER ':' type=typeName;
 
 // Normal
-formalParameterN: formalParameter (commaDelim | commaDelim? annotation);
-formalParamaterL: formalParameter (commaDelim | commaDelim? annotation)?;
+formalParameterN: formalParameter (commaDelim | ','? postAnnotation);
+formalParamaterL: formalParameter (commaDelim | ','? postAnnotation)?;
 
 formalParameterList: '(' NL* (formalParameterN* formalParamaterL)? ')';
 
@@ -321,9 +321,9 @@ WS: [ \r\t]+ -> skip;
 WS_NL: '\\'~[\n]*[\n] -> skip;
 COMMENT: [#]~[\n]* -> skip;
 
-// TODO(tumbar) Support labeling declarations with annotations
 ANNOTATION: [@]~[\n]*;
-annotation: (ANNOTATION | NL)+;
+postAnnotation: ANNOTATION (NL ANNOTATION)* NL+;
+preAnnotation: NL (ANNOTATION | NL)+;
 
 LIT_BOOLEAN: FALSE | TRUE;
 LIT_STRING: LONG_STRING | SHORT_STRING;

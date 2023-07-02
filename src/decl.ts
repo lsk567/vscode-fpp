@@ -278,6 +278,8 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
+        decl.scope = scope;
+
         this.constants.set(name, decl);
         this.translationUnitDeclarations.get(decl.location.source)!.add(
             DiangosicManager.asRange(decl.name.location),

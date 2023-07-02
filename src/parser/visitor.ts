@@ -239,18 +239,27 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
-    private annotation(ctx?: FppParser.AnnotationContext): string | undefined {
-        if (!ctx) {
+    private annotation(preCtx?: FppParser.PreAnnotationContext, postCtx?: FppParser.PostAnnotationContext): string | undefined {
+        if (!preCtx && !postCtx) {
             return undefined;
         }
 
-        const annotations = ctx.ANNOTATION().map(e => {
+        let annotations = preCtx?.ANNOTATION().map(e => {
             if (e.text.startsWith("@<")) {
                 return e.text.substring(2).trim(); // @<
             } else {
                 return e.text.substring(1).trim(); // @
             }
-        });
+        }) ?? [];
+
+        annotations = annotations.concat(postCtx?.ANNOTATION().map(e => {
+            if (e.text.startsWith("@<")) {
+                return e.text.substring(2).trim(); // @<
+            } else {
+                return e.text.substring(1).trim(); // @
+            }
+        }) ?? []);
+
         return annotations.join("\n").trim();
     }
 
@@ -391,7 +400,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         }
 
         const out = this.visitStructMember(ctx.structMember());
-        out.annotation = this.annotation(ctx.annotation());
+        out.annotation = this.annotation(ctx.preAnnotation(), ctx.postAnnotation());
         return out;
     }
 
@@ -755,7 +764,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         }
 
         const out = this.visitEnumMember(ctx.enumMember());
-        out.annotation = this.annotation(ctx.annotation());
+        out.annotation = this.annotation(ctx.preAnnotation(), ctx.postAnnotation());
         return out;
     }
 
@@ -940,7 +949,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             location: this.loc(ctx),
             phase: this.visitExpr(ctx._phaseExpr),
             code: this.stringLiteral(ctx._code),
-            annotation: this.annotation(ctx.annotation())
+            annotation: this.annotation(ctx.preAnnotation())
         };
     }
 
@@ -1000,19 +1009,19 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
     visitComponentMember(ctx: FppParser.ComponentMemberContext): Fpp.ComponentMember {
         const out = this.visit(ctx.componentMemberTempl()) as Fpp.ComponentMember;
-        out.annotation = this.annotation(ctx.annotation());
+        out.annotation = this.annotation(ctx.preAnnotation());
         return out;
     }
 
     visitModuleMember(ctx: FppParser.ModuleMemberContext): Fpp.ModuleMember {
         const out = this.visit(ctx.moduleMemberTempl()) as Fpp.ModuleMember;
-        out.annotation = this.annotation(ctx.annotation());
+        out.annotation = this.annotation(ctx.preAnnotation());
         return out;
     }
 
     visitTopologyMember(ctx: FppParser.TopologyMemberContext): Fpp.TopologyMember {
         const out = this.visit(ctx.topologyMemberTempl()) as Fpp.TopologyMember;
-        out.annotation = this.annotation(ctx.annotation());
+        out.annotation = this.annotation(ctx.preAnnotation());
         return out;
     }
 
@@ -1272,7 +1281,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         }
 
         const out = this.visitFormalParameter(ctx.formalParameter());
-        out.annotation = this.annotation(ctx.annotation());
+        out.annotation = this.annotation(undefined, ctx.postAnnotation());
         return out;
     }
 

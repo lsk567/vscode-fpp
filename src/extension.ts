@@ -426,7 +426,8 @@ class FppExtension implements
         // context in the parser.
         const expectsQualIdent = candidates.tokens.has(FppParser.IDENTIFIER) && keywords.length > 0;
         const qualIdentInfo = candidates.rules.get(FppParser.RULE_qualIdent);
-        if (qualIdentInfo || expectsQualIdent) {
+        const expectsExpr = candidates.rules.get(FppParser.RULE_expr);
+        if (qualIdentInfo || expectsQualIdent || expectsExpr) {
             // A qualified identifier references some declaration
             // We need to figure out what type this is referencing
 

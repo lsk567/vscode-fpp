@@ -20,7 +20,7 @@
             "formatLiteral": "Default string literal format to include in dictionary definition"
         },
         "stateMap": {
-            "offset": 217,
+            "offset": 219,
             "map": {
                 "array": [
                     0
@@ -72,7 +72,7 @@
             "queue-full-behavior": "specifies the behavior of the command when the input full is queue. This specifier is valid only if the kind of the command is async. If no specifier appears, then the default behavior is assert."
         },
         "stateMap": {
-            "offset": 293,
+            "offset": 301,
             "map": {
                 "commandKind": [
                     0
@@ -127,7 +127,7 @@
             "cpuExpr": "Specifies the CPU affinity for active components. The CPU affinity is optional for active components and is not allowed for queued or passive components."
         },
         "stateMap": {
-            "offset": 548,
+            "offset": 562,
             "map": {
                 "instance": [
                     0
@@ -187,7 +187,7 @@
             "componentInstance": "The qualified identifier must refer to a component instance."
         },
         "stateMap": {
-            "offset": 664,
+            "offset": 678,
             "map": {
                 "private": [
                     0,
@@ -432,7 +432,7 @@
             "highLimit": "Specifies the high limit for the channel"
         },
         "stateMap": {
-            "offset": 418,
+            "offset": 426,
             "map": {
                 "telemetry": [
                     0
@@ -493,7 +493,7 @@
             "throttleExpr": "Specifies the maximum number of times to emit the event before throttling it. The type of e must be convertible to Integer and must evaluate to an integer."
         },
         "stateMap": {
-            "offset": 503,
+            "offset": 517,
             "map": {
                 "event": [
                     0
@@ -571,7 +571,7 @@
             "queue-full-behavior": "Same as async input ports"
         },
         "stateMap": {
-            "offset": 528,
+            "offset": 542,
             "map": {
                 "internal": [
                     0
@@ -608,7 +608,7 @@
             "returnType": "Return type used when port is invoked in a synchronous context"
         },
         "stateMap": {
-            "offset": 654,
+            "offset": 668,
             "map": {
                 "port": [
                     0
@@ -638,7 +638,7 @@
             "input": "Reference to an input port instance"
         },
         "stateMap": {
-            "offset": 676,
+            "offset": 690,
             "map": {
                 "output": [
                     0
@@ -660,7 +660,7 @@
             "codeLiteral": "Code in a target language that is associated with the instance"
         },
         "stateMap": {
-            "offset": 542,
+            "offset": 556,
             "map": {
                 "phase": [0, 2],
                 "phaseExpr": [3],

@@ -73,7 +73,8 @@ import { ArrayExprContext } from "./FppParser";
 import { StructAssignmentContext } from "./FppParser";
 import { StructExprContext } from "./FppParser";
 import { ExprContext } from "./FppParser";
-import { AnnotationContext } from "./FppParser";
+import { PostAnnotationContext } from "./FppParser";
+import { PreAnnotationContext } from "./FppParser";
 
 
 /**
@@ -852,14 +853,25 @@ export interface FppListener extends ParseTreeListener {
 	exitExpr?: (ctx: ExprContext) => void;
 
 	/**
-	 * Enter a parse tree produced by `FppParser.annotation`.
+	 * Enter a parse tree produced by `FppParser.postAnnotation`.
 	 * @param ctx the parse tree
 	 */
-	enterAnnotation?: (ctx: AnnotationContext) => void;
+	enterPostAnnotation?: (ctx: PostAnnotationContext) => void;
 	/**
-	 * Exit a parse tree produced by `FppParser.annotation`.
+	 * Exit a parse tree produced by `FppParser.postAnnotation`.
 	 * @param ctx the parse tree
 	 */
-	exitAnnotation?: (ctx: AnnotationContext) => void;
+	exitPostAnnotation?: (ctx: PostAnnotationContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.preAnnotation`.
+	 * @param ctx the parse tree
+	 */
+	enterPreAnnotation?: (ctx: PreAnnotationContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.preAnnotation`.
+	 * @param ctx the parse tree
+	 */
+	exitPreAnnotation?: (ctx: PreAnnotationContext) => void;
 }
 
