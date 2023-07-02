@@ -12,7 +12,7 @@ export enum FppTokenType {
     component, // class
     componentInstance, // variable
     constant, // enumMember
-    graphGroup, // label
+    graphGroup, // namespace
     port, // interface
     type, // type
     modifier, // keyword
@@ -76,7 +76,7 @@ export const fppLegend = new vscode.SemanticTokensLegend(
         'class',
         'variable',
         'enumMember',
-        'label',
+        'namespace',
         'interface',
         'type',
         'keyword',
@@ -460,7 +460,7 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        ast.annotatedValue = ast.format?.value;
+        ast.annotatedValue = ast.format?.value ? `"${ast.format?.value}"` : undefined;
 
         this.telemetry.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
