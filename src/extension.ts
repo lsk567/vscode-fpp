@@ -279,7 +279,7 @@ class FppExtension implements
             }
 
             if (definition.annotatedParams) {
-                annotationStr += '\n\n' + definition.annotatedParams.map(v => ` <i>@param</i> \`${v[0]}\` @< ${v[1]}`).join('\n\n');
+                annotationStr += '\n\n' + definition.annotatedParams.map(v => ` *@param* \`${v[0]}\` @< ${v[1]}`).join('\n\n');
             }
 
             if (annotationStr.length > 0) {
