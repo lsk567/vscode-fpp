@@ -5,37 +5,11 @@ import * as fs from 'fs';
 
 import * as Fpp from './parser/ast';
 import { RangeAssociator } from './associator';
-import { DeclCollector, FppTokenType, TypeDecl, fppLegend, tokenParents, tokenTypeNames } from './decl';
-import { ExpressionTraverser, MemberTraverser } from './traverser';
+import { DeclCollector, FppTokenType, fppLegend, tokenParents, tokenTypeNames } from './decl';
+import { MemberTraverser } from './traverser';
 import { DiangosicManager } from './diagnostics';
+import { ExprTraverser, TypeNameValidator, TypeValidator } from './evaluator';
 
-enum PrimitiveExpressionType {
-    integer = "integer",
-    floating = "floating",
-    boolean = "boolean",
-    string = "string",
-    array = "array",
-    struct = "struct",
-}
-
-interface StructExpressionType {
-    type: "StructExpr";
-    members: {
-        name: string;
-        type: ExpressionType;
-    }[];
-}
-
-interface ArrayExpressionType {
-    type: "ArrayExpr";
-    memberType: ExpressionType;
-}
-
-type ExpressionType = (
-    PrimitiveExpressionType |
-    StructExpressionType |
-    ArrayExpressionType
-);
 
 export let symLinkCache = new Map<string, string>();
 
@@ -75,252 +49,42 @@ export class FppAnnotator extends MemberTraverser {
     definitions = new SymlinkedMap<RangeAssociator<Fpp.Decl>>();
     links = new SymlinkedMap<vscode.DocumentLink[]>();
 
-    exprTrav = new (class extends ExpressionTraverser {
+    exprTrav = new class extends ExprTraverser {
         parent!: FppAnnotator;
-        scope!: Fpp.QualifiedIdentifier;
-        private expectedReturn!: Fpp.TypeName;
-        private resolvedType?: TypeDecl;
 
-        private typeName(type: Fpp.TypeName): string {
-            if (type.complex) {
-                return MemberTraverser.flat(type.type);
-            } else {
-                return type.type;
+        identifier(ast: Fpp.IdentifierExpr, scope: Fpp.QualifiedIdentifier, validator: TypeValidator): Fpp.ExprValue {
+            const constant = this.parent.identifier(ast.value, scope, FppTokenType.constant);
+
+            if (!constant) {
+                this.emit(vscode.Uri.file(ast.location.source), new vscode.Diagnostic(
+                    MemberTraverser.asRange(ast.location),
+                    "Unresolved reference"
+                ));
+
+                return {
+                    type: Fpp.PrimExprType.integer,
+                    value: 0
+                };
             }
+
+            const value = this.traverse((constant as Fpp.ConstantDefinition).value!, constant.scope, validator);
+            (constant as Fpp.ConstantDefinition).value!.evaluated = value;
+            return value;
         }
 
-        private is(ast: Fpp.BasicExpr, gotExprType: PrimitiveExpressionType): boolean {
-            let ok: boolean;
-            let shouldEmit = true;
-
-            if (this.expectedReturn.complex) {
-                // Look up the type in decl
-                if (!this.resolvedType) {
-                    shouldEmit = false;
-                }
-
-                switch (gotExprType) {
-                    case PrimitiveExpressionType.array:
-                        ok = this.resolvedType?.type === "ArrayDecl";
-                        break;
-                    case PrimitiveExpressionType.struct:
-                        ok = this.resolvedType?.type === "StructDecl";
-                        break;
-                    case PrimitiveExpressionType.integer:
-                        ok = this.resolvedType?.type === "EnumDecl";
-                    default:
-                        ok = false;
-                        break;
-                }
-            } else {
-                switch (gotExprType) {
-                    case PrimitiveExpressionType.integer:
-                        ok = Fpp.isNumeric(this.expectedReturn.type);
-                        break;
-                    case PrimitiveExpressionType.floating:
-                        ok = Fpp.isFloating(this.expectedReturn.type);
-                        break;
-                    case PrimitiveExpressionType.boolean:
-                        ok = this.expectedReturn.type === "bool";
-                        break;
-                    case PrimitiveExpressionType.string:
-                        ok = this.expectedReturn.type === "string";
-                        break;
-                    default:
-                        ok = false;
-                        break;
-                }
+        resolveType(typeName: Fpp.TypeName, scope: Fpp.QualifiedIdentifier): Fpp.TypeDecl | undefined {
+            if (typeName.complex) {
+                const resolvedName = this.parent.decl.resolve(typeName.type, scope, FppTokenType.type);
+                return resolvedName ? this.parent.decl.get(MemberTraverser.flat(resolvedName), FppTokenType.type)! as Fpp.TypeDecl : undefined;
             }
 
-            if (!ok && shouldEmit) {
-                this.parent.emit(
-                    vscode.Uri.file(ast.location.source),
-                    new vscode.Diagnostic(
-                        MemberTraverser.asRange(ast.location),
-                        `Expected ${this.typeName(this.expectedReturn)} expresssion got ${gotExprType[0]}`
-                    )
-                );
-            }
-
-            return ok;
+            return undefined;
         }
 
-        private setType(expectedReturn: Fpp.TypeName, forceResolved?: TypeDecl) {
-            this.expectedReturn = expectedReturn;
-            if (this.expectedReturn.complex) {
-                if (forceResolved) {
-                    this.resolvedType = forceResolved;
-                } else {
-                    const resolved = this.parent.decl.resolve(this.expectedReturn.type, this.scope, FppTokenType.type);
-                    if (resolved) {
-                        this.resolvedType = this.parent.decl.types.get(MemberTraverser.flat(resolved))!;
-                    } else {
-                        // Type does not exist, error should already be reported
-                        return false;
-                    }
-                }
-            }
-
-            return true;
+        emit(uri: vscode.Uri, diagnostic: vscode.Diagnostic): void {
+            this.parent.emit(uri, diagnostic);
         }
-
-        pass(ast: Fpp.Expr, scope: Fpp.QualifiedIdentifier, expectedReturn: Fpp.TypeName) {
-            this.setType(expectedReturn);
-            this.scope = scope;
-            this.traverse(ast);
-        }
-
-        identifier(ast: Fpp.IdentifierExpr) {
-            this.parent.identifier(ast.value, this.scope, FppTokenType.constant);
-        }
-
-        floatLiteral(ast: Fpp.LiteralFloatExpr): void {
-            this.is(ast, PrimitiveExpressionType.floating);
-        }
-
-        intLiteral(ast: Fpp.LiteralIntExpr): void {
-            this.is(ast, PrimitiveExpressionType.integer);
-        }
-
-        booleanExpr(ast: Fpp.BooleanExpr): void {
-            this.is(ast, PrimitiveExpressionType.boolean);
-        }
-
-        binaryExpr(ast: Fpp.BinaryExpr): void {
-            if (this.expectedReturn.complex) {
-                this.parent.emit(
-                    vscode.Uri.file(ast.location.source),
-                    new vscode.Diagnostic(
-                        MemberTraverser.asRange(ast.location),
-                        `Expression evaluates to primitive, expected ${this.typeName(this.expectedReturn)}`
-                    )
-                );
-
-                return;
-            }
-
-            // Make sure we are expecting a numeric type
-            // If not, this type of expression should not be used here
-            if (!Fpp.isNumeric(this.expectedReturn.type)) {
-                this.parent.emit(
-                    vscode.Uri.file(ast.location.source),
-                    new vscode.Diagnostic(
-                        MemberTraverser.asRange(ast.location),
-                        `Binary operations are not supported for ${this.expectedReturn.type}s`
-                    )
-                );
-            } else {
-                // We are good, check the rest of the items
-                this.traverse(ast.left);
-                this.traverse(ast.right);
-            }
-        }
-
-        arrayExpr(ast: Fpp.ArrayExpr): void {
-            if (!this.is(ast, PrimitiveExpressionType.array)) {
-                return;
-            }
-
-            this.setType((this.resolvedType as Fpp.ArrayDecl).fppType);
-
-            // Make sure every member matches the expected type
-            for (const memberAst of ast.value) {
-                this.traverse(memberAst);
-            }
-        }
-
-        structExpr(ast: Fpp.StructExpr): void {
-            if (!this.is(ast, PrimitiveExpressionType.struct)) {
-                return;
-            }
-
-            const resolvedType = (this.resolvedType! as Fpp.StructDecl);
-
-            // Make sure all members are included
-            // Make sure there are no extra members
-            // Make sure the member values match the required types
-            const definedSet = new Map<string, Fpp.StructAssignment>();
-            const memberSet = new Map<string, Fpp.StructMember>(
-                resolvedType.members.map((e) => [e.name.value, e])
-            );
-
-            const uri = vscode.Uri.file(ast.location.source);
-
-            for (const member of ast.value) {
-                const memberDefinition = memberSet.get(member.name.value);
-                if (!memberDefinition) {
-                    this.parent.emit(
-                        uri,
-                        new vscode.Diagnostic(
-                            MemberTraverser.asRange(member.name.location),
-                            `${member.name.value} is not a member of ${resolvedType.name.value}`
-                        )
-                    );
-
-                    continue;
-                } else {
-                    // Provide semantics and links to member names in struct expressions
-                    this.parent.semantic(member.name, FppTokenType.formalParameter);
-                    memberDefinition.scope = this.scope;
-                    this.parent.addDefinition(member.name.location.source, FppAnnotator.asRange(member.name.location), memberDefinition);
-
-                    // Validate the member value types
-                    if (memberDefinition.size) {
-                        const typeNameTok = { value: "Annonymous Array", location: Fpp.implicitLocation };
-                        this.setType({
-                            complex: true,
-                            type: [typeNameTok],
-                            location: Fpp.implicitLocation
-                        }, {
-                            name: typeNameTok,
-                            scope: [...this.scope],
-                            type: "ArrayDecl",
-                            fppType: memberDefinition.fppType,
-                            size: memberDefinition.size,
-                            location: Fpp.implicitLocation
-                        });
-                    } else {
-                        this.setType(memberDefinition.fppType);
-                    }
-
-                    this.traverse(member.value);
-                }
-
-                if (definedSet.has(member.name.value)) {
-                    const diag = new vscode.Diagnostic(
-                        MemberTraverser.asRange(member.name.location),
-                        `Value for ${member.name.value} provided multiple times`,
-                        vscode.DiagnosticSeverity.Warning
-                    );
-                    diag.relatedInformation = [new vscode.DiagnosticRelatedInformation(
-                        MemberTraverser.asLocation(definedSet.get(member.name.value)!.name.location),
-                        "Previously defined here"
-                    )];
-
-                    this.parent.emit(uri, diag);
-                } else {
-                    definedSet.set(member.name.value, member);
-                }
-            }
-
-            const notProvided: string[] = [];
-            for (const [key, _] of memberSet) {
-                if (!definedSet.has(key)) {
-                    notProvided.push(key);
-                }
-            }
-
-            if (notProvided.length > 0) {
-                this.parent.emit(
-                    uri,
-                    new vscode.Diagnostic(
-                        MemberTraverser.asRange(ast.location),
-                        `Missing struct members from value: ${notProvided.join(" ")}`
-                    )
-                );
-            }
-        }
-    })();
+    }();
 
     constructor(readonly decl: DeclCollector) {
         super();
@@ -375,7 +139,7 @@ export class FppAnnotator extends MemberTraverser {
         }
     }
 
-    private identifier(ident: Fpp.QualifiedIdentifier, scope: Fpp.QualifiedIdentifier, type: FppTokenType): Fpp.Decl | undefined {
+    identifier(ident: Fpp.QualifiedIdentifier, scope: Fpp.QualifiedIdentifier, type: FppTokenType): Fpp.Decl | undefined {
         if (!ident) {
             return;
         }
@@ -388,7 +152,7 @@ export class FppAnnotator extends MemberTraverser {
             }
 
             // Make some assumptions about semantic annotations to keep things pretty
-            for(let i = 0; i < ident.length; i++) {
+            for (let i = 0; i < ident.length; i++) {
                 if (i + 1 === ident.length) {
                     this.semantic(ident[i], type);
 
@@ -486,8 +250,8 @@ export class FppAnnotator extends MemberTraverser {
 
     private expr(expr: Fpp.Expr | undefined, scope: Fpp.QualifiedIdentifier, expectedReturn: Fpp.TypeName) {
         if (expr) {
-            this.exprTrav.scope = scope;
-            this.exprTrav.pass(expr, scope, expectedReturn);
+            const resolvedReturnType = this.exprTrav.resolveType(expectedReturn, scope);
+            this.exprTrav.traverse(expr, scope, new TypeNameValidator(expectedReturn, resolvedReturnType));
         }
     }
 
@@ -511,8 +275,22 @@ export class FppAnnotator extends MemberTraverser {
     constantDecl(ast: Fpp.ConstantDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.constant);
 
-        // TODO(tumbar) Do we need another compiler stage to infer the constant type?
-        this.expr(ast.value, scope, { complex: false, type: "F64", location: Fpp.implicitLocation });
+        const value = this.exprTrav.traverse(ast.value, scope, {
+            validate: (value) => {
+                switch(value.type) {
+                    case Fpp.PrimExprType.integer:
+                    case Fpp.PrimExprType.floating:
+                    case Fpp.PrimExprType.boolean:
+                    case Fpp.PrimExprType.string:
+                        return undefined;
+                    case Fpp.PrimExprType.array:
+                    case Fpp.PrimExprType.struct:
+                        return `A constant cannot take a ${value.type} value`;
+                }
+            }
+        });
+
+        ast.annotatedValue = `= ${value.value}`;
     }
 
     structDecl(ast: Fpp.StructDecl, scope: Fpp.QualifiedIdentifier): void {
@@ -528,6 +306,16 @@ export class FppAnnotator extends MemberTraverser {
         this.semantic(ast.name, FppTokenType.type);
         for (const member of ast.members) {
             this.semantic(member.name, FppTokenType.constant);
+
+            const value = this.exprTrav.traverse(member.value!, scope, {
+                validate: (v) => {
+                    if (v.type !== Fpp.PrimExprType.integer) {
+                        return `Enum member must be integer not ${v.type}`;
+                    }
+                }
+            });
+
+            member.annotatedValue = `= ${value.value}`;
         }
     }
 
@@ -634,7 +422,7 @@ export class FppAnnotator extends MemberTraverser {
         this.expr(ast.cpu, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
 
         for (const init of ast.init) {
-            this.expr(init.phase, scope, { complex: false, type: "string", location: Fpp.implicitLocation });
+            this.expr(init.phase, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
         }
     }
 

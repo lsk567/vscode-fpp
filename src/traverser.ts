@@ -103,7 +103,7 @@ export abstract class MemberTraverser extends DiangosicManager {
                 default:
                     throw new Error(`Unhandled declaration type ${(ast as any).type}: ${ast}`);
             }
-        } catch(e) {
+        } catch (e) {
             // console.error(e);
         }
     }
@@ -153,45 +153,6 @@ export abstract class MemberTraverser extends DiangosicManager {
         for (const member of ast.members) {
             // this.traverse(member, [...scope, ast.name]);
             this.traverse(member, scope);
-        }
-    }
-}
-
-export abstract class ExpressionTraverser {
-    protected traverse(ast: Fpp.Expr): void {
-        switch (ast.type) {
-            case 'ArrayExpr': return this.arrayExpr(ast);
-            case 'BinaryExpr': return this.binaryExpr(ast);
-            case 'BooleanExpr': return this.booleanExpr(ast);
-            case 'FloatLiteral': return this.floatLiteral(ast);
-            case 'Identifier': return this.identifier(ast);
-            case 'IntLiteral': return this.intLiteral(ast);
-            case 'NegExpr': return this.negExpr(ast);
-            case 'StringLiteral': return this.stringLiteral(ast);
-            case 'StructExpr': return this.structExpr(ast);
-        }
-    }
-
-    protected arrayExpr(ast: Fpp.ArrayExpr) {
-        for (const elem of ast.value) {
-            this.traverse(elem);
-        }
-    }
-
-    protected binaryExpr(ast: Fpp.BinaryExpr) {
-        this.traverse(ast.left);
-        this.traverse(ast.right);
-    }
-
-    protected booleanExpr(ast: Fpp.BooleanExpr) { }
-    protected floatLiteral(ast: Fpp.LiteralFloatExpr) { }
-    protected identifier(ast: Fpp.IdentifierExpr) { }
-    protected intLiteral(ast: Fpp.LiteralIntExpr) { }
-    protected negExpr(ast: Fpp.NegExpr) { this.traverse(ast.value); }
-    protected stringLiteral(ast: Fpp.LiteralStringExpr) { }
-    protected structExpr(ast: Fpp.StructExpr) {
-        for (const member of ast.value) {
-            this.traverse(member.value);
         }
     }
 }

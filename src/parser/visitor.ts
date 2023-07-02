@@ -741,6 +741,8 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         const value = ctx.expr();
         return {
+            scope: [...this.scope],
+            type: "EnumMember",
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
             value: value ? this.visitExpr(value) : undefined
@@ -1307,7 +1309,11 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             complex: false,
             type: ctx.getChild(0).text! as Fpp.PrimitiveTypeKey,
             location: this.loc(ctx),
-            size: ctx._size ? this.visitExpr(ctx._size) : undefined
+            size: ctx._size ? {
+                type: "IntLiteral",
+                value: parseInt(ctx._size.text!),
+                location: this.locT(ctx._size)
+            } : undefined
         } as Fpp.TypeName;
     }
 
@@ -1372,6 +1378,9 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return this.error();
         }
 
+        const arrayExpr = ctx.arrayExpr();
+        const structExpr = ctx.structExpr();
+
         if (ctx.LIT_FLOAT()) {
             return {
                 type: "FloatLiteral",
@@ -1417,6 +1426,10 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
                 right: this.visitExpr(ctx._right),
                 operator: this.keywordT(ctx._op)
             };
+        } else if (arrayExpr) {
+            return this.visitArrayExpr(arrayExpr);
+        } else if (structExpr) {
+            return this.visitStructExpr(structExpr);
         } else {
             return this.visitExpr(ctx._p);
         }

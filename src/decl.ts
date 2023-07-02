@@ -6,13 +6,6 @@ import { ReferenceTracker } from './referenceTracker';
 import { RangeAssociator } from './associator';
 import { DiangosicManager } from './diagnostics';
 
-export type TypeDecl = Fpp.AbstractTypeDecl | Fpp.StructDecl | Fpp.ArrayDecl | Fpp.EnumDecl;
-
-interface ConstantDefinition extends Fpp.Decl {
-    name: Fpp.Identifier;
-    value: Fpp.Expr;
-}
-
 export enum FppTokenType {
     module, // namespace
     topology, // macro
@@ -104,7 +97,7 @@ export const fppLegend = new vscode.SemanticTokensLegend(
 export class DeclCollector extends MemberTraverser {
     components = new Map<string, Fpp.ComponentDecl>();
     componentInstances = new Map<string, Fpp.ComponentInstanceDecl>();
-    constants = new Map<string, ConstantDefinition>();
+    constants = new Map<string, Fpp.ConstantDefinition>();
     generalInputPortInstances = new Map<string, Fpp.GeneralPortInstanceDecl>();
     generalOutputPortInstances = new Map<string, Fpp.GeneralPortInstanceDecl>();
     generalInputPortDecl = new Map<string, Fpp.GeneralPortInstanceDecl>();
@@ -112,7 +105,7 @@ export class DeclCollector extends MemberTraverser {
     graphGroups = new Map<string, Fpp.DirectGraphDecl>();
     ports = new Map<string, Fpp.PortDecl>();
     topologies = new Map<string, Fpp.TopologyDecl>();
-    types = new Map<string, TypeDecl>();
+    types = new Map<string, Fpp.TypeDecl>();
 
     // Dictionary entries
     commands = new Map<string, Fpp.CommandDecl>();
@@ -265,7 +258,7 @@ export class DeclCollector extends MemberTraverser {
         return `(\n    ${parameterString}\n)`;
     }
 
-    private typeCollect(decl: TypeDecl, scope: Fpp.QualifiedIdentifier) {
+    private typeCollect(decl: Fpp.TypeDecl, scope: Fpp.QualifiedIdentifier) {
         const name = MemberTraverser.flat(scope, decl.name);
         if (this.check(name, FppTokenType.type, decl.name)) {
             return;
@@ -279,20 +272,13 @@ export class DeclCollector extends MemberTraverser {
         );
     }
 
-    private constantCollect(decl: Fpp.ConstantDecl | Fpp.EnumMember, scope: Fpp.QualifiedIdentifier, defaultValue: Fpp.Expr) {
+    private constantCollect(decl: Fpp.ConstantDecl | Fpp.EnumMember, scope: Fpp.QualifiedIdentifier) {
         const name = MemberTraverser.flat(scope, decl.name);
         if (this.check(name, FppTokenType.constant, decl.name)) {
             return;
         }
 
-        this.constants.set(name, {
-            name: decl.name,
-            type: "ConstantDecl",
-            scope: scope,
-            location: decl.location,
-            value: decl.value ?? defaultValue,
-            annotation: decl.annotation
-        });
+        this.constants.set(name, decl);
         this.translationUnitDeclarations.get(decl.location.source)!.add(
             DiangosicManager.asRange(decl.name.location),
             [FppTokenType.constant, name]
@@ -325,13 +311,16 @@ export class DeclCollector extends MemberTraverser {
                 left: lastExpression, right: one, location: Fpp.implicitLocation
             };
 
-            this.constantCollect(member, enumScope, currDefault);
+            if (!member.value) {
+                member.value = currDefault;
+            }
+            this.constantCollect(member, enumScope);
             lastExpression = member.value ?? currDefault;
         }
     }
 
     constantDecl(ast: Fpp.ConstantDecl, scope: Fpp.QualifiedIdentifier): void {
-        this.constantCollect(ast, scope, ast.value);
+        this.constantCollect(ast, scope);
     }
 
     componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, scope: Fpp.QualifiedIdentifier): void {

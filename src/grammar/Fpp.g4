@@ -272,7 +272,7 @@ qualIdent: IDENTIFIER ('.' IDENTIFIER)*;
 
 // PRIM_TYPE:  U8 | I8 | U16 | I16 | U32 | I32 | U64 | I64 | F32 | F64 | BOOL;
 intType:  U8 | I8 | U16 | I16 | U32 | I32 | U64 | I64;
-primitiveType: type=(U8 | I8 | U16 | I16 | U32 | I32 | U64 | I64 | F32 | F64 | BOOL) | type=STRING (SIZE size=expr)?;
+primitiveType: type=(U8 | I8 | U16 | I16 | U32 | I32 | U64 | I64 | F32 | F64 | BOOL) | type=STRING (SIZE size=LIT_INT)?;
 typeName: primitiveType | qualIdent;
 
 commaDelim: ',' NL* | NL+;

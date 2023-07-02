@@ -4033,7 +4033,7 @@ export class FppParser extends Parser {
 					this.state = 879;
 					this.match(FppParser.SIZE);
 					this.state = 880;
-					_localctx._size = this.expr(0);
+					_localctx._size = this.match(FppParser.LIT_INT);
 					}
 				}
 
@@ -5137,7 +5137,7 @@ export class FppParser extends Parser {
 		"\u036C\x03\x02\x02\x02\u036A\u0368\x03\x02\x02\x02\u036A\u036B\x03\x02" +
 		"\x02\x02\u036B{\x03\x02\x02\x02\u036C\u036A\x03\x02\x02\x02\u036D\u036E" +
 		"\t\x07\x02\x02\u036E}\x03\x02\x02\x02\u036F\u0376\t\b\x02\x02\u0370\u0373" +
-		"\x07c\x02\x02\u0371\u0372\x07a\x02\x02\u0372\u0374\x05\x8CG\x02\u0373" +
+		"\x07c\x02\x02\u0371\u0372\x07a\x02\x02\u0372\u0374\x07\x1B\x02\x02\u0373" +
 		"\u0371\x03\x02\x02\x02\u0373\u0374\x03\x02\x02\x02\u0374\u0376\x03\x02" +
 		"\x02\x02\u0375\u036F\x03\x02\x02\x02\u0375\u0370\x03\x02\x02\x02\u0376" +
 		"\x7F\x03\x02\x02\x02\u0377\u037A\x05~@\x02\u0378\u037A\x05z>\x02\u0379" +
@@ -8020,7 +8020,7 @@ export class IntTypeContext extends ParserRuleContext {
 
 export class PrimitiveTypeContext extends ParserRuleContext {
 	public _type!: Token;
-	public _size!: ExprContext;
+	public _size!: Token;
 	public U8(): TerminalNode | undefined { return this.tryGetToken(FppParser.U8, 0); }
 	public I8(): TerminalNode | undefined { return this.tryGetToken(FppParser.I8, 0); }
 	public U16(): TerminalNode | undefined { return this.tryGetToken(FppParser.U16, 0); }
@@ -8034,9 +8034,7 @@ export class PrimitiveTypeContext extends ParserRuleContext {
 	public BOOL(): TerminalNode | undefined { return this.tryGetToken(FppParser.BOOL, 0); }
 	public STRING(): TerminalNode | undefined { return this.tryGetToken(FppParser.STRING, 0); }
 	public SIZE(): TerminalNode | undefined { return this.tryGetToken(FppParser.SIZE, 0); }
-	public expr(): ExprContext | undefined {
-		return this.tryGetRuleContext(0, ExprContext);
-	}
+	public LIT_INT(): TerminalNode | undefined { return this.tryGetToken(FppParser.LIT_INT, 0); }
 	constructor(parent: ParserRuleContext | undefined, invokingState: number) {
 		super(parent, invokingState);
 	}

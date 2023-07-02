@@ -46,7 +46,7 @@ export type IntegralTypeKey = (
 );
 export type FloatingTypeKey = "F32" | "F64";
 export type NumericTypeKey = IntegralTypeKey | FloatingTypeKey;
-export type PrimitiveTypeKey = NumericTypeKey | "bool" | "string";
+export type PrimitiveTypeKey = NumericTypeKey | "bool";
 
 interface TypeBase extends Ast {
     complex: boolean;
@@ -58,10 +58,10 @@ export interface PrimitiveType extends TypeBase {
     type: PrimitiveTypeKey;
 }
 
-export interface StringPrimitiveType extends PrimitiveType {
+export interface StringPrimitiveType extends TypeBase {
     complex: false;
     type: "string";
-    size?: Expr;
+    size?: LiteralIntExpr;
 }
 
 export interface ComplexType extends TypeBase {
@@ -302,7 +302,7 @@ export interface TelemetryChannelDecl extends Decl {
     highLimits?: TelemetryLimitExpr[];
 }
 
-export interface EnumMember extends Annotatable {
+export interface EnumMember extends Decl {
     name: Identifier;
     value?: Expr;
 }
@@ -475,6 +475,7 @@ export interface ModuleDecl extends Decl {
 
 export interface BasicExpr extends Ast {
     type: string;
+    evaluated?: ExprValue;
 }
 export interface IdentifierExpr extends BasicExpr {
     type: "Identifier";
@@ -550,3 +551,57 @@ export interface TranslationUnit<T = ModuleMember> extends Ast {
     type: "TranslationUnit";
     members: T[];
 };
+
+
+export type TypeDecl = AbstractTypeDecl | StructDecl | ArrayDecl | EnumDecl;
+export type ConstantDefinition = ConstantDecl | EnumMember;
+
+export enum PrimExprType {
+    integer = "integer",
+    floating = "floating",
+    boolean = "boolean",
+    string = "string",
+    array = "array",
+    struct = "struct",
+}
+
+interface ExprValueBase<T> {
+    type: PrimExprType;
+    value: T;
+}
+
+export interface IntExprValue extends ExprValueBase<number> {
+    type: PrimExprType.integer;
+}
+
+export interface FloatExprValue extends ExprValueBase<number> {
+    type: PrimExprType.floating;
+}
+
+export interface BoolExprValue extends ExprValueBase<boolean> {
+    type: PrimExprType.boolean;
+}
+
+export interface StrExprValue extends ExprValueBase<string> {
+    type: PrimExprType.string;
+    size?: number; // max size type can take
+}
+
+export interface ArrayExprValue extends ExprValueBase<ExprValue[]> {
+    type: PrimExprType.array;
+}
+
+export interface StructExprValue extends ExprValueBase<Record<string, ExprValue>> {
+    type: PrimExprType.struct;
+}
+
+export type NumericExprValue = IntExprValue | FloatExprValue;
+
+export type ExprValue = (
+    IntExprValue |
+    FloatExprValue |
+    BoolExprValue |
+    StrExprValue |
+    ArrayExprValue |
+    StructExprValue
+);
