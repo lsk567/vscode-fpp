@@ -11,7 +11,7 @@ export interface TypeValidator {
      * @param value Evaluated value to validate type of
      * @returns Formatted error or undefined if no error occured
      */
-    validate(value: Fpp.ExprValue): string | undefined;
+    validate?: (value: Fpp.ExprValue) => string | undefined;
 }
 
 export class TypeNameValidator implements TypeValidator {
@@ -131,7 +131,7 @@ export abstract class ExprTraverser {
 
         try {
             const value = this.traverseImpl(ast, scope, validator);
-            const error = validator.validate(value);
+            const error = validator.validate?.(value);
             if (error) {
                 this.emit(vscode.Uri.file(ast.location.source), new vscode.Diagnostic(
                     MemberTraverser.asRange(ast.location), error)

@@ -251,7 +251,7 @@ export class FppAnnotator extends MemberTraverser {
     private expr(expr: Fpp.Expr | undefined, scope: Fpp.QualifiedIdentifier, expectedReturn: Fpp.TypeName) {
         if (expr) {
             const resolvedReturnType = this.exprTrav.resolveType(expectedReturn, scope);
-            this.exprTrav.traverse(expr, scope, new TypeNameValidator(expectedReturn, resolvedReturnType));
+            return this.exprTrav.traverse(expr, scope, new TypeNameValidator(expectedReturn, resolvedReturnType));
         }
     }
 
@@ -485,13 +485,39 @@ export class FppAnnotator extends MemberTraverser {
         this.identifier(ast.name, scope, FppTokenType.componentInstance);
     }
 
+    private checkPortIdx(portDecl: Fpp.GeneralPortInstanceDecl, idx: Fpp.ExprValue, idxLoc: Fpp.Location) {
+        let n: Fpp.ExprValue = { type: Fpp.PrimExprType.integer, value: 1 };
+        if (portDecl.n) {
+            n = this.exprTrav.traverse(portDecl.n, portDecl.scope, {});
+        }
+
+        if (idx.type === Fpp.PrimExprType.integer && n.type === Fpp.PrimExprType.integer) {
+            if (idx.value >= n.value) {
+                this.emit(
+                    vscode.Uri.file(idxLoc.source),
+                    new vscode.Diagnostic(FppAnnotator.asRange(idxLoc),
+                        `Port index out of range ${idx.value} >= ${n.value}`)
+                );
+            }
+        }
+    }
+
     directGraphDecl(ast: Fpp.DirectGraphDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, FppTokenType.graphGroup);
         for (const conn of ast.connections) {
-            this.identifier(conn.source.node, scope, FppTokenType.outputPortInstance);
-            this.expr(conn.source.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
-            this.identifier(conn.destination.node, scope, FppTokenType.inputPortInstance);
-            this.expr(conn.destination.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
+            const outputPort = this.identifier(conn.source.node, scope, FppTokenType.outputPortInstance);
+            const outputPortIdx = this.expr(conn.source.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
+            const inputPort = this.identifier(conn.destination.node, scope, FppTokenType.inputPortInstance);
+            const inputPortIdx = this.expr(conn.destination.index, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
+
+            // Check if the port index is out of range
+            if (outputPort && outputPortIdx) {
+                this.checkPortIdx(outputPort as Fpp.GeneralPortInstanceDecl, outputPortIdx, conn.source.index!.location);
+            }
+
+            if (inputPort && inputPortIdx) {
+                this.checkPortIdx(inputPort as Fpp.GeneralPortInstanceDecl, inputPortIdx, conn.destination.index!.location);
+            }
         }
     }
 
