@@ -269,7 +269,9 @@ export class FppAnnotator extends MemberTraverser {
         this.semantic(ast.name, FppTokenType.type);
         this.type(ast.fppType, scope);
         this.expr(ast.default_, scope, { complex: true, type: [ast.name], location: Fpp.implicitLocation });
-        this.expr(ast.size, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
+        const sizeValue = this.expr(ast.size, scope, { complex: false, type: "U32", location: Fpp.implicitLocation })!;
+
+        ast.annotatedValue = `[${sizeValue.value}]`;
     }
 
     constantDecl(ast: Fpp.ConstantDecl, scope: Fpp.QualifiedIdentifier): void {
