@@ -789,6 +789,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             scope: [...this.scope],
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
+            fppType: ctx._type ? this.visitPrimitiveType(ctx._type as FppParser.PrimitiveTypeContext) : undefined,
             members
         };
     }

@@ -54,7 +54,7 @@ export class TypeNameValidator implements TypeValidator {
                     const bounds = TypeNameValidator.integerBounds.get(this.typeName.type);
                     if (bounds) {
                         if (value.value < bounds[0] || value.value > bounds[1]) {
-                            return `Integer ${value.value} out of ${this.typeName.type} bounds [${bounds[0]}, ${bounds[1]}]`;
+                            return `${value.value} out of ${this.typeName.type} bounds [${bounds[0]}, ${bounds[1]}]`;
                         }
                     }
 

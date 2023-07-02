@@ -279,7 +279,7 @@ export class FppAnnotator extends MemberTraverser {
 
         const value = this.exprTrav.traverse(ast.value, scope, {
             validate: (value) => {
-                switch(value.type) {
+                switch (value.type) {
                     case Fpp.PrimExprType.integer:
                     case Fpp.PrimExprType.floating:
                     case Fpp.PrimExprType.boolean:
@@ -321,13 +321,12 @@ export class FppAnnotator extends MemberTraverser {
         for (const member of ast.members) {
             this.semantic(member.name, FppTokenType.constant);
 
-            const value = this.exprTrav.traverse(member.value!, scope, {
-                validate: (v) => {
-                    if (v.type !== Fpp.PrimExprType.integer) {
-                        return `Enum member must be integer not ${v.type}`;
-                    }
-                }
-            });
+            const value = this.exprTrav.traverse(
+                member.value!, scope,
+                new TypeNameValidator(
+                    ast.fppType ?? { complex: false, type: "I32", location: Fpp.implicitLocation }
+                )
+            );
 
             member.annotatedValue = `= ${value.value}`;
         }
