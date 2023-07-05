@@ -26,7 +26,9 @@ class ComponentModuleTree extends DictionaryEntry {
     }
 
     asTreeItem(): vscode.TreeItem {
-        return new vscode.TreeItem(this.name, vscode.TreeItemCollapsibleState.Collapsed);
+        const out = new vscode.TreeItem(this.name, vscode.TreeItemCollapsibleState.Collapsed);
+        out.iconPath = new vscode.ThemeIcon('symbol-namespace');
+        return out;
     }
 }
 
@@ -121,7 +123,7 @@ class DictionaryEvent extends DictionaryDecl<Fpp.EventDecl> {
 
     asTreeItem(): vscode.TreeItem {
         const out = super.asTreeItem();
-        out.iconPath = new vscode.ThemeIcon('symbol-keyword');
+        out.iconPath = new vscode.ThemeIcon('symbol-string');
         return out;
     }
 }
@@ -131,7 +133,7 @@ class DictionaryParameter extends DictionaryDecl<Fpp.ParamDecl> {
 
     asTreeItem(): vscode.TreeItem {
         const out = super.asTreeItem();
-        out.iconPath = new vscode.ThemeIcon('symbol-variable');
+        out.iconPath = new vscode.ThemeIcon('symbol-property');
         return out;
     }
 }
@@ -141,7 +143,7 @@ class DictionaryTelemetry extends DictionaryDecl<Fpp.TelemetryChannelDecl> {
 
     asTreeItem(): vscode.TreeItem {
         const out = super.asTreeItem();
-        out.iconPath = new vscode.ThemeIcon('pulse');
+        out.iconPath = new vscode.ThemeIcon('symbol-field');
         return out;
     }
 }
