@@ -1,20 +1,14 @@
 import * as vscode from 'vscode';
 
-import { TextDecoder } from 'util';
 import path from 'path';
-import * as fs from 'fs/promises';
-
 import { Worker } from 'worker_threads';
 
 import * as Fpp from './ast';
 import { IFppMessage, IFppWorkerRequest } from './message';
 import { RangeAssociator } from '../associator';
 import { RangeRuleAssociation } from './common';
-import { DiangosicManager } from '../diagnostics';
-import { FppAnnotator } from '../annotator';
-import { DeclCollector } from '../decl';
 
-interface DocumentOrFile {
+export interface DocumentOrFile {
     path: string;
     version: number; // 0 for files
     getText(): string;
@@ -26,37 +20,6 @@ interface PendingParse {
     document: DocumentOrFile;
     resolve: ((msg: FppMessage) => void)[];
     reject: ((err?: string) => void)[];
-}
-
-export interface ParsingOptions {
-    /**
-     * Parse even if the latest AST is up to date
-     * This could happen if we think that the version
-     * identifier for this document is incorrect
-     */
-    forceReparse?: boolean;
-
-    /**
-     * Normally, parsing a document will trigger open
-     * text documents to be re-annotated to give you
-     * live feedback on on errors and other rules
-     * 
-     * When indexing the entire project we push this back
-     * to the end of the indexing run since we only really need
-     * to do it once.
-     */
-    noAnnotationRefresh?: boolean;
-
-    /**
-     * Disables VSCode diagnostic emission so that initial parse
-     * looks clean to the user
-     */
-    disableDiagnostics?: boolean;
-
-    /**
-     * Track this AST in the decls if its in the locs file
-     */
-    fromLocs?: boolean;
 }
 
 export class FppMessage {

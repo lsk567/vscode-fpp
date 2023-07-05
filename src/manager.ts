@@ -6,7 +6,7 @@ import { TextDecoder } from 'util';
 import { FppAnnotator } from "./annotator";
 import { DeclCollector } from "./decl";
 import { DiangosicManager } from "./diagnostics";
-import { FppMessage, FppWorker } from "./parser/client";
+import { DocumentOrFile, FppMessage, FppWorker } from "./parser/client";
 
 export interface ParsingOptions {
     /**
@@ -36,13 +36,6 @@ export interface ParsingOptions {
      * to do it once.
      */
     disableRefresh?: boolean;
-}
-
-interface DocumentOrFile {
-    path: string;
-    version: number; // 0 for files
-    getText(): string;
-    getTextSub?(): [string, string];
 }
 
 const textDecoder = new TextDecoder();
