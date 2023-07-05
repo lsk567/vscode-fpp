@@ -30,39 +30,6 @@ class ComponentModuleTree extends DictionaryEntry {
     }
 }
 
-class DictionaryRoot extends DictionaryEntry {
-    name = 'root';
-
-    constructor(readonly decl: DeclCollector) {
-        super();
-    }
-
-    asTreeItem(): vscode.TreeItem {
-        return new vscode.TreeItem('placeholder');
-    }
-
-    getChildren(): DictionaryEntry[] {
-        const out = new ConsolidatingTree<DictionaryEntry>();
-        for (const comp of this.decl.components.values()) {
-            const name = MemberTraverser.flat(comp.scope, comp.name);
-            out.set(name, new DictionaryComponent(comp));
-
-            // Add all the modules up to this point
-            const scope: string[] = [];
-            for (const tok of comp.scope) {
-                scope.push(tok.value);
-                const scopeName = scope.join('.');
-                if (!out.has(scopeName)) {
-                    out.set(scopeName, new ComponentModuleTree(tok.value));
-                }
-            }
-        }
-
-        out.consolidate();
-        return out.all();
-    }
-}
-
 abstract class DictionaryDecl<T extends Fpp.Decl> extends DictionaryEntry {
     name: string;
 
@@ -179,7 +146,7 @@ class DictionaryTelemetry extends DictionaryDecl<Fpp.TelemetryChannelDecl> {
     }
 }
 
-export class DictionaryViewProvider implements vscode.TreeDataProvider<DictionaryEntry> {
+export class ComponentsProvider implements vscode.TreeDataProvider<DictionaryEntry> {
     constructor(readonly decl: DeclCollector) { }
 
     private _onDidChangeTreeData = new vscode.EventEmitter<void>();
@@ -197,7 +164,25 @@ export class DictionaryViewProvider implements vscode.TreeDataProvider<Dictionar
         if (element) {
             return element.getChildren();
         } else {
-            return new DictionaryRoot(this.decl).getChildren();
+            // Collect up all the components that sit in the project
+            const out = new ConsolidatingTree<DictionaryEntry>();
+            for (const comp of this.decl.components.values()) {
+                const name = MemberTraverser.flat(comp.scope, comp.name);
+                out.set(name, new DictionaryComponent(comp));
+
+                // Add all the modules up to this point
+                const scope: string[] = [];
+                for (const tok of comp.scope) {
+                    scope.push(tok.value);
+                    const scopeName = scope.join('.');
+                    if (!out.has(scopeName)) {
+                        out.set(scopeName, new ComponentModuleTree(tok.value));
+                    }
+                }
+            }
+
+            out.consolidate();
+            return out.all();
         }
     }
 }

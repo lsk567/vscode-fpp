@@ -63,8 +63,8 @@
         "views": {
             "explorer": [
                 {
-                    "id": "fpp.dictionary",
-                    "name": "FPP Dictionary"
+                    "id": "fpp.components",
+                    "name": "FPP Components"
                 }
             ]
         }

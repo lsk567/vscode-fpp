@@ -14,7 +14,7 @@ import { MemberTraverser } from './traverser';
 import { FppTokenType, fppLegend, tokenTypeNames } from './decl';
 import { DiangosicManager } from './diagnostics';
 import { RangeAssociation } from './associator';
-import { DictionaryViewProvider } from './dictionary';
+import { ComponentsProvider } from './dictionary';
 import { ConsolidatingTree } from './consolidate';
 
 const signaturesDefinitions = (Signatures as Record<string, ISignature>);
@@ -78,13 +78,13 @@ class FppExtension implements
     private manager: AstManager;
 
     private subscriptions: vscode.Disposable[];
-    private dictionary: DictionaryViewProvider;
+    private componentsProvider: ComponentsProvider;
 
     constructor(
         private readonly context: vscode.ExtensionContext
     ) {
         this.manager = new AstManager({ scheme: 'file', language: 'fpp' });
-        this.dictionary = new DictionaryViewProvider(this.manager.decls);
+        this.componentsProvider = new ComponentsProvider(this.manager.decls);
 
         this.project = new FppProject(
             this.manager,
@@ -138,8 +138,8 @@ class FppExtension implements
                         vscode.languages.registerSignatureHelpProvider(this.manager.documentSelector, this, " ", ",", "[", "(", "{", "=", ":"),
                         vscode.languages.registerReferenceProvider(this.manager.documentSelector, this),
                         vscode.languages.registerDocumentSymbolProvider(this.manager.documentSelector, this),
-                        this.manager.onRefreshAnnotations(this.dictionary.refresh.bind(this.dictionary)),
-                        vscode.window.registerTreeDataProvider('fpp.dictionary', this.dictionary),
+                        this.manager.onRefreshAnnotations(this.componentsProvider.refresh.bind(this.componentsProvider)),
+                        vscode.window.registerTreeDataProvider('fpp.components', this.componentsProvider),
                     ];
                 });
         });
