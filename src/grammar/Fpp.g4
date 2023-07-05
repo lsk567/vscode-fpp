@@ -30,8 +30,8 @@ structMember:
     type=typeName (FORMAT format=LIT_STRING)?
     ;
 
-structMemberN: preAnnotation? structMember (commaDelim | ','? postAnnotation);
-structMemberL: preAnnotation? structMember (commaDelim | ','? postAnnotation)?;
+structMemberN: preAnnotation? structMember (','? postAnnotation | commaDelim);
+structMemberL: preAnnotation? structMember (','? postAnnotation | commaDelim)?;
 structDecl:
     STRUCT name=IDENTIFIER '{'
         NL* (structMemberN* structMemberL)?
@@ -100,8 +100,8 @@ telemetryChannelDecl:
     ;
 
 enumMember: name=IDENTIFIER ('=' value=expr)?;
-enumMemberN: preAnnotation? enumMember (commaDelim | ','? postAnnotation);
-enumMemberL: preAnnotation? enumMember (commaDelim | ','? postAnnotation)?;
+enumMemberN: preAnnotation? enumMember (','? postAnnotation | commaDelim);
+enumMemberL: preAnnotation? enumMember (','? postAnnotation | commaDelim)?;
 enumDecl: ENUM name=IDENTIFIER (':' type=intType)?
     '{'
         NL* (enumMemberN* enumMemberL)?
@@ -263,8 +263,8 @@ moduleDecl: MODULE name=IDENTIFIER '{'
 formalParameter: REF? name=IDENTIFIER ':' type=typeName;
 
 // Normal
-formalParameterN: formalParameter (commaDelim | ','? postAnnotation);
-formalParamaterL: formalParameter (commaDelim | ','? postAnnotation)?;
+formalParameterN: formalParameter (','? postAnnotation | commaDelim);
+formalParamaterL: formalParameter (','? postAnnotation | commaDelim)?;
 
 formalParameterList: '(' NL* (formalParameterN* formalParamaterL)? ')';
 
@@ -322,8 +322,8 @@ WS_NL: '\\'~[\n]*[\n] -> skip;
 COMMENT: [#]~[\n]* -> skip;
 
 ANNOTATION: [@]~[\n]*;
-postAnnotation: ANNOTATION NL;
-preAnnotation: (ANNOTATION | NL)+;
+postAnnotation: ANNOTATION NL+;
+preAnnotation: (ANNOTATION NL)+;
 
 LIT_BOOLEAN: FALSE | TRUE;
 LIT_STRING: LONG_STRING | SHORT_STRING;

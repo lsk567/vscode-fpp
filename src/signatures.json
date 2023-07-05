@@ -209,23 +209,12 @@
             "name": "Name of constant",
             "expression": "expression must evaluate to a compile-time constant value."
         },
-        "stateMap": {
-            "offset": 234,
-            "map": {
-                "constant": [
-                    0
-                ],
-                "name": [
-                    1
-                ],
-                "=": [
-                    2
-                ],
-                "expression": [
-                    3
-                ]
-            }
-        }
+        "stateMap": [
+            "constant",
+            "name",
+            "=",
+            "expression"
+        ]
     },
     "structMember": {
         "signature": "name: [n]? type (format formatLiteral)?",
