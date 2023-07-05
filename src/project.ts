@@ -65,6 +65,7 @@ export class FppProject implements vscode.Disposable {
         }
 
         symLinkCache.clear();
+        this.manager.decls.clearAll();
 
         progress.report({
             message: "Scanning locs file",

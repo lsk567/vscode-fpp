@@ -292,6 +292,11 @@ export interface ComponentDecl extends Decl {
     kind: ComponentKind;
     members: ComponentMember[];
     fppType: undefined;
+
+    commands?: Map<string, CommandDecl>;
+    events?: Map<string, EventDecl>;
+    parameters?: Map<string, ParamDecl>;
+    telemetry?: Map<string, TelemetryChannelDecl>;
 }
 
 export type TelemetryLimitKind = Keyword<"red" | "orange" | "yellow">;
@@ -311,6 +316,7 @@ export interface TelemetryChannelDecl extends Decl {
 }
 
 export interface EnumMember extends Decl {
+    type: "EnumMember";
     name: Identifier;
     value?: Expr;
 }

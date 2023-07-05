@@ -11,9 +11,11 @@ import { declRules, ignoreTokens } from './parser/common';
 import { FppProject } from './project';
 import { FppAnnotator } from './annotator';
 import { MemberTraverser } from './traverser';
-import { FppTokenType, fppLegend } from './decl';
+import { FppTokenType, fppLegend, tokenTypeNames } from './decl';
 import { DiangosicManager } from './diagnostics';
 import { RangeAssociation } from './associator';
+import { DictionaryViewProvider } from './dictionary';
+import { ConsolidatingTree } from './consolidate';
 
 const signaturesDefinitions = (Signatures as Record<string, ISignature>);
 
@@ -62,25 +64,27 @@ function generateSignature(signature: ISignature, activeParameter: string): vsco
 }
 
 class FppExtension implements
-    vscode.DocumentSemanticTokensProvider,
-    // vscode.TypeDefinitionProvider,
+    vscode.CompletionItemProvider,
     vscode.DefinitionProvider,
     vscode.DocumentLinkProvider,
+    vscode.DocumentSemanticTokensProvider,
+    vscode.DocumentSymbolProvider,
     vscode.HoverProvider,
-    vscode.CompletionItemProvider,
-    vscode.SignatureHelpProvider,
     vscode.ReferenceProvider,
+    vscode.SignatureHelpProvider,
     vscode.Disposable {
 
     private project: FppProject;
     private manager: AstManager;
 
     private subscriptions: vscode.Disposable[];
+    private dictionary: DictionaryViewProvider;
 
     constructor(
         private readonly context: vscode.ExtensionContext
     ) {
         this.manager = new AstManager({ scheme: 'file', language: 'fpp' });
+        this.dictionary = new DictionaryViewProvider(this.manager.decls);
 
         this.project = new FppProject(
             this.manager,
@@ -132,10 +136,78 @@ class FppExtension implements
                         vscode.languages.registerHoverProvider(this.manager.documentSelector, this),
                         vscode.languages.registerCompletionItemProvider(this.manager.documentSelector, this, " ", ".", ":"),
                         vscode.languages.registerSignatureHelpProvider(this.manager.documentSelector, this, " ", ",", "[", "(", "{", "=", ":"),
-                        vscode.languages.registerReferenceProvider(this.manager.documentSelector, this)
+                        vscode.languages.registerReferenceProvider(this.manager.documentSelector, this),
+                        vscode.languages.registerDocumentSymbolProvider(this.manager.documentSelector, this),
+                        this.manager.onRefreshAnnotations(this.dictionary.refresh.bind(this.dictionary)),
+                        vscode.window.registerTreeDataProvider('fpp.dictionary', this.dictionary),
                     ];
                 });
         });
+    }
+
+    private static documentSymbolKind(type: FppTokenType): vscode.SymbolKind | undefined {
+        switch (type) {
+            case FppTokenType.graphGroup:
+                return vscode.SymbolKind.Event;
+            case FppTokenType.module:
+            case FppTokenType.topology:
+                return vscode.SymbolKind.Namespace;
+            case FppTokenType.component: return vscode.SymbolKind.Class;
+            case FppTokenType.componentInstance: return vscode.SymbolKind.Variable;
+            case FppTokenType.constant: return vscode.SymbolKind.Constant;
+            case FppTokenType.port: return vscode.SymbolKind.Interface;
+            case FppTokenType.type: return vscode.SymbolKind.Enum;
+            case FppTokenType.inputPortDecl: return vscode.SymbolKind.Interface;
+            case FppTokenType.outputPortDecl: return vscode.SymbolKind.Interface;
+            case FppTokenType.command: return vscode.SymbolKind.Function;
+            case FppTokenType.event: return vscode.SymbolKind.String;
+            case FppTokenType.parameter: return vscode.SymbolKind.Property;
+            case FppTokenType.telemetry: return vscode.SymbolKind.Field;
+
+            case FppTokenType.inputPortInstance:
+            case FppTokenType.outputPortInstance:
+            case FppTokenType.formalParameter:
+            case FppTokenType.modifier:
+            case FppTokenType.specialPort:
+                // These are not symbols that will show up in the outline
+                return;
+        }
+    }
+
+    async provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.DocumentSymbol[] | undefined> {
+        await this.manager.get(document, token);
+
+        const decls = this.manager.decls.translationUnitDeclarations.get(document.uri.path);
+        if (!decls) {
+            return;
+        }
+
+        const symbols = new ConsolidatingTree<vscode.DocumentSymbol>();
+        for (const [nameRange, [tokType, name]] of decls) {
+            const kind = FppExtension.documentSymbolKind(tokType);
+            if (!kind) {
+                // This is not a symbol we should add to the outline
+                continue;
+            }
+
+            const toks = name.split('.');
+            const range = new vscode.Range(
+                nameRange.start.line, nameRange.start.character,
+                nameRange.end.line, nameRange.end.character
+            );
+
+            symbols.set(name, new vscode.DocumentSymbol(
+                toks[toks.length - 1],
+                `${name} (${tokenTypeNames[tokType]})`,
+                kind, range, range
+            ));
+        }
+
+        // Resolve the parent tree
+        // Simplify the scope tree that is currently flat
+        symbols.consolidate();
+
+        return symbols.all();
     }
 
     async provideReferences(
@@ -591,7 +663,7 @@ export function activate(context: vscode.ExtensionContext) {
                     extension.setLocs(value[0]);
                 }
             });
-        })
+        }),
     );
 }
 

@@ -239,6 +239,9 @@ export class AstManager implements vscode.Disposable {
     private hasComponentInstances = new Set<string>();
     private parentFile = new Map<string, string>();
 
+    private _onRefreshAnnotations = new vscode.EventEmitter<void>();
+    readonly onRefreshAnnotations = this._onRefreshAnnotations.event;
+
     constructor(
         public readonly documentSelector: vscode.DocumentSelector
     ) {
@@ -326,6 +329,9 @@ export class AstManager implements vscode.Disposable {
             annotations?.pass(ast.ast);
             annotations?.enable();
         }
+
+        // Run all listeners that care about refresh events
+        this._onRefreshAnnotations.fire();
     }
 
     private async getTextOf(uri: vscode.Uri): Promise<[number, string]> {

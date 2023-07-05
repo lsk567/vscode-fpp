@@ -59,7 +59,15 @@
                 "scopeName": "source.fpp",
                 "path": "./syntax/fpp.tmLanguage.json"
             }
-        ]
+        ],
+        "views": {
+            "explorer": [
+                {
+                    "id": "fpp.dictionary",
+                    "name": "FPP Dictionary"
+                }
+            ]
+        }
     },
     "scripts": {
         "vscode:prepublish": "yarn clean && yarn run compile",

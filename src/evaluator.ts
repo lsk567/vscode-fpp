@@ -27,7 +27,8 @@ export class TypeNameValidator implements TypeValidator {
 
     validate(value: Fpp.ExprValue): string | undefined {
         if (this.typeName.complex) {
-
+            // Make do any more work
+            // These are already validated before
         } else {
             switch(this.typeName.type) {
                 case 'string':

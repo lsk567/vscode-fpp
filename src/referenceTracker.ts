@@ -1,5 +1,3 @@
-import * as Fpp from './parser/ast';
-
 export class ReferenceTracker<T> {
     private references = new Map<string, Map<string, T[]>>();
     private fileReferences = new Map<string, string[]>();

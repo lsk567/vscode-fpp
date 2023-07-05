@@ -58,7 +58,7 @@ export class FppAnnotator extends MemberTraverser {
             if (!constant) {
                 this.emit(vscode.Uri.file(ast.location.source), new vscode.Diagnostic(
                     MemberTraverser.asRange(ast.location),
-                    "Unresolved reference"
+                    'Unresolved reference'
                 ));
 
                 return {
@@ -333,7 +333,7 @@ export class FppAnnotator extends MemberTraverser {
     }
 
     commandDecl(ast: Fpp.CommandDecl, scope: Fpp.QualifiedIdentifier): void {
-        this.semantic(ast.name, FppTokenType.cppInterface);
+        this.semantic(ast.name, FppTokenType.command);
         for (const member of ast.params) {
             this.semantic(member.name, FppTokenType.formalParameter);
             this.type(member.type, scope);
@@ -341,7 +341,7 @@ export class FppAnnotator extends MemberTraverser {
     }
 
     paramDecl(ast: Fpp.ParamDecl, scope: Fpp.QualifiedIdentifier): void {
-        this.semantic(ast.name, FppTokenType.cppInterface);
+        this.semantic(ast.name, FppTokenType.parameter);
         this.type(ast.fppType, scope);
         this.expr(ast.default_, scope, ast.fppType);
     }
@@ -360,16 +360,16 @@ export class FppAnnotator extends MemberTraverser {
 
         // Not a port instance because we shouldn't be allowed to
         // manually connect general ports to special ports
-        this.semantic(ast.name, FppTokenType.cppInterface);
+        this.semantic(ast.name, FppTokenType.specialPort);
     }
 
     telemetryChannelDecl(ast: Fpp.TelemetryChannelDecl, scope: Fpp.QualifiedIdentifier): void {
-        this.semantic(ast.name, FppTokenType.cppInterface);
+        this.semantic(ast.name, FppTokenType.telemetry);
         this.type(ast.fppType, scope);
     }
 
     eventDecl(ast: Fpp.EventDecl, scope: Fpp.QualifiedIdentifier): void {
-        this.semantic(ast.name, FppTokenType.cppInterface);
+        this.semantic(ast.name, FppTokenType.event);
         for (const param of ast.params) {
             this.semantic(param.name, FppTokenType.formalParameter);
             this.type(param.type, scope);
@@ -382,7 +382,7 @@ export class FppAnnotator extends MemberTraverser {
     }
 
     internalPortDecl(ast: Fpp.InternalPortDecl, scope: Fpp.QualifiedIdentifier): void {
-        this.semantic(ast.name, FppTokenType.cppInterface);
+        this.semantic(ast.name, FppTokenType.specialPort);
         for (const param of ast.params) {
             this.semantic(param.name, FppTokenType.formalParameter);
             this.type(param.type, scope);
@@ -440,7 +440,7 @@ export class FppAnnotator extends MemberTraverser {
     }
 
     portDecl(ast: Fpp.PortDecl, scope: Fpp.QualifiedIdentifier): void {
-        this.semantic(ast.name, FppTokenType.cppInterface);
+        this.semantic(ast.name, FppTokenType.port);
         if (ast.returnType) {
             this.type(ast.returnType, scope);
         }

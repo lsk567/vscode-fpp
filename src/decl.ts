@@ -20,7 +20,7 @@ export enum FppTokenType {
     outputPortInstance, // function
     inputPortDecl, // function
     outputPortDecl, // function
-    cppInterface, // function
+    specialPort, // internal or special ports, function
     formalParameter,  // parameter
 
     // Dictoinary entries
@@ -44,7 +44,7 @@ export const tokenTypeNames: string[] = [
     "Output Port Instance",
     "Input Port",
     "Output Port",
-    "C++ interface",
+    "Special/Internal Port",
     "Parameter",
 
     "Command",
@@ -220,10 +220,10 @@ export class DeclCollector extends MemberTraverser {
                         break;
 
                     case FppTokenType.modifier:
-                    case FppTokenType.cppInterface:
+                    case FppTokenType.specialPort:
                     case FppTokenType.formalParameter:
                     case FppTokenType.module:
-                        // ModuleDecls are not unique
+                        // These cannot be referenced directly
                         break;
                 }
             }
@@ -231,6 +231,12 @@ export class DeclCollector extends MemberTraverser {
 
         this.translationUnitDeclarations.set(grammarSource, new RangeAssociator<[FppTokenType, string]>());
         this.references.dispose(grammarSource);
+    }
+
+    clearAll() {
+        for (const key of this.translationUnitDeclarations.keys()) {
+            this.clearDecls(key);
+        }
     }
 
     pass(ast: Fpp.TranslationUnit, scope: Fpp.QualifiedIdentifier = []): void {
@@ -287,6 +293,16 @@ export class DeclCollector extends MemberTraverser {
         );
     }
 
+    protected moduleDecl(ast: Fpp.ModuleDecl, scope: Fpp.QualifiedIdentifier): void {
+        const name = DeclCollector.flat(scope, ast.name);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.module, name]
+        );
+
+        super.moduleDecl(ast, scope);
+    }
+
     abstractTypeDecl(ast: Fpp.AbstractTypeDecl, scope: Fpp.QualifiedIdentifier): void {
         this.typeCollect(ast, scope);
     }
@@ -316,6 +332,7 @@ export class DeclCollector extends MemberTraverser {
             if (!member.value) {
                 member.value = currDefault;
             }
+
             this.constantCollect(member, enumScope);
             lastExpression = member.value ?? currDefault;
         }
@@ -419,6 +436,15 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
+        const parent = this.components.get(MemberTraverser.flat(scope));
+        if (parent) {
+            if (!parent.commands) {
+                parent.commands = new Map<string, Fpp.CommandDecl>();
+            }
+
+            parent.commands.set(ast.name.value, ast);
+        }
+
         [ast.annotatedValue, ast.annotatedMembers] = DeclCollector.annotateParameters(ast.params);
         ast.annotatedValue = `${ast.annotatedValue} @${ast.kind.value}`;
 
@@ -433,6 +459,15 @@ export class DeclCollector extends MemberTraverser {
         const name = MemberTraverser.flat(scope, ast.name);
         if (this.check(name, FppTokenType.event, ast.name)) {
             return;
+        }
+
+        const parent = this.components.get(MemberTraverser.flat(scope));
+        if (parent) {
+            if (!parent.events) {
+                parent.events = new Map<string, Fpp.EventDecl>();
+            }
+
+            parent.events.set(ast.name.value, ast);
         }
 
         [ast.annotatedValue, ast.annotatedMembers] = DeclCollector.annotateParameters(ast.params);
@@ -451,6 +486,15 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
+        const parent = this.components.get(MemberTraverser.flat(scope));
+        if (parent) {
+            if (!parent.parameters) {
+                parent.parameters = new Map<string, Fpp.ParamDecl>();
+            }
+
+            parent.parameters.set(ast.name.value, ast);
+        }
+
         this.parameters.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
@@ -462,6 +506,15 @@ export class DeclCollector extends MemberTraverser {
         const name = MemberTraverser.flat(scope, ast.name);
         if (this.check(name, FppTokenType.telemetry, ast.name)) {
             return;
+        }
+
+        const parent = this.components.get(MemberTraverser.flat(scope));
+        if (parent) {
+            if (!parent.telemetry) {
+                parent.telemetry = new Map<string, Fpp.TelemetryChannelDecl>();
+            }
+
+            parent.telemetry.set(ast.name.value, ast);
         }
 
         ast.annotatedValue = ast.format?.value ? `"${ast.format?.value}"` : undefined;
@@ -492,7 +545,7 @@ export class DeclCollector extends MemberTraverser {
         switch (type) {
             case FppTokenType.module:
             case FppTokenType.modifier:
-            case FppTokenType.cppInterface:
+            case FppTokenType.specialPort:
             case FppTokenType.formalParameter:
             default:
                 break;
