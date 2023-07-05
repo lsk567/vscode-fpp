@@ -10,7 +10,6 @@ abstract class DictionaryEntry implements ConsolidatingItem {
     abstract name: string;
     children: DictionaryEntry[] = [];
 
-    abstract getChildren(): DictionaryEntry[];
     abstract asTreeItem(): vscode.TreeItem;
 }
 
@@ -19,10 +18,6 @@ class ComponentModuleTree extends DictionaryEntry {
         readonly name: string
     ) {
         super();
-    }
-
-    getChildren(): DictionaryEntry[] {
-        return this.children;
     }
 
     asTreeItem(): vscode.TreeItem {
@@ -60,49 +55,43 @@ abstract class DictionaryDecl<T extends Fpp.Decl> extends DictionaryEntry {
 
         return out;
     }
-
-    getChildren(): DictionaryEntry[] {
-        return [];
-    }
 }
 
 class DictionaryComponent extends DictionaryDecl<Fpp.ComponentDecl> {
     token = FppTokenType.component;
 
-    asTreeItem(): vscode.TreeItem {
-        const out = super.asTreeItem();
-        out.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
-        out.iconPath = new vscode.ThemeIcon('symbol-class');
-
-        return out;
-    }
-
-    getChildren(): DictionaryEntry[] {
-        const out: DictionaryEntry[] = [];
+    constructor(decl: Fpp.ComponentDecl) {
+        super(decl);
 
         if (this.decl.commands) {
             for (const cmd of this.decl.commands.values()) {
-                out.push(new DictionaryCommand(cmd));
+                this.children.push(new DictionaryCommand(cmd));
             }
         }
 
         if (this.decl.events) {
             for (const event of this.decl.events.values()) {
-                out.push(new DictionaryEvent(event));
+                this.children.push(new DictionaryEvent(event));
             }
         }
 
         if (this.decl.parameters) {
             for (const param of this.decl.parameters.values()) {
-                out.push(new DictionaryParameter(param));
+                this.children.push(new DictionaryParameter(param));
             }
         }
 
         if (this.decl.telemetry) {
             for (const tlm of this.decl.telemetry.values()) {
-                out.push(new DictionaryTelemetry(tlm));
+                this.children.push(new DictionaryTelemetry(tlm));
             }
         }
+    }
+
+    asTreeItem(): vscode.TreeItem {
+        const out = super.asTreeItem();
+        out.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+        out.iconPath = new vscode.ThemeIcon('symbol-class');
 
         return out;
     }
@@ -164,7 +153,7 @@ export class ComponentsProvider implements vscode.TreeDataProvider<DictionaryEnt
 
     getChildren(element?: DictionaryEntry | undefined): vscode.ProviderResult<DictionaryEntry[]> {
         if (element) {
-            return element.getChildren();
+            return element.children;
         } else {
             // Collect up all the components that sit in the project
             const out = new ConsolidatingTree<DictionaryEntry>();
