@@ -11,7 +11,7 @@ import { declRules, ignoreTokens } from './parser/common';
 import { FppProject } from './project';
 import { FppAnnotator } from './annotator';
 import { MemberTraverser } from './traverser';
-import { FppTokenType, fppLegend, tokenTypeNames } from './decl';
+import { DeclCollector, FppTokenType, fppLegend, tokenTypeNames } from './decl';
 import { DiangosicManager } from './diagnostics';
 import { RangeAssociation } from './associator';
 import { ComponentsProvider } from './dictionary';
@@ -351,7 +351,11 @@ class FppExtension implements
             }
 
             if (definition.annotatedMembers) {
-                annotationStr += '\n\n' + definition.annotatedMembers.map(v => ` *@${definition.annotatedMemberName ?? 'param'}* \`${v[0]}\` @< ${v[1]}`).join('\n\n');
+                annotationStr += '\n\n' + definition.annotatedMembers.map(v => ` *@${definition.annotatedMemberName ?? 'param'}* \`${v[0]}\` ${v[1]}`).join('\n\n');
+
+                if (definition.type === 'PortDecl' && (definition as Fpp.PortDecl).returnType) {
+                    annotationStr += `\n\n @return ${DeclCollector.typeName((definition as Fpp.PortDecl).returnType!)}`;
+                }
             }
 
             if (annotationStr.length > 0) {
