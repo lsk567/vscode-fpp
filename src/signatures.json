@@ -210,7 +210,7 @@
             "expression": "expression must evaluate to a compile-time constant value."
         },
         "stateMap": {
-            "offset": 232,
+            "offset": 234,
             "map": {
                 "constant": [
                     0
@@ -235,7 +235,7 @@
             "type": "Member type"
         },
         "stateMap": {
-            "offset": 237,
+            "offset": 239,
             "map": {
                 "name": [
                     0
@@ -274,7 +274,7 @@
             "defaultExpr": "Specifies the default value associated with the type. The type of the expression must be convertible to T. If the expression specifies a value for a member with size greater than one, then the value is applied to each element."
         },
         "stateMap": {
-            "offset": 266,
+            "offset": 274,
             "map": {
                 "struct": [
                     0
@@ -308,7 +308,7 @@
             "saveOpcode": "Opcode of the command for saving the parameter to the database."
         },
         "stateMap": {
-            "offset": 310,
+            "offset": 318,
             "map": {
                 "param": [
                     0
@@ -370,7 +370,7 @@
             ]
         },
         "stateMap": {
-            "offset": 363,
+            "offset": 371,
             "map": {
                 "generalPortKind": [
                     0

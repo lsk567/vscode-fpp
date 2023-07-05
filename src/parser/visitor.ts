@@ -11,6 +11,7 @@ import * as FppParser from '../grammar/FppParser';
 import { IRangeAssociation, RangeAssociator } from '../associator';
 import { RangeRuleAssociation } from './common';
 import { IDiagnostic } from './message';
+import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 
 export enum IncludeContext {
     module,
@@ -239,26 +240,25 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
+    private static stripAnnotation(e: TerminalNode): string {
+        if (e.text.startsWith("@<")) {
+            return e.text.substring(2).trim(); // @<
+        } else {
+            return e.text.substring(1).trim(); // @
+        }
+    }
+
     private annotation(preCtx?: FppParser.PreAnnotationContext, postCtx?: FppParser.PostAnnotationContext): string | undefined {
         if (!preCtx && !postCtx) {
             return undefined;
         }
 
-        let annotations = preCtx?.ANNOTATION().map(e => {
-            if (e.text.startsWith("@<")) {
-                return e.text.substring(2).trim(); // @<
-            } else {
-                return e.text.substring(1).trim(); // @
-            }
-        }) ?? [];
+        let annotations = preCtx?.ANNOTATION().map(AstVisitor.stripAnnotation) ?? [];
 
-        annotations = annotations.concat(postCtx?.ANNOTATION().map(e => {
-            if (e.text.startsWith("@<")) {
-                return e.text.substring(2).trim(); // @<
-            } else {
-                return e.text.substring(1).trim(); // @
-            }
-        }) ?? []);
+        const post = postCtx?.ANNOTATION();
+        if (post) {
+            annotations.push(AstVisitor.stripAnnotation(post));
+        }
 
         return annotations.join("\n").trim();
     }

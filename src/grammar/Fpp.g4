@@ -322,8 +322,8 @@ WS_NL: '\\'~[\n]*[\n] -> skip;
 COMMENT: [#]~[\n]* -> skip;
 
 ANNOTATION: [@]~[\n]*;
-postAnnotation: ANNOTATION (NL ANNOTATION)* NL+;
-preAnnotation: NL (ANNOTATION | NL)+;
+postAnnotation: ANNOTATION NL;
+preAnnotation: (ANNOTATION | NL)+;
 
 LIT_BOOLEAN: FALSE | TRUE;
 LIT_STRING: LONG_STRING | SHORT_STRING;
