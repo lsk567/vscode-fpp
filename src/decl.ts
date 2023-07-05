@@ -249,6 +249,9 @@ export class DeclCollector extends MemberTraverser {
     pass(ast: Fpp.TranslationUnit, scope: Fpp.QualifiedIdentifier = []): void {
         this.hasComponentInstances = false;
         this.clearDecls(ast.location.source);
+        for (const dep of ast.dependencies)  {
+            this.clearDecls(ast.location.source);
+        }
 
         super.pass(ast, scope);
         this.topologyPortsTrav.pass(ast, scope);

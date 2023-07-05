@@ -559,6 +559,7 @@ export type Member = ( ModuleMember | TopologyMember | ComponentMember );
 export interface TranslationUnit<T = ModuleMember> extends Ast {
     type: "TranslationUnit";
     members: T[];
+    dependencies: string[];
 };
 
 

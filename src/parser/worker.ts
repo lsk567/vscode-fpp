@@ -130,13 +130,13 @@ parentPort?.on("message", async (message: IFppWorkerRequest) => {
 
         // Wait for any includes to finish up
         const product = await visitor.finish();
+        ast.dependencies = product.dependencies;
 
         subFile = undefined;
 
         const retMessage: IFppMessage = {
             ast,
             path: message.path,
-            dependencies: product.dependencies,
             ranges: Array.from(product.ranges.entries()),
             syntaxErrors: listener.diagnostics.concat(product.errors),
             version: message.version

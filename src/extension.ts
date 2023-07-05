@@ -173,17 +173,20 @@ class FppExtension implements
                 case 'TelemetryChannelDecl': return FppTokenType.telemetry;
                 case 'EventDecl': return FppTokenType.event;
                 case 'InternalPortDecl': return FppTokenType.specialPort;
-            }
-        }
 
-        pass(ast: Fpp.TranslationUnit<Fpp.Member>, scope?: Fpp.QualifiedIdentifier): void {
-            this.symbols = [];
-            super.pass(ast, scope);
+                case 'LocationStmt':
+                case 'IncludeStmt':
+                case 'ComponentInstanceSpec':
+                case 'PatternGraphStmt':
+                case 'TopologyImportStmt':
+                case 'MatchStmt':
+                    // These are not declarations
+            }
         }
 
         protected traverse(ast: Fpp.Member, scope: Fpp.QualifiedIdentifier): void {
             const tokType = this.memberDeclType(ast);
-            if (tokType) {
+            if (tokType !== undefined) {
                 const decl = ast as Fpp.Decl;
 
                 this.symbols.push([
@@ -195,6 +198,11 @@ class FppExtension implements
             }
 
             super.traverse(ast, scope);
+        }
+
+        protected includeStmt(ast: Fpp.IncludeStmt<Fpp.Member>, scope: Fpp.QualifiedIdentifier): void {
+            // It doesn't make sense to place included symbols into this files outline
+            // VSCode would assume all the symbols are from this file
         }
 
         protected enumDecl(ast: Fpp.EnumDecl, scope: Fpp.QualifiedIdentifier): void {
@@ -212,12 +220,13 @@ class FppExtension implements
     async provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.DocumentSymbol[] | undefined> {
         const ast = await this.project.parse(document, token);
 
+        this.symbolTraverser.symbols = [];
         this.symbolTraverser.pass(ast.ast);
 
         const symbols = new ConsolidatingTree<vscode.DocumentSymbol>();
         for (const [tokType, fullRange, nameRange, fqName] of this.symbolTraverser.symbols) {
             const kind = FppExtension.documentSymbolKind(tokType);
-            if (!kind) {
+            if (kind === undefined) {
                 continue;
             }
 

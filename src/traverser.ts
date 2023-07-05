@@ -16,6 +16,9 @@ export abstract class MemberTraverser extends DiangosicManager {
         // Only flush diags on the outer most recursion
         if (this.passSemaphore === 0) {
             this.flush(ast.location.source);
+            for (const dep of ast.dependencies) {
+                this.flush(dep);
+            }
         }
     }
 

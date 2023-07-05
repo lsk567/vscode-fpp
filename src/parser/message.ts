@@ -11,7 +11,6 @@ export interface IDiagnostic {
 export interface IFppMessage {
     ast: Fpp.TranslationUnit;
     path: string;
-    dependencies: string[];
     ranges: [string, IRangeAssociation][];
     syntaxErrors: IDiagnostic[];
     version: number;

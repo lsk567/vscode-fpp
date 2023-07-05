@@ -11,6 +11,10 @@ abstract class DictionaryEntry implements ConsolidatingItem {
     children: DictionaryEntry[] = [];
 
     abstract asTreeItem(): vscode.TreeItem;
+
+    resolveTreeItem(item: vscode.TreeItem): vscode.TreeItem {
+        return item;
+    }
 }
 
 class ComponentModuleTree extends DictionaryEntry {
@@ -43,8 +47,12 @@ abstract class DictionaryDecl<T extends Fpp.Decl> extends DictionaryEntry {
         out.description = tokenTypeNames[this.token];
         out.tooltip = `${name} (${tokenTypeNames[this.token]})`;
 
+        return out;
+    }
+
+    resolveTreeItem(item: vscode.TreeItem): vscode.TreeItem {
         const location = MemberTraverser.asLocation(this.decl.name.location);
-        out.command = {
+        item.command = {
             title: "Go-To Definition",
             command: 'vscode.open',
             arguments: [
@@ -53,7 +61,7 @@ abstract class DictionaryDecl<T extends Fpp.Decl> extends DictionaryEntry {
             ]
         };
 
-        return out;
+        return item;
     }
 }
 
@@ -155,5 +163,9 @@ export class ComponentsProvider implements vscode.TreeDataProvider<DictionaryEnt
             out.consolidate();
             return out.all();
         }
+    }
+
+    resolveTreeItem(item: vscode.TreeItem, element: DictionaryEntry): vscode.ProviderResult<vscode.TreeItem> {
+        return element.resolveTreeItem(item);
     }
 }

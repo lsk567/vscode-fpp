@@ -224,7 +224,7 @@ export abstract class FppProjectManager {
         // Update our knowledge of the AST
         this.asts.set(key, msg);
 
-        for (const dep of msg.dependencies) {
+        for (const dep of msg.ast.dependencies) {
             this.clear(dep);
             this.parentFile.set(dep, key);
         }

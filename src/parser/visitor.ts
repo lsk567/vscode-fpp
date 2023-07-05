@@ -273,7 +273,8 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         return {
             type: "TranslationUnit",
             location: this.loc(ctx),
-            members: ctx.moduleMember().map(this.visitModuleMember.bind(this)) as Fpp.ModuleMember[]
+            members: ctx.moduleMember().map(this.visitModuleMember.bind(this)) as Fpp.ModuleMember[],
+            dependencies: []
         };
     }
 
@@ -287,7 +288,8 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         return {
             type: "TranslationUnit",
             location: this.loc(ctx),
-            members: ctx.topologyMember().map(this.visitTopologyMember.bind(this)) as Fpp.TopologyMember[]
+            members: ctx.topologyMember().map(this.visitTopologyMember.bind(this)) as Fpp.TopologyMember[],
+            dependencies: []
         };
     }
 
@@ -301,7 +303,8 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         return {
             type: "TranslationUnit",
             location: this.loc(ctx),
-            members: ctx.componentMember().map(this.visitComponentMember.bind(this)) as Fpp.ComponentMember[]
+            members: ctx.componentMember().map(this.visitComponentMember.bind(this)) as Fpp.ComponentMember[],
+            dependencies: []
         };
     }
 

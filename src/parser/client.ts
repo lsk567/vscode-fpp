@@ -27,7 +27,6 @@ export class FppMessage {
         readonly path: string,
         readonly version: number,
         readonly ast: Fpp.TranslationUnit,
-        readonly dependencies: Set<string>,
         readonly ranges: Map<string, RangeAssociator<RangeRuleAssociation>>,
         readonly syntaxErrors: [string, vscode.Diagnostic][]
     ) {
@@ -38,7 +37,6 @@ export class FppMessage {
             msg.path,
             msg.version,
             msg.ast,
-            new Set<string>(msg.dependencies),
             new Map<string, RangeAssociator<RangeRuleAssociation>>(
                 msg.ranges.map(v => [
                     v[0],
