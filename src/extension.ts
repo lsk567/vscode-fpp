@@ -198,7 +198,7 @@ class FppExtension implements
 
             symbols.set(name, new vscode.DocumentSymbol(
                 toks[toks.length - 1],
-                `${name} (${tokenTypeNames[tokType]})`,
+                tokenTypeNames[tokType],
                 kind, range, range
             ));
         }

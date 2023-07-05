@@ -32,7 +32,6 @@ class ComponentModuleTree extends DictionaryEntry {
 
 abstract class DictionaryDecl<T extends Fpp.Decl> extends DictionaryEntry {
     name: string;
-
     abstract token: FppTokenType;
 
     constructor(readonly decl: T) {
@@ -44,7 +43,8 @@ abstract class DictionaryDecl<T extends Fpp.Decl> extends DictionaryEntry {
         const name = MemberTraverser.flat(this.decl.scope, this.decl.name);
 
         const out = new vscode.TreeItem(this.decl.name.value);
-        out.description = `${name} (${tokenTypeNames[this.token]})`;
+        out.description = tokenTypeNames[this.token];
+        out.tooltip = `${name} (${tokenTypeNames[this.token]})`;
 
         const location = MemberTraverser.asLocation(this.decl.name.location);
         out.command = {
