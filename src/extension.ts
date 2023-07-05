@@ -5,7 +5,6 @@ import { FppParser, QualIdentContext } from './grammar/FppParser';
 import * as Fpp from './parser/ast';
 
 import Signatures from "./signatures.json";
-import { AstManager } from './parser/manager';
 import { CompletionRelevantInfo, getCandidates } from './completion';
 import { declRules, ignoreTokens } from './parser/common';
 import { FppProject } from './project';
@@ -75,70 +74,47 @@ class FppExtension implements
     vscode.Disposable {
 
     private project: FppProject;
-    private manager: AstManager;
 
     private subscriptions: vscode.Disposable[];
     private componentsProvider: ComponentsProvider;
 
+    onDidChangeSemanticTokens: vscode.Event<void>;
+
     constructor(
         private readonly context: vscode.ExtensionContext
     ) {
-        this.manager = new AstManager({ scheme: 'file', language: 'fpp' });
-        this.componentsProvider = new ComponentsProvider(this.manager.decls);
+        this.project = new FppProject({ scheme: 'file', language: 'fpp' });
 
-        this.project = new FppProject(
-            this.manager,
-            async (addUri, token?: vscode.CancellationToken) => {
-                // Refresh declarations created by this AST
-                await this.manager.parse(addUri, token, {
-                    disableDiagnostics: true
-                });
-            },
-            (deleteUri) => {
-                this.manager.clear(deleteUri.path);
-            },
-            async (locs: Set<string>, increment: number, progress: vscode.Progress<{ message?: string; increment?: number }>, token: vscode.CancellationToken) => {
-                // Reindex all file to resolve declaration errors
-                for (const file of locs) {
-                    try {
-                        progress.report({ message: file, increment });
-                        await this.manager.parse(vscode.Uri.file(file), token, {
-                            forceReparse: true,
-                            noAnnotationRefresh: true,
-                            disableDiagnostics: true
-                        });
-                    } catch { }
-                }
+        this.onDidChangeSemanticTokens = this.project.onRefresh;
 
-                this.manager.refreshAnnotations();
-                this._onDidChangeSemanticTokens.fire();
-            }
-        );
+        this.componentsProvider = new ComponentsProvider(this.project.decl);
 
         // Once the worker boots up, load the project
         this.subscriptions = [];
-        this.manager.ready().then(() => {
+        this.project.ready().then(() => {
             const file = this.context.workspaceState.get<string>("fpp.locsFile");
 
             // Don't allow the language providers interfere with the project loading
-            this.setLocs(file ? vscode.Uri.file(file) : undefined)
+            this.setProject(file ? vscode.Uri.file(file) : undefined)
                 .finally(() => {
                     this.subscriptions = [
-                        vscode.languages.registerDocumentSemanticTokensProvider(this.manager.documentSelector, this, fppLegend),
-                        vscode.languages.registerDefinitionProvider(this.manager.documentSelector, this),
+                        // Update the internal ast on document change
                         vscode.workspace.onDidChangeTextDocument((e) => {
-                            if (vscode.languages.match(this.manager.documentSelector, e.document)) {
+                            if (vscode.languages.match(this.project.documentSelector, e.document)) {
                                 // Reparse the document to update the information
-                                this.manager.parse(e.document);
+                                this.project.parse(e.document);
                             }
                         }),
-                        vscode.languages.registerDocumentLinkProvider(this.manager.documentSelector, this),
-                        vscode.languages.registerHoverProvider(this.manager.documentSelector, this),
-                        vscode.languages.registerCompletionItemProvider(this.manager.documentSelector, this, " ", ".", ":"),
-                        vscode.languages.registerSignatureHelpProvider(this.manager.documentSelector, this, " ", ",", "[", "(", "{", "=", ":"),
-                        vscode.languages.registerReferenceProvider(this.manager.documentSelector, this),
-                        vscode.languages.registerDocumentSymbolProvider(this.manager.documentSelector, this),
-                        this.manager.onRefreshAnnotations(this.componentsProvider.refresh.bind(this.componentsProvider)),
+                        // Refresh project dictionary listing
+                        this.project.onRefresh(this.componentsProvider.refresh.bind(this.componentsProvider)),
+                        vscode.languages.registerDocumentSemanticTokensProvider(this.project.documentSelector, this, fppLegend),
+                        vscode.languages.registerDefinitionProvider(this.project.documentSelector, this),
+                        vscode.languages.registerDocumentLinkProvider(this.project.documentSelector, this),
+                        vscode.languages.registerHoverProvider(this.project.documentSelector, this),
+                        vscode.languages.registerCompletionItemProvider(this.project.documentSelector, this, " ", ".", ":"),
+                        vscode.languages.registerSignatureHelpProvider(this.project.documentSelector, this, " ", ",", "[", "(", "{", "=", ":"),
+                        vscode.languages.registerReferenceProvider(this.project.documentSelector, this),
+                        vscode.languages.registerDocumentSymbolProvider(this.project.documentSelector, this),
                         vscode.window.registerTreeDataProvider('fpp.components', this.componentsProvider),
                     ];
                 });
@@ -174,32 +150,81 @@ class FppExtension implements
         }
     }
 
-    async provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.DocumentSymbol[] | undefined> {
-        await this.manager.get(document, token);
+    private readonly symbolTraverser = new class extends MemberTraverser {
+        symbols: [FppTokenType, vscode.Range, vscode.Range, string[]][] = [];
 
-        const decls = this.manager.decls.translationUnitDeclarations.get(document.uri.path);
-        if (!decls) {
-            return;
+        private memberDeclType(member: Fpp.Member): FppTokenType | undefined {
+            switch (member.type) {
+                case 'AbstractTypeDecl': return FppTokenType.type;
+                case 'ArrayDecl': return FppTokenType.type;
+                case 'ComponentDecl': return FppTokenType.component;
+                case 'ComponentInstanceDecl': return FppTokenType.componentInstance;
+                case 'ConstantDecl': return FppTokenType.constant;
+                case 'ModuleDecl': return FppTokenType.module;
+                case 'PortDecl': return FppTokenType.port;
+                case 'StructDecl': return FppTokenType.type;
+                case 'TopologyDecl': return FppTokenType.topology;
+                case 'EnumDecl': return FppTokenType.type;
+                case 'DirectGraphDecl': return FppTokenType.graphGroup;
+                case 'CommandDecl': return FppTokenType.command;
+                case 'ParamDecl': return FppTokenType.parameter;
+                case 'GeneralPortInstanceDecl': return FppTokenType.inputPortDecl;
+                case 'SpecialPortInstanceDecl': return FppTokenType.specialPort;
+                case 'TelemetryChannelDecl': return FppTokenType.telemetry;
+                case 'EventDecl': return FppTokenType.event;
+                case 'InternalPortDecl': return FppTokenType.specialPort;
+            }
         }
 
+        pass(ast: Fpp.TranslationUnit<Fpp.Member>, scope?: Fpp.QualifiedIdentifier): void {
+            this.symbols = [];
+            super.pass(ast, scope);
+        }
+
+        protected traverse(ast: Fpp.Member, scope: Fpp.QualifiedIdentifier): void {
+            const tokType = this.memberDeclType(ast);
+            if (tokType) {
+                const decl = ast as Fpp.Decl;
+
+                this.symbols.push([
+                    tokType,
+                    MemberTraverser.asRange(ast.location),
+                    MemberTraverser.asRange(decl.name.location),
+                    [...scope.map(v => v.value), decl.name.value]
+                ]);
+            }
+
+            super.traverse(ast, scope);
+        }
+
+        protected enumDecl(ast: Fpp.EnumDecl, scope: Fpp.QualifiedIdentifier): void {
+            for (const member of ast.members) {
+                this.symbols.push([
+                    FppTokenType.constant,
+                    MemberTraverser.asRange(member.location),
+                    MemberTraverser.asRange(member.name.location),
+                    [...scope.map(v => v.value), ast.name.value, member.name.value]
+                ]);
+            }
+        }
+    }();
+
+    async provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.DocumentSymbol[] | undefined> {
+        const ast = await this.project.parse(document, token);
+
+        this.symbolTraverser.pass(ast.ast);
+
         const symbols = new ConsolidatingTree<vscode.DocumentSymbol>();
-        for (const [nameRange, [tokType, name]] of decls) {
+        for (const [tokType, fullRange, nameRange, fqName] of this.symbolTraverser.symbols) {
             const kind = FppExtension.documentSymbolKind(tokType);
             if (!kind) {
-                // This is not a symbol we should add to the outline
                 continue;
             }
 
-            const toks = name.split('.');
-            const range = new vscode.Range(
-                nameRange.start.line, nameRange.start.character,
-                nameRange.end.line, nameRange.end.character
-            );
-
-            symbols.set(name, new vscode.DocumentSymbol(
-                toks[toks.length - 1],
+            symbols.set(fqName.join('.'), new vscode.DocumentSymbol(
+                fqName[fqName.length - 1],
                 tokenTypeNames[tokType],
-                kind, range, range
+                kind, fullRange, nameRange
             ));
         }
 
@@ -222,10 +247,10 @@ class FppExtension implements
         }
 
         // Check if this definition exists
-        let fullyQualified: string | undefined = this.manager.decls.translationUnitDeclarations.get(document.uri.path)?.get(position)?.[1];
+        let fullyQualified: string | undefined = this.project.decl.translationUnitDeclarations.get(document.uri.path)?.get(position)?.[1];
         if (!fullyQualified) {
             // See if this is a reference to a declaration
-            let definition = (await this.manager.get(document, token)).definitions.get(document.uri.path)?.get(position);
+            let definition = (await this.project.get(document, token)).definitions.get(document.uri.path)?.get(position);
             if (!definition) {
                 return;
             }
@@ -233,7 +258,7 @@ class FppExtension implements
             fullyQualified = DiangosicManager.flat(definition.scope ?? [], definition.name);
         }
 
-        const allReferences = this.manager.decls.references.get(fullyQualified);
+        const allReferences = this.project.decl.references.get(fullyQualified);
 
         const out: vscode.Location[] = [];
         for (const [source, references] of allReferences) {
@@ -248,10 +273,10 @@ class FppExtension implements
     }
 
     ready(): Promise<void> {
-        return this.manager.ready();
+        return this.project.ready();
     }
 
-    async setLocs(locsFile: vscode.Uri | undefined) {
+    async setProject(locsFile: vscode.Uri | undefined) {
         this.context.workspaceState.update('fpp.locsFile', locsFile?.path);
         await this.project.set(locsFile);
     }
@@ -260,21 +285,19 @@ class FppExtension implements
         return this.project.reload();
     }
 
-    _onDidChangeSemanticTokens = new vscode.EventEmitter<void>();
-    onDidChangeSemanticTokens = this._onDidChangeSemanticTokens.event;
     async provideDocumentSemanticTokens(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.SemanticTokens | undefined> {
-        return (await this.manager.get(document, token)).tokens.get(document.uri.path)?.build();
+        return (await this.project.get(document, token)).tokens.get(document.uri.path)?.build();
     }
 
     async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Definition | undefined> {
-        const definition = (await this.manager.get(document, token)).definitions.get(document.uri.path)?.get(position);
+        const definition = (await this.project.get(document, token)).definitions.get(document.uri.path)?.get(position);
         if (definition) {
             return FppAnnotator.asLocation(definition.name.location);
         }
     }
 
     async provideDocumentLinks(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.DocumentLink[]> {
-        return (await this.manager.get(document, token)).links.get(document.uri.path) ?? [];
+        return (await this.project.get(document, token)).links.get(document.uri.path) ?? [];
     }
 
     async provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Hover | undefined> {
@@ -285,14 +308,14 @@ class FppExtension implements
         let association: RangeAssociation<Fpp.Decl> | undefined;
 
         // Check if this definition exists
-        const declAssociation = this.manager.decls.translationUnitDeclarations.get(document.uri.path)?.getAssociation(position);
+        const declAssociation = this.project.decl.translationUnitDeclarations.get(document.uri.path)?.getAssociation(position);
         if (declAssociation) {
             const { range, value } = declAssociation;
-            const decl = this.manager.decls.get(value[1], value[0]);
+            const decl = this.project.decl.get(value[1], value[0]);
             association = decl ? { range: range, value: decl } : undefined;
         } else {
             // Check if we are hovering over a variable reference
-            association = (await this.manager.get(document, token)).definitions.get(document.uri.path)?.getAssociation(position);
+            association = (await this.project.get(document, token)).definitions.get(document.uri.path)?.getAssociation(position);
         }
 
         let range: vscode.Range | undefined = undefined;
@@ -313,7 +336,7 @@ class FppExtension implements
 
                     let resolved = false;
                     for (const fppTokType of possibleFppTypes) {
-                        const resolvedFppType = this.manager.decls.resolve(definition.fppType.type, definition.scope, fppTokType);
+                        const resolvedFppType = this.project.decl.resolve(definition.fppType.type, definition.scope, fppTokType);
                         if (resolvedFppType) {
                             typeName = MemberTraverser.flat(resolvedFppType);
                             resolved = true;
@@ -434,14 +457,14 @@ class FppExtension implements
 
     private referenceCompletion(declType: FppTokenType, context: QualIdentContext, scope: string[]): vscode.CompletionItem[] {
         const declTypeMap = new Map<FppTokenType, [Map<string, Fpp.Decl>, vscode.CompletionItemKind]>([
-            [FppTokenType.topology, [this.manager.decls.topologies, vscode.CompletionItemKind.Module]],
-            [FppTokenType.component, [this.manager.decls.components, vscode.CompletionItemKind.Class]],
-            [FppTokenType.componentInstance, [this.manager.decls.componentInstances, vscode.CompletionItemKind.Variable]],
-            [FppTokenType.constant, [this.manager.decls.constants, vscode.CompletionItemKind.EnumMember]],
-            [FppTokenType.port, [this.manager.decls.ports, vscode.CompletionItemKind.Class]],
-            [FppTokenType.type, [this.manager.decls.types, vscode.CompletionItemKind.Class]],
-            [FppTokenType.inputPortInstance, [this.manager.decls.generalInputPortInstances, vscode.CompletionItemKind.Function]],
-            [FppTokenType.outputPortInstance, [this.manager.decls.generalOutputPortInstances, vscode.CompletionItemKind.Function]],
+            [FppTokenType.topology, [this.project.decl.topologies, vscode.CompletionItemKind.Module]],
+            [FppTokenType.component, [this.project.decl.components, vscode.CompletionItemKind.Class]],
+            [FppTokenType.componentInstance, [this.project.decl.componentInstances, vscode.CompletionItemKind.Variable]],
+            [FppTokenType.constant, [this.project.decl.constants, vscode.CompletionItemKind.EnumMember]],
+            [FppTokenType.port, [this.project.decl.ports, vscode.CompletionItemKind.Class]],
+            [FppTokenType.type, [this.project.decl.types, vscode.CompletionItemKind.Class]],
+            [FppTokenType.inputPortInstance, [this.project.decl.generalInputPortInstances, vscode.CompletionItemKind.Function]],
+            [FppTokenType.outputPortInstance, [this.project.decl.generalOutputPortInstances, vscode.CompletionItemKind.Function]],
         ]);
 
         const mapping = declTypeMap.get(declType);
@@ -594,7 +617,7 @@ class FppExtension implements
         }
 
         // Provide all signatures of candidate rules
-        const matched = (await this.manager.parse(document, token)).ranges.get(document.uri.path)?.getAssociation(position);
+        const matched = (await this.project.parse(document, token)).ranges.get(document.uri.path)?.getAssociation(position);
         if (matched) {
             const ruleName = FppParser.ruleNames[matched.value.rule];
             const iSignature = signaturesDefinitions[ruleName];
@@ -630,7 +653,6 @@ class FppExtension implements
         this.subscriptions.map(e => e.dispose());
         this.subscriptions = [];
 
-        this.manager.dispose();
         this.project.dispose();
     }
 }
@@ -645,11 +667,11 @@ export function activate(context: vscode.ExtensionContext) {
             if (!file) {
                 vscode.commands.executeCommand('fpp.open');
             } else {
-                await extension.setLocs(file);
+                await extension.setProject(file);
             }
         }),
         vscode.commands.registerCommand('fpp.close', async () => {
-            await extension.setLocs(undefined);
+            await extension.setProject(undefined);
         }),
         vscode.commands.registerCommand('fpp.open', () => {
             const locs = context.workspaceState.get<string>("fpp.locsFile");
@@ -664,7 +686,7 @@ export function activate(context: vscode.ExtensionContext) {
                 title: "Open 'locs.fpp' files in build directory"
             }).then((value) => {
                 if (value) {
-                    extension.setLocs(value[0]);
+                    extension.setProject(value[0]);
                 }
             });
         }),

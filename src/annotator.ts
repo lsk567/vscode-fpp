@@ -99,7 +99,6 @@ export class FppAnnotator extends MemberTraverser {
 
     pass(ast: Fpp.TranslationUnit, scope: Fpp.QualifiedIdentifier = []): void {
         this.clear(ast.location.source);
-        this.decl.pass(ast, scope);
         super.pass(ast, scope);
     }
 

@@ -14,8 +14,6 @@ export class DiangosicManager implements vscode.Disposable {
     private diagnostics: vscode.DiagnosticCollection;
     private pendingDiagnostics = new Map<string, vscode.Diagnostic[]>();
 
-    private isDisabled: boolean = false;
-
     constructor() {
         this.diagnostics = vscode.languages.createDiagnosticCollection("fpp");
     }
@@ -66,19 +64,7 @@ export class DiangosicManager implements vscode.Disposable {
         this.diagnostics.dispose();
     }
 
-    disable() {
-        this.isDisabled = true;
-    }
-
-    enable() {
-        this.isDisabled = false;
-    }
-
     emit(uri: vscode.Uri, diagnostic: vscode.Diagnostic) {
-        if (this.isDisabled) {
-            return;
-        }
-
         if (!this.pendingDiagnostics.has(uri.path)) {
             this.pendingDiagnostics.set(uri.path, [diagnostic]);
         } else {

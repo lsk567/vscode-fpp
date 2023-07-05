@@ -1,32 +1,31 @@
 import * as vscode from 'vscode';
 
 import * as Fpp from './parser/ast';
-import { AstManager } from './parser/manager';
 import { MemberTraverser } from './traverser';
 import { symLinkCache } from './annotator';
+import { FppProjectManager } from './manager';
 
-export class FppProject implements vscode.Disposable {
+export class FppProject extends FppProjectManager implements vscode.Disposable {
     private locs = new Set<string>();
     private locsFile?: vscode.Uri;
 
     private locsNew: vscode.LanguageStatusItem;
     private locsReload: vscode.LanguageStatusItem;
 
-    constructor(
-        readonly manager: AstManager,
-        readonly onCreate: (file: vscode.Uri, token?: vscode.CancellationToken) => Promise<void>,
-        readonly onDelete: (file: vscode.Uri) => void,
-        readonly onScanDone: (locs: Set<string>, increment: number, progress: vscode.Progress<{ message?: string; increment?: number }>, token: vscode.CancellationToken) => Promise<void>
-    ) {
+    private loadingProject: boolean = false;
+
+    constructor(selector: vscode.DocumentSelector) {
+        super(selector);
+
         this.locsNew = vscode.languages.createLanguageStatusItem(
             'fpp.locsNew',
-            this.manager.documentSelector
+            this.documentSelector
         );
         this.locsNew.name = "FPP Project Status";
 
         this.locsReload = vscode.languages.createLanguageStatusItem(
             'fpp.locsReload',
-            this.manager.documentSelector
+            this.documentSelector
         );
 
         this.refreshLanguageStatus();
@@ -51,11 +50,21 @@ export class FppProject implements vscode.Disposable {
             this.locsNew.command = { title: "Close", command: "fpp.close" };
             this.locsNew.severity = vscode.LanguageStatusSeverity.Information;
 
-            this.locsReload.selector = this.manager.documentSelector;
+            this.locsReload.selector = this.documentSelector;
             this.locsReload.command = { title: "Reload", command: "fpp.reload" };
             this.locsReload.detail = "Reload FPP Project";
             this.locsReload.text = vscode.workspace.asRelativePath(this.locsFile);
         }
+    }
+
+    // Tracks which files should be tracked by the decl collector
+    inProject(path: string): boolean {
+        return this.loadingProject || this.locs.has(path) || this.parentFile.has(path);
+    }
+
+    clearAll(): void {
+        this.locs.clear();
+        super.clearAll();
     }
 
     private async scan(progress: vscode.Progress<{ message?: string; increment?: number }>, token: vscode.CancellationToken) {
@@ -65,7 +74,7 @@ export class FppProject implements vscode.Disposable {
         }
 
         symLinkCache.clear();
-        this.manager.decls.clearAll();
+        this.clearAll();
 
         progress.report({
             message: "Scanning locs file",
@@ -73,13 +82,13 @@ export class FppProject implements vscode.Disposable {
         });
 
         // Parse the locs file
-        const { ast } = await this.manager.parse(this.locsFile, undefined, {
+        const { ast } = await this.parse(this.locsFile, undefined, {
             forceReparse: true,
-            noAnnotationRefresh: true,
-            disableDiagnostics: true
+            disableAnnotations: true
         });
 
         // Parse the locs file
+        this.loadingProject = true;
         this.locsTrav.pass(ast);
         const indexCount = this.locsTrav.promises.length;
 
@@ -90,21 +99,26 @@ export class FppProject implements vscode.Disposable {
             try {
                 progress.report({
                     message: uri.path,
-                    increment: 100 / (this.locs.size + indexCount)
+                    increment: 100 / indexCount
                 });
 
-                await prom;
+                await prom();
             } catch { }
             i++;
         }
 
+        this.loadingProject = false;
         this.locsTrav.token = undefined;
 
-        // For reparse of all files to resolve declarations
-        await this.onScanDone(this.locs, 100 / (this.locs.size + indexCount), progress, token);
+        // Annotate all the files at once
+        progress.report({
+            message: 'Refreshing project annotations',
+            increment: 0
+        });
+        this.refreshAnnotations();
 
         // Force reparse of locs
-        await this.manager.parse(this.locsFile, token, {
+        await this.parse(this.locsFile, token, {
             forceReparse: true
         });
     }
@@ -113,21 +127,16 @@ export class FppProject implements vscode.Disposable {
         parent!: FppProject;
 
         newLocs = new Set<string>();
-        promises: [vscode.Uri, Promise<void>][] = [];
+        promises: [vscode.Uri, () => Promise<unknown>][] = [];
         token?: vscode.CancellationToken;
 
         pass(ast: Fpp.TranslationUnit): void {
             this.newLocs.clear();
             this.promises = [];
+
             super.pass(ast);
 
-            for (const loc of this.parent) {
-                if (!this.newLocs.has(loc)) {
-                    this.parent.onDelete(vscode.Uri.file(loc));
-                }
-            }
-
-            this.parent.setLocs(this.newLocs);
+            this.parent.locs = this.newLocs;
         }
 
         protected locationStmt(ast: Fpp.LocationStmt, scope: Fpp.QualifiedIdentifier): void {
@@ -136,9 +145,18 @@ export class FppProject implements vscode.Disposable {
                 return;
             }
 
-            if (!this.parent.has(ast.path.value)) {
+            // Make sure we don't double parse a file
+            if (!this.newLocs.has(ast.path.value)) {
+                // Add the parsing file to the queue
                 const uri = vscode.Uri.file(ast.path.value);
-                this.promises.push([uri, this.parent.onCreate(uri, this.token)]);
+                this.promises.push([
+                    uri,
+                    () => {
+                        return this.parent.parse(uri, undefined, {
+                            disableAnnotations: true
+                        });
+                    }
+                ]);
             }
 
             this.newLocs.add(ast.path.value);
@@ -147,14 +165,6 @@ export class FppProject implements vscode.Disposable {
 
     [Symbol.iterator](): Iterator<string> {
         return this.locs.keys();
-    }
-
-    has(loc: string): boolean {
-        return this.locs.has(loc);
-    }
-
-    setLocs(locs: Set<string>) {
-        this.locs = new Set<string>(locs);
     }
 
     async reload() {
@@ -183,6 +193,7 @@ export class FppProject implements vscode.Disposable {
     async set(locsFile: vscode.Uri | undefined) {
         if (!locsFile) {
             this.locsFile = undefined;
+            this.clearAll();
             this.refreshLanguageStatus();
         } else {
             this.locsFile = locsFile;
@@ -207,6 +218,7 @@ export class FppProject implements vscode.Disposable {
     }
 
     dispose() {
+        super.dispose();
         this.locs.clear();
         this.locsNew.dispose();
         this.locsReload.dispose();

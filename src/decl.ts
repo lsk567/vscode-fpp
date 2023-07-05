@@ -187,6 +187,7 @@ export class DeclCollector extends MemberTraverser {
                 switch (type) {
                     case FppTokenType.component:
                         this.components.delete(decl);
+                        this.dictionary.delete(decl);
                         break;
                     case FppTokenType.componentInstance:
                         this.componentInstances.delete(decl);
@@ -245,15 +246,10 @@ export class DeclCollector extends MemberTraverser {
         this.references.dispose(grammarSource);
     }
 
-    clearAll() {
-        for (const key of this.translationUnitDeclarations.keys()) {
-            this.clearDecls(key);
-        }
-    }
-
     pass(ast: Fpp.TranslationUnit, scope: Fpp.QualifiedIdentifier = []): void {
         this.hasComponentInstances = false;
         this.clearDecls(ast.location.source);
+
         super.pass(ast, scope);
         this.topologyPortsTrav.pass(ast, scope);
     }
