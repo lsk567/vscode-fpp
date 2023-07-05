@@ -60,30 +60,44 @@ abstract class DictionaryDecl<T extends Fpp.Decl> extends DictionaryEntry {
 class DictionaryComponent extends DictionaryDecl<Fpp.ComponentDecl> {
     token = FppTokenType.component;
 
-    constructor(decl: Fpp.ComponentDecl) {
+    constructor(collector: DeclCollector, decl: Fpp.ComponentDecl) {
         super(decl);
 
+        const name = MemberTraverser.flat(decl.scope, decl.name);
+
         if (this.decl.commands) {
-            for (const cmd of this.decl.commands.values()) {
-                this.children.push(new DictionaryCommand(cmd));
+            for (const cmdN of this.decl.commands) {
+                const cmd = collector.commands.get(`${name}.${cmdN}`);
+                if (cmd) {
+                    this.children.push(new DictionaryCommand(cmd));
+                }
             }
         }
 
         if (this.decl.events) {
-            for (const event of this.decl.events.values()) {
-                this.children.push(new DictionaryEvent(event));
+            for (const eventN of this.decl.events) {
+                const event = collector.events.get(`${name}.${eventN}`);
+                if (event) {
+                    this.children.push(new DictionaryEvent(event));
+                }
             }
         }
 
         if (this.decl.parameters) {
-            for (const param of this.decl.parameters.values()) {
-                this.children.push(new DictionaryParameter(param));
+            for (const paramN of this.decl.parameters) {
+                const param = collector.parameters.get(`${name}.${paramN}`);
+                if (param) {
+                    this.children.push(new DictionaryParameter(param));
+                }
             }
         }
 
         if (this.decl.telemetry) {
-            for (const tlm of this.decl.telemetry.values()) {
-                this.children.push(new DictionaryTelemetry(tlm));
+            for (const tlmN of this.decl.telemetry) {
+                const tlm = collector.telemetry.get(`${name}.${tlmN}`);
+                if (tlm) {
+                    this.children.push(new DictionaryTelemetry(tlm));
+                }
             }
         }
     }
@@ -159,7 +173,7 @@ export class ComponentsProvider implements vscode.TreeDataProvider<DictionaryEnt
             const out = new ConsolidatingTree<DictionaryEntry>();
             for (const comp of this.decl.components.values()) {
                 const name = MemberTraverser.flat(comp.scope, comp.name);
-                out.set(name, new DictionaryComponent(comp));
+                out.set(name, new DictionaryComponent(this.decl, comp));
 
                 // Add all the modules up to this point
                 const scope: string[] = [];

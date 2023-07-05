@@ -439,10 +439,10 @@ export class DeclCollector extends MemberTraverser {
         const parent = this.components.get(MemberTraverser.flat(scope));
         if (parent) {
             if (!parent.commands) {
-                parent.commands = new Map<string, Fpp.CommandDecl>();
+                parent.commands = [];
             }
 
-            parent.commands.set(ast.name.value, ast);
+            parent.commands.push(ast.name.value);
         }
 
         [ast.annotatedValue, ast.annotatedMembers] = DeclCollector.annotateParameters(ast.params);
@@ -464,10 +464,10 @@ export class DeclCollector extends MemberTraverser {
         const parent = this.components.get(MemberTraverser.flat(scope));
         if (parent) {
             if (!parent.events) {
-                parent.events = new Map<string, Fpp.EventDecl>();
+                parent.events = [];
             }
 
-            parent.events.set(ast.name.value, ast);
+            parent.events.push(ast.name.value);
         }
 
         [ast.annotatedValue, ast.annotatedMembers] = DeclCollector.annotateParameters(ast.params);
@@ -489,10 +489,10 @@ export class DeclCollector extends MemberTraverser {
         const parent = this.components.get(MemberTraverser.flat(scope));
         if (parent) {
             if (!parent.parameters) {
-                parent.parameters = new Map<string, Fpp.ParamDecl>();
+                parent.parameters = [];
             }
 
-            parent.parameters.set(ast.name.value, ast);
+            parent.parameters.push(ast.name.value);
         }
 
         this.parameters.set(name, ast);
@@ -511,10 +511,10 @@ export class DeclCollector extends MemberTraverser {
         const parent = this.components.get(MemberTraverser.flat(scope));
         if (parent) {
             if (!parent.telemetry) {
-                parent.telemetry = new Map<string, Fpp.TelemetryChannelDecl>();
+                parent.telemetry = [];
             }
 
-            parent.telemetry.set(ast.name.value, ast);
+            parent.telemetry.push(ast.name.value);
         }
 
         ast.annotatedValue = ast.format?.value ? `"${ast.format?.value}"` : undefined;
