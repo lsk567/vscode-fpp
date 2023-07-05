@@ -94,7 +94,17 @@ export const fppLegend = new vscode.SemanticTokensLegend(
     []
 );
 
+export class ComponentDictionary {
+    readonly commands = new Map<string, Fpp.CommandDecl>();
+    readonly events = new Map<string, Fpp.EventDecl>();
+    readonly parameters = new Map<string, Fpp.ParamDecl>();
+    readonly telemetry = new Map<string, Fpp.TelemetryChannelDecl>();
+
+    constructor(readonly component: Fpp.ComponentDecl) { }
+}
+
 export class DeclCollector extends MemberTraverser {
+    // Declarations map with their fully qualified id
     components = new Map<string, Fpp.ComponentDecl>();
     componentInstances = new Map<string, Fpp.ComponentInstanceDecl>();
     constants = new Map<string, Fpp.ConstantDefinition>();
@@ -106,14 +116,16 @@ export class DeclCollector extends MemberTraverser {
     ports = new Map<string, Fpp.PortDecl>();
     topologies = new Map<string, Fpp.TopologyDecl>();
     types = new Map<string, Fpp.TypeDecl>();
-
-    // Dictionary entries
     commands = new Map<string, Fpp.CommandDecl>();
     events = new Map<string, Fpp.EventDecl>();
     parameters = new Map<string, Fpp.ParamDecl>();
     telemetry = new Map<string, Fpp.TelemetryChannelDecl>();
 
+    dictionary = new Map<string, ComponentDictionary>();
     references = new ReferenceTracker<vscode.Range>();
+
+    // Keep track of which files define what
+    // This way we can clean and refresh a single file's declarations
     translationUnitDeclarations = new Map<string, RangeAssociator<[FppTokenType, string]>>();
 
     // If a translation unit includes component instances,
@@ -391,6 +403,7 @@ export class DeclCollector extends MemberTraverser {
         const name = MemberTraverser.flat(scope, ast.name);
         if (!this.check(name, FppTokenType.component, ast.name)) {
             this.components.set(name, ast);
+            this.dictionary.set(name, new ComponentDictionary(ast));
             this.translationUnitDeclarations.get(ast.location.source)!.add(
                 DiangosicManager.asRange(ast.name.location),
                 [FppTokenType.component, name]
@@ -436,13 +449,9 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        const parent = this.components.get(MemberTraverser.flat(scope));
-        if (parent) {
-            if (!parent.commands) {
-                parent.commands = [];
-            }
-
-            parent.commands.push(ast.name.value);
+        const dict = this.dictionary.get(MemberTraverser.flat(scope));
+        if (dict) {
+            dict.commands.set(ast.name.value, ast);
         }
 
         [ast.annotatedValue, ast.annotatedMembers] = DeclCollector.annotateParameters(ast.params);
@@ -461,13 +470,9 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        const parent = this.components.get(MemberTraverser.flat(scope));
-        if (parent) {
-            if (!parent.events) {
-                parent.events = [];
-            }
-
-            parent.events.push(ast.name.value);
+        const dict = this.dictionary.get(MemberTraverser.flat(scope));
+        if (dict) {
+            dict.events.set(ast.name.value, ast);
         }
 
         [ast.annotatedValue, ast.annotatedMembers] = DeclCollector.annotateParameters(ast.params);
@@ -486,13 +491,9 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        const parent = this.components.get(MemberTraverser.flat(scope));
-        if (parent) {
-            if (!parent.parameters) {
-                parent.parameters = [];
-            }
-
-            parent.parameters.push(ast.name.value);
+        const dict = this.dictionary.get(MemberTraverser.flat(scope));
+        if (dict) {
+            dict.parameters.set(ast.name.value, ast);
         }
 
         this.parameters.set(name, ast);
@@ -508,13 +509,9 @@ export class DeclCollector extends MemberTraverser {
             return;
         }
 
-        const parent = this.components.get(MemberTraverser.flat(scope));
-        if (parent) {
-            if (!parent.telemetry) {
-                parent.telemetry = [];
-            }
-
-            parent.telemetry.push(ast.name.value);
+        const dict = this.dictionary.get(MemberTraverser.flat(scope));
+        if (dict) {
+            dict.telemetry.set(ast.name.value, ast);
         }
 
         ast.annotatedValue = ast.format?.value ? `"${ast.format?.value}"` : undefined;

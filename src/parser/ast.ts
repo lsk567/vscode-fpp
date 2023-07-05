@@ -292,12 +292,6 @@ export interface ComponentDecl extends Decl {
     kind: ComponentKind;
     members: ComponentMember[];
     fppType: undefined;
-
-    // These are not maps since it needs to remain JSON compatible
-    commands?: string[];
-    events?: string[];
-    parameters?: string[];
-    telemetry?: string[];
 }
 
 export type TelemetryLimitKind = Keyword<"red" | "orange" | "yellow">;
