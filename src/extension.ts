@@ -295,7 +295,7 @@ class FppExtension implements
     }
 
     async provideDocumentSemanticTokens(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.SemanticTokens | undefined> {
-        return (await this.project.get(document, token)).tokens.get(document.uri.path)?.build();
+        return (await this.project.get(document, token, { disableRefresh: true })).tokens.get(document.uri.path)?.build();
     }
 
     async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Definition | undefined> {

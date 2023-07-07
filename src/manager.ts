@@ -150,9 +150,9 @@ export abstract class FppProjectManager {
         return [-1, textDecoder.decode(await vscode.workspace.fs.readFile(uri))];
     }
 
-    async get(document: vscode.TextDocument, token?: vscode.CancellationToken): Promise<FppAnnotator> {
+    async get(document: vscode.TextDocument, token?: vscode.CancellationToken, options?: ParsingOptions): Promise<FppAnnotator> {
         // Re-parse the document if needed
-        const parseOut = await this.parse(document, token);
+        const parseOut = await this.parse(document, token, options);
         return this.annotations.get(parseOut.path)!;
     }
 
