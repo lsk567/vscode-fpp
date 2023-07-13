@@ -96,42 +96,10 @@ export abstract class FppProjectManager {
     }
 
 
-    refreshAnnotations(ignoreKey?: string) {
-        // Keep track of files we annotated
-        const annotated = new Set<string>();
-        if (ignoreKey) {
-            annotated.add(ignoreKey);
-        }
-
-        // Refresh annotations on open text files
-        for (const textDocument of vscode.workspace.textDocuments) {
-            if (annotated.has(textDocument.uri.path)) {
-                continue;
-            }
-
-            if (vscode.languages.match(this.documentSelector, textDocument)) {
-                const ast = this.asts.get(textDocument.uri.path);
-                if (!ast) {
-                    // Document not parsed yet, skip for now
-                    continue;
-                }
-
-                this.annotations.get(textDocument.uri.path)?.pass(ast.ast);
-            }
-        }
-
-        for (const needsRefreshUri of this.hasComponentInstances) {
-            if (annotated.has(needsRefreshUri)) {
-                continue;
-            }
-
-            const ast = this.asts.get(needsRefreshUri);
-            if (!ast) {
-                // Document not parsed yet, skip for now
-                continue;
-            }
-
-            const annotations = this.annotations.get(needsRefreshUri)?.pass(ast.ast);
+    refreshAnnotations() {
+        // Move through all files and re-annotate them
+        for (const ast of this.asts.values()) {
+            this.annotations.get(ast.path)?.pass(ast.ast);
         }
 
         // Run all listeners that care about refresh events
@@ -265,7 +233,7 @@ export abstract class FppProjectManager {
         this.syntaxListener.flush(key);
 
         if (!options.disableRefresh && !options.disableAnnotations) {
-            this.refreshAnnotations(key);
+            this.refreshAnnotations();
         }
 
         return msg;
