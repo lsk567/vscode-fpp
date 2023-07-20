@@ -257,7 +257,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
         const post = postCtx?.ANNOTATION();
         if (post) {
-            annotations.push(AstVisitor.stripAnnotation(post));
+            annotations.push(...post.map(v => AstVisitor.stripAnnotation(v)));
         }
 
         return annotations.join("\n").trim();
