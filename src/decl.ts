@@ -28,6 +28,8 @@ export enum FppTokenType {
     event,
     parameter,
     telemetry,
+    record,
+    container
 }
 
 export const tokenTypeNames: string[] = [
@@ -50,24 +52,10 @@ export const tokenTypeNames: string[] = [
     "Command",
     "Event",
     "Parameter",
-    "Telemetry"
+    "Telemetry",
+    "Data Product Record",
+    "Data Product Container"
 ];
-
-// Denotes how declarations can be referenced in other areas
-// The resolver uses this to provide the correct semantic coloring
-export const tokenParents = new Map<FppTokenType, FppTokenType[]>([
-    [FppTokenType.topology, [FppTokenType.module]],
-    [FppTokenType.component, [FppTokenType.module]],
-    [FppTokenType.componentInstance, [FppTokenType.module]],
-    [FppTokenType.constant, [FppTokenType.module, FppTokenType.type, FppTokenType.component]],
-    [FppTokenType.graphGroup, [FppTokenType.topology]],
-    [FppTokenType.port, [FppTokenType.module]],
-    [FppTokenType.type, [FppTokenType.module, FppTokenType.component]],
-    [FppTokenType.inputPortInstance, [FppTokenType.componentInstance]],
-    [FppTokenType.outputPortInstance, [FppTokenType.componentInstance]],
-    [FppTokenType.inputPortDecl, [FppTokenType.component]],
-    [FppTokenType.outputPortDecl, [FppTokenType.component]],
-]);
 
 export const fppLegend = new vscode.SemanticTokensLegend(
     [
@@ -90,6 +78,8 @@ export const fppLegend = new vscode.SemanticTokensLegend(
         'function',
         'function',
         'function',
+        'function',
+        'function',
     ],
     []
 );
@@ -99,6 +89,8 @@ export class ComponentDictionary {
     readonly events = new Map<string, Fpp.EventDecl>();
     readonly parameters = new Map<string, Fpp.ParamDecl>();
     readonly telemetry = new Map<string, Fpp.TelemetryChannelDecl>();
+    readonly records = new Map<string, Fpp.ProductRecordDecl>();
+    readonly containers = new Map<string, Fpp.ProductContainerDecl>();
 
     constructor(readonly component: Fpp.ComponentDecl) { }
 }
@@ -120,6 +112,8 @@ export class DeclCollector extends MemberTraverser {
     events = new Map<string, Fpp.EventDecl>();
     parameters = new Map<string, Fpp.ParamDecl>();
     telemetry = new Map<string, Fpp.TelemetryChannelDecl>();
+    records = new Map<string, Fpp.ProductRecordDecl>();
+    containers = new Map<string, Fpp.ProductContainerDecl>();
 
     dictionary = new Map<string, ComponentDictionary>();
     references = new ReferenceTracker<vscode.Range>();
@@ -231,7 +225,12 @@ export class DeclCollector extends MemberTraverser {
                     case FppTokenType.telemetry:
                         this.telemetry.delete(decl);
                         break;
-
+                    case FppTokenType.container:
+                        this.containers.delete(decl);
+                        break;
+                    case FppTokenType.record:
+                        this.records.delete(decl);
+                        break;
                     case FppTokenType.modifier:
                     case FppTokenType.specialPort:
                     case FppTokenType.formalParameter:
@@ -249,7 +248,7 @@ export class DeclCollector extends MemberTraverser {
     pass(ast: Fpp.TranslationUnit, scope: Fpp.QualifiedIdentifier = []): void {
         this.hasComponentInstances = false;
         this.clearDecls(ast.location.source);
-        for (const dep of ast.dependencies)  {
+        for (const _ of ast.dependencies) {
             this.clearDecls(ast.location.source);
         }
 
@@ -396,6 +395,48 @@ export class DeclCollector extends MemberTraverser {
             DiangosicManager.asRange(ast.name.location),
             [FppTokenType.graphGroup, name]
         );
+    }
+
+    protected productRecordDecl(ast: Fpp.ProductRecordDecl, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+
+        if (this.check(name, FppTokenType.record, ast.name)) {
+            return;
+        }
+
+        const dict = this.dictionary.get(MemberTraverser.flat(scope));
+        if (dict) {
+            dict.records.set(ast.name.value, ast);
+        }
+
+        this.records.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.record, name]
+        );
+
+        super.productRecordDecl(ast, scope);
+    }
+
+    protected productContainerDecl(ast: Fpp.ProductContainerDecl, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+
+        if (this.check(name, FppTokenType.container, ast.name)) {
+            return;
+        }
+
+        const dict = this.dictionary.get(MemberTraverser.flat(scope));
+        if (dict) {
+            dict.containers.set(ast.name.value, ast);
+        }
+
+        this.containers.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [FppTokenType.container, name]
+        );
+
+        super.productContainerDecl(ast, scope);
     }
 
     componentDecl(ast: Fpp.ComponentDecl, scope: Fpp.QualifiedIdentifier): void {
@@ -576,6 +617,10 @@ export class DeclCollector extends MemberTraverser {
                 return this.parameters.get(name);
             case FppTokenType.telemetry:
                 return this.telemetry.get(name);
+            case FppTokenType.record:
+                return this.records.get(name);
+            case FppTokenType.container:
+                return this.containers.get(name);
         }
     }
 

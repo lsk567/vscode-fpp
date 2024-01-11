@@ -103,6 +103,12 @@ export abstract class MemberTraverser extends DiangosicManager {
                 case 'TopologyImportStmt':
                     this.topologyImportStmt(ast, scope);
                     break;
+                case 'ProductContainerDecl':
+                    this.productContainerDecl(ast, scope);
+                    break;
+                case 'ProductRecordDecl':
+                    this.productRecordDecl(ast, scope);
+                    break;
                 default:
                     throw new Error(`Unhandled declaration type ${(ast as any).type}: ${ast}`);
             }
@@ -120,6 +126,8 @@ export abstract class MemberTraverser extends DiangosicManager {
     protected generalPortInstanceDecl(ast: Fpp.GeneralPortInstanceDecl, scope: Fpp.QualifiedIdentifier) { }
     protected specialPortInstanceDecl(ast: Fpp.SpecialPortInstanceDecl, scope: Fpp.QualifiedIdentifier) { }
     protected telemetryChannelDecl(ast: Fpp.TelemetryChannelDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected productContainerDecl(ast: Fpp.ProductContainerDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected productRecordDecl(ast: Fpp.ProductRecordDecl, scope: Fpp.QualifiedIdentifier) { }
     protected enumDecl(ast: Fpp.EnumDecl, scope: Fpp.QualifiedIdentifier) { }
     protected eventDecl(ast: Fpp.EventDecl, scope: Fpp.QualifiedIdentifier) { }
     protected matchStmt(ast: Fpp.MatchStmt, scope: Fpp.QualifiedIdentifier) { }

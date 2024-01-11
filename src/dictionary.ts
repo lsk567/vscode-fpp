@@ -4,10 +4,12 @@ import * as Fpp from './parser/ast';
 import { ComponentDictionary, DeclCollector, FppTokenType, tokenTypeNames } from './decl';
 import { MemberTraverser } from './traverser';
 import { ConsolidatingItem, ConsolidatingTree } from './consolidate';
+import { tokenParents } from './annotator';
 
 
 abstract class DictionaryEntry implements ConsolidatingItem {
     abstract name: string;
+    abstract token: FppTokenType;
     children: DictionaryEntry[] = [];
 
     abstract asTreeItem(): vscode.TreeItem;
@@ -15,9 +17,15 @@ abstract class DictionaryEntry implements ConsolidatingItem {
     resolveTreeItem(item: vscode.TreeItem): vscode.TreeItem {
         return item;
     }
+
+    isChild(child: DictionaryEntry): boolean {
+        return tokenParents.get(child.token)?.includes(this.token) ?? false;
+    }
 }
 
 class ComponentModuleTree extends DictionaryEntry {
+    token = FppTokenType.module;
+
     constructor(
         readonly name: string
     ) {
@@ -33,7 +41,6 @@ class ComponentModuleTree extends DictionaryEntry {
 
 abstract class DictionaryDecl<T extends Fpp.Decl> extends DictionaryEntry {
     name: string;
-    abstract token: FppTokenType;
 
     constructor(readonly decl: T) {
         super();
@@ -45,7 +52,12 @@ abstract class DictionaryDecl<T extends Fpp.Decl> extends DictionaryEntry {
 
         const out = new vscode.TreeItem(this.decl.name.value);
         out.description = tokenTypeNames[this.token];
-        out.tooltip = `${name} (${tokenTypeNames[this.token]})`;
+
+        if (this.decl.annotation) {
+            out.tooltip = this.decl.annotation;
+        } else {
+            out.tooltip = `${name} (${tokenTypeNames[this.token]})`;
+        }
 
         return out;
     }
@@ -75,6 +87,8 @@ class DictionaryComponent extends DictionaryDecl<Fpp.ComponentDecl> {
         dictionary.events.forEach((v) => this.children.push(new DictionaryEvent(v)));
         dictionary.parameters.forEach((v) => this.children.push(new DictionaryParameter(v)));
         dictionary.telemetry.forEach((v) => this.children.push(new DictionaryTelemetry(v)));
+        dictionary.records.forEach((v) => this.children.push(new DictionaryRecord(v)));
+        dictionary.containers.forEach((v) => this.children.push(new DictionaryContainer(v)));
     }
 
     asTreeItem(): vscode.TreeItem {
@@ -122,6 +136,26 @@ class DictionaryTelemetry extends DictionaryDecl<Fpp.TelemetryChannelDecl> {
     asTreeItem(): vscode.TreeItem {
         const out = super.asTreeItem();
         out.iconPath = new vscode.ThemeIcon('symbol-field');
+        return out;
+    }
+}
+
+class DictionaryRecord extends DictionaryDecl<Fpp.ProductRecordDecl> {
+    token = FppTokenType.record;
+
+    asTreeItem(): vscode.TreeItem {
+        const out = super.asTreeItem();
+        out.iconPath = new vscode.ThemeIcon('symbol-ruler');
+        return out;
+    }
+}
+
+class DictionaryContainer extends DictionaryDecl<Fpp.ProductContainerDecl> {
+    token = FppTokenType.container;
+
+    asTreeItem(): vscode.TreeItem {
+        const out = super.asTreeItem();
+        out.iconPath = new vscode.ThemeIcon('symbol-array');
         return out;
     }
 }

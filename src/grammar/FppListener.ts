@@ -36,6 +36,8 @@ import { EventDeclContext } from "./FppParser";
 import { IncludeStmtContext } from "./FppParser";
 import { MatchStmtContext } from "./FppParser";
 import { InternalPortDeclContext } from "./FppParser";
+import { RecordSpecifierDeclContext } from "./FppParser";
+import { ContainerSpecifierDeclContext } from "./FppParser";
 import { InitSpecifierContext } from "./FppParser";
 import { ComponentInstanceDeclContext } from "./FppParser";
 import { ComponentKindContext } from "./FppParser";
@@ -444,6 +446,28 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitInternalPortDecl?: (ctx: InternalPortDeclContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.recordSpecifierDecl`.
+	 * @param ctx the parse tree
+	 */
+	enterRecordSpecifierDecl?: (ctx: RecordSpecifierDeclContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.recordSpecifierDecl`.
+	 * @param ctx the parse tree
+	 */
+	exitRecordSpecifierDecl?: (ctx: RecordSpecifierDeclContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.containerSpecifierDecl`.
+	 * @param ctx the parse tree
+	 */
+	enterContainerSpecifierDecl?: (ctx: ContainerSpecifierDeclContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.containerSpecifierDecl`.
+	 * @param ctx the parse tree
+	 */
+	exitContainerSpecifierDecl?: (ctx: ContainerSpecifierDeclContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.initSpecifier`.

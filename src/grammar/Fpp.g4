@@ -135,6 +135,14 @@ internalPortDecl:
     queueFull=queueFullBehavior?
     ;
 
+recordSpecifierDecl:
+    PRODUCT RECORD name=IDENTIFIER ':' fppType=typeName ARRAY? (ID id=expr)?
+    ;
+
+containerSpecifierDecl:
+    PRODUCT CONTAINER name=IDENTIFIER (ID id=expr)? (DEFAULT PRIORITY priority=expr)?
+    ;
+
 initSpecifier: preAnnotation? PHASE phaseExpr=expr code=LIT_STRING;
 componentInstanceDecl:
     INSTANCE name=IDENTIFIER ':' fppType=qualIdent
@@ -166,6 +174,8 @@ componentMemberTempl:
     | includeStmt
     | internalPortDecl
     | matchStmt
+    | recordSpecifierDecl
+    | containerSpecifierDecl
     ;
 
 componentMember: preAnnotation? componentMemberTempl;
@@ -367,6 +377,7 @@ COMMAND: 'command';
 COMPONENT: 'component';
 CONNECTIONS: 'connections';
 CONSTANT: 'constant';
+CONTAINER: 'container';
 CPU: 'cpu';
 DEFAULT: 'default';
 DIAGNOSTIC: 'diagnostic';
@@ -400,8 +411,10 @@ PHASE: 'phase';
 PORT: 'port';
 PRIORITY: 'priority';
 PRIVATE: 'private';
+PRODUCT: 'product';
 QUEUE: 'queue';
 QUEUED: 'queued';
+RECORD: 'record';
 RECV: 'recv';
 RED: 'red';
 REF: 'ref';

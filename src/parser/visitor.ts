@@ -67,7 +67,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
                     }
                 }
 
-            } catch(e) {
+            } catch (e) {
                 const loc = this.loc(ctx);
                 product.errors.push({
                     source: this.source,
@@ -954,6 +954,53 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             phase: this.visitExpr(ctx._phaseExpr),
             code: this.stringLiteral(ctx._code),
             annotation: this.annotation(ctx.preAnnotation())
+        };
+    }
+
+    visitRecordSpecifierDecl(ctx: FppParser.RecordSpecifierDeclContext): Fpp.ProductRecordDecl {
+        if (!ctx) {
+            return this.error();
+        }
+
+        this.associate(ctx.tryGetToken(FppParser.FppParser.PRODUCT, 0)?._symbol, ctx.ruleIndex, "product");
+        this.associate(ctx.tryGetToken(FppParser.FppParser.RECORD, 0)?._symbol, ctx.ruleIndex, "record");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._fppType, ctx.ruleIndex, "type");
+        this.associate(ctx.ARRAY()?._symbol, ctx.ruleIndex, "array");
+        this.associate(ctx.ID()?._symbol, ctx.ruleIndex, "id");
+        this.associate(ctx._id, ctx.ruleIndex, "idExpr");
+
+        return {
+            type: "ProductRecordDecl",
+            scope: [...this.scope],
+            location: this.loc(ctx),
+            name: this.identifier(ctx._name),
+            fppType: this.visitTypeName(ctx._fppType),
+            isArray: ctx.ARRAY() ? true : false,
+            id: ctx._id ? this.visitExpr(ctx._id) : undefined
+        };
+    }
+
+    visitContainerSpecifierDecl(ctx: FppParser.ContainerSpecifierDeclContext): Fpp.ProductContainerDecl {
+        if (!ctx) {
+            return this.error();
+        }
+
+        this.associate(ctx.tryGetToken(FppParser.FppParser.PRODUCT, 0)?._symbol, ctx.ruleIndex, "product");
+        this.associate(ctx.tryGetToken(FppParser.FppParser.RECORD, 0)?._symbol, ctx.ruleIndex, "record");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx.ID()?._symbol, ctx.ruleIndex, "id");
+        this.associate(ctx._id, ctx.ruleIndex, "idExpr");
+        this.associate(ctx._priority, ctx.ruleIndex, "dpPriority");
+
+        return {
+            type: "ProductContainerDecl",
+            scope: [...this.scope],
+            location: this.loc(ctx),
+            name: this.identifier(ctx._name),
+            fppType: undefined,
+            id: ctx._id ? this.visitExpr(ctx._id) : undefined,
+            defaultPriority: ctx._priority ? this.visitExpr(ctx._priority) : undefined
         };
     }
 

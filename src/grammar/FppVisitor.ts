@@ -36,6 +36,8 @@ import { EventDeclContext } from "./FppParser";
 import { IncludeStmtContext } from "./FppParser";
 import { MatchStmtContext } from "./FppParser";
 import { InternalPortDeclContext } from "./FppParser";
+import { RecordSpecifierDeclContext } from "./FppParser";
+import { ContainerSpecifierDeclContext } from "./FppParser";
 import { InitSpecifierContext } from "./FppParser";
 import { ComponentInstanceDeclContext } from "./FppParser";
 import { ComponentKindContext } from "./FppParser";
@@ -315,6 +317,20 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	 * @return the visitor result
 	 */
 	visitInternalPortDecl?: (ctx: InternalPortDeclContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.recordSpecifierDecl`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitRecordSpecifierDecl?: (ctx: RecordSpecifierDeclContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.containerSpecifierDecl`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitContainerSpecifierDecl?: (ctx: ContainerSpecifierDeclContext) => Result;
 
 	/**
 	 * Visit a parse tree produced by `FppParser.initSpecifier`.

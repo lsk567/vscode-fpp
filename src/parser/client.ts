@@ -67,9 +67,7 @@ export class FppWorker extends Worker implements vscode.Disposable {
     private readyResolve?: () => void;
 
     constructor() {
-        super(path.join(__dirname, 'worker.js'), {
-            workerData: { path: './worker.ts' }
-        });
+        super(path.join(__dirname, 'worker.js'));
 
         this.wasCancelled = false;
 

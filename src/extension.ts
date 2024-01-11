@@ -8,13 +8,13 @@ import Signatures from "./signatures.json";
 import { CompletionRelevantInfo, getCandidates } from './completion';
 import { declRules, ignoreTokens } from './parser/common';
 import { FppProject } from './project';
-import { FppAnnotator } from './annotator';
+import { FppAnnotator, tokenParents } from './annotator';
 import { MemberTraverser } from './traverser';
 import { DeclCollector, FppTokenType, fppLegend, tokenTypeNames } from './decl';
 import { DiangosicManager } from './diagnostics';
 import { RangeAssociation } from './associator';
 import { ComponentsProvider } from './dictionary';
-import { ConsolidatingTree } from './consolidate';
+import { ConsolidatingItem, ConsolidatingTree } from './consolidate';
 
 const signaturesDefinitions = (Signatures as Record<string, ISignature>);
 
@@ -60,6 +60,54 @@ function generateSignature(signature: ISignature, activeParameter: string): vsco
     out.parameters = parameters;
     out.activeParameter = activeParameterIdx;
     return out;
+}
+
+class FppDocumentSymbol extends vscode.DocumentSymbol implements ConsolidatingItem {
+    children: FppDocumentSymbol[] = [];
+
+    constructor(
+        name: string,
+        detail: string,
+        readonly token: FppTokenType,
+        kind: vscode.SymbolKind,
+        range: vscode.Range,
+        selectionRange: vscode.Range
+    ) {
+        super(name, detail, kind, range, selectionRange);
+    }
+
+    static documentSymbolKind(type: FppTokenType): vscode.SymbolKind | undefined {
+        switch (type) {
+            case FppTokenType.graphGroup:
+                return vscode.SymbolKind.Event;
+            case FppTokenType.module:
+            case FppTokenType.topology:
+                return vscode.SymbolKind.Namespace;
+            case FppTokenType.component: return vscode.SymbolKind.Class;
+            case FppTokenType.componentInstance: return vscode.SymbolKind.Variable;
+            case FppTokenType.constant: return vscode.SymbolKind.Constant;
+            case FppTokenType.port: return vscode.SymbolKind.Interface;
+            case FppTokenType.type: return vscode.SymbolKind.Enum;
+            case FppTokenType.inputPortDecl: return vscode.SymbolKind.Interface;
+            case FppTokenType.outputPortDecl: return vscode.SymbolKind.Interface;
+            case FppTokenType.command: return vscode.SymbolKind.Function;
+            case FppTokenType.event: return vscode.SymbolKind.String;
+            case FppTokenType.parameter: return vscode.SymbolKind.Property;
+            case FppTokenType.telemetry: return vscode.SymbolKind.Field;
+
+            case FppTokenType.inputPortInstance:
+            case FppTokenType.outputPortInstance:
+            case FppTokenType.formalParameter:
+            case FppTokenType.modifier:
+            case FppTokenType.specialPort:
+                // These are not symbols that will show up in the outline
+                return;
+        }
+    }
+
+    isChild(child: FppDocumentSymbol): boolean {
+        return tokenParents.get(child.token)?.includes(this.token) ?? false;
+    }
 }
 
 class FppExtension implements
@@ -121,35 +169,6 @@ class FppExtension implements
         });
     }
 
-    private static documentSymbolKind(type: FppTokenType): vscode.SymbolKind | undefined {
-        switch (type) {
-            case FppTokenType.graphGroup:
-                return vscode.SymbolKind.Event;
-            case FppTokenType.module:
-            case FppTokenType.topology:
-                return vscode.SymbolKind.Namespace;
-            case FppTokenType.component: return vscode.SymbolKind.Class;
-            case FppTokenType.componentInstance: return vscode.SymbolKind.Variable;
-            case FppTokenType.constant: return vscode.SymbolKind.Constant;
-            case FppTokenType.port: return vscode.SymbolKind.Interface;
-            case FppTokenType.type: return vscode.SymbolKind.Enum;
-            case FppTokenType.inputPortDecl: return vscode.SymbolKind.Interface;
-            case FppTokenType.outputPortDecl: return vscode.SymbolKind.Interface;
-            case FppTokenType.command: return vscode.SymbolKind.Function;
-            case FppTokenType.event: return vscode.SymbolKind.String;
-            case FppTokenType.parameter: return vscode.SymbolKind.Property;
-            case FppTokenType.telemetry: return vscode.SymbolKind.Field;
-
-            case FppTokenType.inputPortInstance:
-            case FppTokenType.outputPortInstance:
-            case FppTokenType.formalParameter:
-            case FppTokenType.modifier:
-            case FppTokenType.specialPort:
-                // These are not symbols that will show up in the outline
-                return;
-        }
-    }
-
     private readonly symbolTraverser = new class extends MemberTraverser {
         symbols: [FppTokenType, vscode.Range, vscode.Range, string[]][] = [];
 
@@ -180,7 +199,7 @@ class FppExtension implements
                 case 'PatternGraphStmt':
                 case 'TopologyImportStmt':
                 case 'MatchStmt':
-                    // These are not declarations
+                // These are not declarations
             }
         }
 
@@ -223,17 +242,17 @@ class FppExtension implements
         this.symbolTraverser.symbols = [];
         this.symbolTraverser.pass(ast.ast);
 
-        const symbols = new ConsolidatingTree<vscode.DocumentSymbol>();
+        const symbols = new ConsolidatingTree<FppDocumentSymbol>();
         for (const [tokType, fullRange, nameRange, fqName] of this.symbolTraverser.symbols) {
-            const kind = FppExtension.documentSymbolKind(tokType);
+            const kind = FppDocumentSymbol.documentSymbolKind(tokType);
             if (kind === undefined) {
                 continue;
             }
 
-            symbols.set(fqName.join('.'), new vscode.DocumentSymbol(
+            symbols.set(fqName.join('.'), new FppDocumentSymbol(
                 fqName[fqName.length - 1],
                 tokenTypeNames[tokType],
-                kind, fullRange, nameRange
+                tokType, kind, fullRange, nameRange
             ));
         }
 

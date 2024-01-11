@@ -271,6 +271,19 @@ export interface SpecialPortInstanceDecl extends Decl {
 
 export type PortInstanceDecl = GeneralPortInstanceDecl | SpecialPortInstanceDecl;
 
+export interface ProductContainerDecl extends Decl {
+    type: "ProductContainerDecl";
+    id?: Expr;
+    defaultPriority?: Expr;
+}
+
+export interface ProductRecordDecl extends Decl {
+    type: "ProductRecordDecl";
+    fppType: TypeName;
+    isArray?: boolean;
+    id?: Expr;
+}
+
 export type ComponentMember = (
     AbstractTypeDecl |
     ArrayDecl |
@@ -284,7 +297,9 @@ export type ComponentMember = (
     EventDecl |
     IncludeStmt<ComponentMember> |
     MatchStmt |
-    InternalPortDecl
+    InternalPortDecl |
+    ProductContainerDecl |
+    ProductRecordDecl
 );
 export type ComponentKind = Keyword<"active" | "passive" | "queued">;
 export interface ComponentDecl extends Decl {

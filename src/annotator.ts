@@ -5,7 +5,7 @@ import * as fs from 'fs';
 
 import * as Fpp from './parser/ast';
 import { RangeAssociator } from './associator';
-import { DeclCollector, FppTokenType, fppLegend, tokenParents, tokenTypeNames } from './decl';
+import { DeclCollector, FppTokenType, fppLegend, tokenTypeNames } from './decl';
 import { MemberTraverser } from './traverser';
 import { DiangosicManager } from './diagnostics';
 import { ExprTraverser, TypeNameValidator, TypeValidator } from './evaluator';
@@ -37,6 +37,29 @@ class SymlinkedMap<V> extends Map<string, V> {
         return super.set(this.real(key), value);
     }
 }
+
+// Denotes how declarations can be referenced in other areas
+// The resolver uses this to provide the correct semantic coloring
+export const tokenParents = new Map<FppTokenType, FppTokenType[]>([
+    [FppTokenType.module, [FppTokenType.module]],
+    [FppTokenType.topology, [FppTokenType.module]],
+    [FppTokenType.component, [FppTokenType.module]],
+    [FppTokenType.componentInstance, [FppTokenType.module]],
+    [FppTokenType.constant, [FppTokenType.module, FppTokenType.type, FppTokenType.component]],
+    [FppTokenType.graphGroup, [FppTokenType.module, FppTokenType.topology]],
+    [FppTokenType.port, [FppTokenType.module]],
+    [FppTokenType.type, [FppTokenType.module, FppTokenType.component]],
+    [FppTokenType.inputPortInstance, [FppTokenType.module, FppTokenType.componentInstance]],
+    [FppTokenType.outputPortInstance, [FppTokenType.module, FppTokenType.componentInstance]],
+    [FppTokenType.inputPortDecl, [FppTokenType.module, FppTokenType.component]],
+    [FppTokenType.outputPortDecl, [FppTokenType.module, FppTokenType.component]],
+    [FppTokenType.specialPort, [FppTokenType.module, FppTokenType.component]],
+    [FppTokenType.command, [FppTokenType.module, FppTokenType.component]],
+    [FppTokenType.event, [FppTokenType.module, FppTokenType.component]],
+    [FppTokenType.parameter, [FppTokenType.module, FppTokenType.component]],
+    [FppTokenType.telemetry, [FppTokenType.module, FppTokenType.component]],
+    [FppTokenType.telemetry, [FppTokenType.module, FppTokenType.component]],
+]);
 
 /**
  * Annotates the following on a single AST:
@@ -530,6 +553,27 @@ export class FppAnnotator extends MemberTraverser {
             if (inputPort && inputPortIdx) {
                 this.checkPortIdx(inputPort as Fpp.GeneralPortInstanceDecl, inputPortIdx, conn.destination.index!.location);
             }
+        }
+    }
+
+    protected productRecordDecl(ast: Fpp.ProductRecordDecl, scope: Fpp.QualifiedIdentifier): void {
+        this.semantic(ast.name, FppTokenType.record);
+        this.type(ast.fppType, scope);
+
+        if (ast.id) {
+            this.expr(ast.id, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
+        }
+    }
+
+    protected productContainerDecl(ast: Fpp.ProductContainerDecl, scope: Fpp.QualifiedIdentifier): void {
+        this.semantic(ast.name, FppTokenType.container);
+
+        if (ast.id) {
+            this.expr(ast.id, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
+        }
+
+        if (ast.defaultPriority) {
+            this.expr(ast.id, scope, { complex: false, type: "I32", location: Fpp.implicitLocation });
         }
     }
 

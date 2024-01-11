@@ -1,6 +1,8 @@
 export interface ConsolidatingItem {
     name: string;
     children: ConsolidatingItem[];
+
+    isChild(child: ConsolidatingItem): boolean;
 }
 
 function itemCompare(a: ConsolidatingItem, b: ConsolidatingItem) {
@@ -28,6 +30,7 @@ export class ConsolidatingTree<T extends ConsolidatingItem> {
                 const tryParent = this.symbols.get(toks.join('.'));
 
                 if (tryParent) {
+                    const symbol = this.symbols.get(name)!;
                     let parent: ConsolidatingItem = tryParent;
 
                     // Walk this tree and find deepest the target
@@ -35,7 +38,7 @@ export class ConsolidatingTree<T extends ConsolidatingItem> {
                         let foundChild = false;
 
                         for (const child of parent.children) {
-                            if (child.name === originalToks[tokIdx]) {
+                            if (child.name === originalToks[tokIdx] && child.isChild(symbol)) {
                                 parent = child;
                                 foundChild = true;
                                 break;
@@ -47,10 +50,12 @@ export class ConsolidatingTree<T extends ConsolidatingItem> {
                         }
                     }
 
-                    parent.children.push(this.symbols.get(name)!);
-                    parent.children = parent.children.sort(itemCompare);
+                    if (tryParent.isChild(symbol)) {
+                        parent.children.push(symbol);
+                        parent.children = parent.children.sort(itemCompare);
+                        this.symbols.delete(name);
+                    }
 
-                    this.symbols.delete(name);
                     break;
                 }
             }

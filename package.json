@@ -11,7 +11,7 @@
         "url": "https://github.com/Kronos3/vscode-fpp",
         "type": "git"
     },
-    "version": "1.0.0",
+    "version": "1.0.5",
     "engines": {
         "vscode": "^1.78.0"
     },
@@ -77,9 +77,6 @@
         "compile-worker": "yarn run esbuild-base ./src/parser/worker.ts --outfile=out/worker.js",
         "compile": "yarn run compile-extension && yarn run compile-worker",
         "watch": "tsc -watch -p ./",
-        "pretest": "yarn run compile && yarn run lint",
-        "lint": "eslint src --ext ts",
-        "test": "node ./out/test/runTest.js",
         "antlr": "antlr4ts -visitor src/grammar/Fpp.g4"
     },
     "devDependencies": {
@@ -99,7 +96,5 @@
         "mocha": "^10.1.0",
         "typescript": "^4.8.4"
     },
-    "dependencies": {
-        "ts-node": "^10.9.1"
-    }
+    "dependencies": {}
 }
