@@ -76,6 +76,7 @@ import { StructAssignmentContext } from "./FppParser";
 import { StructExprContext } from "./FppParser";
 import { ExprContext } from "./FppParser";
 import { PostAnnotationContext } from "./FppParser";
+import { PostMultiAnnotationContext } from "./FppParser";
 import { PreAnnotationContext } from "./FppParser";
 
 
@@ -597,6 +598,13 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	 * @return the visitor result
 	 */
 	visitPostAnnotation?: (ctx: PostAnnotationContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.postMultiAnnotation`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitPostMultiAnnotation?: (ctx: PostMultiAnnotationContext) => Result;
 
 	/**
 	 * Visit a parse tree produced by `FppParser.preAnnotation`.

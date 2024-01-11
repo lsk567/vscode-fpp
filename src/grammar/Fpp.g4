@@ -30,8 +30,8 @@ structMember:
     type=typeName (FORMAT format=LIT_STRING)?
     ;
 
-structMemberN: preAnnotation? structMember (','? postAnnotation | commaDelim);
-structMemberL: preAnnotation? structMember (','? postAnnotation | commaDelim)?;
+structMemberN: preAnnotation? structMember (','? postMultiAnnotation | commaDelim);
+structMemberL: preAnnotation? structMember (','? postMultiAnnotation | commaDelim)?;
 structDecl:
     STRUCT name=IDENTIFIER '{'
         NL* (structMemberN* structMemberL)?
@@ -178,7 +178,7 @@ componentMemberTempl:
     | containerSpecifierDecl
     ;
 
-componentMember: preAnnotation? componentMemberTempl;
+componentMember: preAnnotation? componentMemberTempl ANNOTATION?;
 
 componentDecl:
     kind=componentKind COMPONENT name=IDENTIFIER '{'
@@ -224,7 +224,7 @@ topologyMemberTempl:
     | includeStmt
     ;
 
-topologyMember: preAnnotation? topologyMemberTempl;
+topologyMember: preAnnotation? topologyMemberTempl ANNOTATION?;
 
 topologyDecl:
     TOPOLOGY name=IDENTIFIER '{'
@@ -259,7 +259,7 @@ moduleMemberTempl:
     | topologyDecl
     ;
 
-moduleMember: preAnnotation? moduleMemberTempl;
+moduleMember: preAnnotation? moduleMemberTempl ANNOTATION?;
 
 moduleDecl: MODULE name=IDENTIFIER '{'
         NL* (moduleMember semiDelim)* NL*
@@ -273,8 +273,8 @@ moduleDecl: MODULE name=IDENTIFIER '{'
 formalParameter: REF? name=IDENTIFIER ':' type=typeName;
 
 // Normal
-formalParameterN: formalParameter (','? postAnnotation | commaDelim);
-formalParamaterL: formalParameter (','? postAnnotation | commaDelim)?;
+formalParameterN: formalParameter (','? postMultiAnnotation | commaDelim);
+formalParamaterL: formalParameter (','? postMultiAnnotation | commaDelim)?;
 
 formalParameterList: '(' NL* (formalParameterN* formalParamaterL)? ')';
 
@@ -333,6 +333,7 @@ COMMENT: [#]~[\n]* -> skip;
 
 ANNOTATION: [@]~[\n]*;
 postAnnotation: ANNOTATION NL+;
+postMultiAnnotation: (ANNOTATION NL)* ANNOTATION NL+;
 preAnnotation: (ANNOTATION NL)+;
 
 LIT_BOOLEAN: FALSE | TRUE;
