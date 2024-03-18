@@ -48,7 +48,7 @@ export abstract class FppProjectManager {
     private syntaxListener: DiangosicManager;
 
     private hasComponentInstances = new Set<string>();
-    protected parentFile = new Map<string, string>();
+    protected parentFiles = new Map<string, Set<string>>();
 
     private _onRefresh = new vscode.EventEmitter<void>();
     readonly onRefresh = this._onRefresh.event;
@@ -156,19 +156,24 @@ export abstract class FppProjectManager {
 
         // If we are attempting to parse a file that has been included by another file
         // We actually need to parse the parent file so the declarations work properly
-        let parentFile = this.parentFile.get(document.path);
+        const parentFiles = this.parentFiles.get(document.path);
 
-        if (parentFile) {
-            const [version, text] = await this.getTextOf(vscode.Uri.file(parentFile));
-            return await this.parseImpl2({
-                path: parentFile,
-                version,
-                getText: () => text,
-                getTextSub: () => [document.getText(), document.path]
-            }, token, {
-                ...options,
-                forceReparse: true
-            });
+        if (parentFiles && parentFiles.size > 0) {
+            let out!: FppMessage;
+            for (const parentFile of parentFiles) {
+                const [version, text] = await this.getTextOf(vscode.Uri.file(parentFile));
+                out = await this.parseImpl2({
+                    path: parentFile,
+                    version,
+                    getText: () => text,
+                    getTextSub: () => [document.getText(), document.path]
+                }, token, {
+                    ...options,
+                    forceReparse: true
+                });
+            }
+
+            return out;
         } else {
             return await this.parseImpl2(document, token, options ?? {});
         }
@@ -194,7 +199,13 @@ export abstract class FppProjectManager {
 
         for (const dep of msg.ast.dependencies) {
             this.clear(dep);
-            this.parentFile.set(dep, key);
+            let pfs = this.parentFiles.get(dep);
+            if (!pfs) {
+                pfs = new Set();
+                this.parentFiles.set(dep, pfs);
+            }
+
+            pfs.add(key);
         }
 
         // Create an annotator for this file
@@ -209,6 +220,8 @@ export abstract class FppProjectManager {
         }
 
         if (!options.disableDecl) {
+            this.decl.hasComponentInstances = false;
+
             this.decl.pass(msg.ast);
 
             // Keep track of files that have component instances

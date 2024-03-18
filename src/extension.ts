@@ -15,6 +15,7 @@ import { DiangosicManager } from './diagnostics';
 import { RangeAssociation } from './associator';
 import { ComponentsProvider } from './dictionary';
 import { ConsolidatingItem, ConsolidatingTree } from './consolidate';
+import { isKeyword } from './keywords';
 
 const signaturesDefinitions = (Signatures as Record<string, ISignature>);
 
@@ -62,6 +63,35 @@ function generateSignature(signature: ISignature, activeParameter: string): vsco
     return out;
 }
 
+function documentSymbolKind(type: FppTokenType): vscode.SymbolKind | undefined {
+    switch (type) {
+        case FppTokenType.graphGroup:
+            return vscode.SymbolKind.Event;
+        case FppTokenType.module:
+        case FppTokenType.topology:
+            return vscode.SymbolKind.Namespace;
+        case FppTokenType.component: return vscode.SymbolKind.Class;
+        case FppTokenType.componentInstance: return vscode.SymbolKind.Variable;
+        case FppTokenType.constant: return vscode.SymbolKind.Constant;
+        case FppTokenType.port: return vscode.SymbolKind.Interface;
+        case FppTokenType.type: return vscode.SymbolKind.Enum;
+        case FppTokenType.inputPortDecl: return vscode.SymbolKind.Interface;
+        case FppTokenType.outputPortDecl: return vscode.SymbolKind.Interface;
+        case FppTokenType.command: return vscode.SymbolKind.Function;
+        case FppTokenType.event: return vscode.SymbolKind.String;
+        case FppTokenType.parameter: return vscode.SymbolKind.Property;
+        case FppTokenType.telemetry: return vscode.SymbolKind.Field;
+
+        case FppTokenType.inputPortInstance:
+        case FppTokenType.outputPortInstance:
+        case FppTokenType.formalParameter:
+        case FppTokenType.modifier:
+        case FppTokenType.specialPort:
+            // These are not symbols that will show up in the outline
+            return;
+    }
+}
+
 class FppDocumentSymbol extends vscode.DocumentSymbol implements ConsolidatingItem {
     children: FppDocumentSymbol[] = [];
 
@@ -70,39 +100,29 @@ class FppDocumentSymbol extends vscode.DocumentSymbol implements ConsolidatingIt
         detail: string,
         readonly token: FppTokenType,
         kind: vscode.SymbolKind,
+        readonly uri: vscode.Uri,
         range: vscode.Range,
         selectionRange: vscode.Range
     ) {
         super(name, detail, kind, range, selectionRange);
     }
 
-    static documentSymbolKind(type: FppTokenType): vscode.SymbolKind | undefined {
-        switch (type) {
-            case FppTokenType.graphGroup:
-                return vscode.SymbolKind.Event;
-            case FppTokenType.module:
-            case FppTokenType.topology:
-                return vscode.SymbolKind.Namespace;
-            case FppTokenType.component: return vscode.SymbolKind.Class;
-            case FppTokenType.componentInstance: return vscode.SymbolKind.Variable;
-            case FppTokenType.constant: return vscode.SymbolKind.Constant;
-            case FppTokenType.port: return vscode.SymbolKind.Interface;
-            case FppTokenType.type: return vscode.SymbolKind.Enum;
-            case FppTokenType.inputPortDecl: return vscode.SymbolKind.Interface;
-            case FppTokenType.outputPortDecl: return vscode.SymbolKind.Interface;
-            case FppTokenType.command: return vscode.SymbolKind.Function;
-            case FppTokenType.event: return vscode.SymbolKind.String;
-            case FppTokenType.parameter: return vscode.SymbolKind.Property;
-            case FppTokenType.telemetry: return vscode.SymbolKind.Field;
+    isChild(child: FppDocumentSymbol): boolean {
+        return tokenParents.get(child.token)?.includes(this.token) ?? false;
+    }
+}
 
-            case FppTokenType.inputPortInstance:
-            case FppTokenType.outputPortInstance:
-            case FppTokenType.formalParameter:
-            case FppTokenType.modifier:
-            case FppTokenType.specialPort:
-                // These are not symbols that will show up in the outline
-                return;
-        }
+class FppSymbolInformation extends vscode.SymbolInformation implements ConsolidatingItem {
+    children: FppDocumentSymbol[] = [];
+
+    constructor(
+        name: string,
+        readonly token: FppTokenType,
+        kind: vscode.SymbolKind,
+        containerName: string,
+        location: vscode.Location
+    ) {
+        super(name, kind, containerName, location);
     }
 
     isChild(child: FppDocumentSymbol): boolean {
@@ -170,7 +190,7 @@ class FppExtension implements
     }
 
     private readonly symbolTraverser = new class extends MemberTraverser {
-        symbols: [FppTokenType, vscode.Range, vscode.Range, string[]][] = [];
+        symbols: [FppTokenType, string, vscode.Range, vscode.Range, string[]][] = [];
 
         private memberDeclType(member: Fpp.Member): FppTokenType | undefined {
             switch (member.type) {
@@ -210,6 +230,7 @@ class FppExtension implements
 
                 this.symbols.push([
                     tokType,
+                    decl.location.source,
                     MemberTraverser.asRange(ast.location),
                     MemberTraverser.asRange(decl.name.location),
                     [...scope.map(v => v.value), decl.name.value]
@@ -219,15 +240,11 @@ class FppExtension implements
             super.traverse(ast, scope);
         }
 
-        protected includeStmt(ast: Fpp.IncludeStmt<Fpp.Member>, scope: Fpp.QualifiedIdentifier): void {
-            // It doesn't make sense to place included symbols into this files outline
-            // VSCode would assume all the symbols are from this file
-        }
-
         protected enumDecl(ast: Fpp.EnumDecl, scope: Fpp.QualifiedIdentifier): void {
             for (const member of ast.members) {
                 this.symbols.push([
                     FppTokenType.constant,
+                    ast.location.source,
                     MemberTraverser.asRange(member.location),
                     MemberTraverser.asRange(member.name.location),
                     [...scope.map(v => v.value), ast.name.value, member.name.value]
@@ -243,8 +260,8 @@ class FppExtension implements
         this.symbolTraverser.pass(ast.ast);
 
         const symbols = new ConsolidatingTree<FppDocumentSymbol>();
-        for (const [tokType, fullRange, nameRange, fqName] of this.symbolTraverser.symbols) {
-            const kind = FppDocumentSymbol.documentSymbolKind(tokType);
+        for (const [tokType, grammarSource, fullRange, nameRange, fqName] of this.symbolTraverser.symbols) {
+            const kind = documentSymbolKind(tokType);
             if (kind === undefined) {
                 continue;
             }
@@ -252,7 +269,9 @@ class FppExtension implements
             symbols.set(fqName.join('.'), new FppDocumentSymbol(
                 fqName[fqName.length - 1],
                 tokenTypeNames[tokType],
-                tokType, kind, fullRange, nameRange
+                tokType, kind,
+                vscode.Uri.file(grammarSource),
+                fullRange, nameRange
             ));
         }
 
@@ -461,9 +480,13 @@ class FppExtension implements
                 foundItems.map(found => found.slice(prefix.length).split('.')[0])
             );
 
-            for (const tok of nextToks) {
+            for (let tok of nextToks) {
                 const decl = map.get(`${prefix}${tok}`);
                 if (decl) {
+                    if (isKeyword(tok)) {
+                        tok = `$${tok}`;
+                    }
+
                     const item = new vscode.CompletionItem(tok, kind);
                     item.detail = decl.annotation;
                     out.push(item);

@@ -73,6 +73,10 @@ specialPortKind:
     | TELEMETRY
     | TEXT EVENT
     | TIME GET
+    | PRODUCT GET
+    | PRODUCT REQUEST
+    | ASYNC? PRODUCT RECV
+    | PRODUCT SEND
     ;
 
 generalPortInstanceType: SERIAL | qualIdent;
@@ -273,8 +277,8 @@ moduleDecl: MODULE name=IDENTIFIER '{'
 formalParameter: REF? name=IDENTIFIER ':' type=typeName;
 
 // Normal
-formalParameterN: formalParameter (','? postMultiAnnotation | commaDelim);
-formalParamaterL: formalParameter (','? postMultiAnnotation | commaDelim)?;
+formalParameterN: (preAnnotation)? formalParameter (','? postMultiAnnotation | commaDelim);
+formalParamaterL: (preAnnotation)? formalParameter (','? postMultiAnnotation | commaDelim)?;
 
 formalParameterList: '(' NL* (formalParameterN* formalParamaterL)? ')';
 
@@ -420,8 +424,10 @@ RECV: 'recv';
 RED: 'red';
 REF: 'ref';
 REG: 'reg';
+REQUEST: 'request';
 RESP: 'resp';
 SAVE: 'save';
+SEND: 'send';
 SERIAL: 'serial';
 SET: 'set';
 SEVERITY: 'severity';

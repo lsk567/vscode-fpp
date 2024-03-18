@@ -1,3 +1,5 @@
+import * as vscode from 'vscode';
+
 import * as Fpp from './parser/ast';
 import { DiangosicManager } from './diagnostics';
 
@@ -143,8 +145,16 @@ export abstract class MemberTraverser extends DiangosicManager {
     protected includeStmt(ast: Fpp.IncludeStmt<Fpp.Member>, scope: Fpp.QualifiedIdentifier) {
         if (ast.resolved) {
             try {
-                this.pass(ast.resolved, scope);
+                for (const member of ast.resolved.members) {
+                    this.traverse(member, scope);
+                }
             } catch (e) { }
+        } else {
+            this.emit(
+                vscode.Uri.file(ast.location.source),
+                new vscode.Diagnostic(DiangosicManager.asRange(ast.include.location),
+                    `File '${ast.include.value}' does not exist`)
+            );
         }
     }
 

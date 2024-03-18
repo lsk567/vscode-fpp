@@ -61,8 +61,16 @@ export class FppProject extends FppProjectManager implements vscode.Disposable {
     inProject(path: string): boolean {
         const isInProject = this.loadingProject || this.locs.has(path);
         if (!isInProject) {
-            const parentFile = this.parentFile.get(path);
-            return (parentFile !== undefined) && this.locs.has(parentFile);
+            const parentFiles = this.parentFiles.get(path);
+            if (parentFiles) {
+                for (const parentFile of parentFiles) {
+                    if (this.locs.has(parentFile)) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         return isInProject;
@@ -188,6 +196,7 @@ export class FppProject extends FppProjectManager implements vscode.Disposable {
                 cancellable: true
             }, this.scan.bind(this));
         } catch (e) {
+            console.error(e);
             vscode.window.showErrorMessage(`Failed to load locs.fpp: ${e}`);
             this.locsNew.text = "Locs load failed";
             this.locsNew.severity = vscode.LanguageStatusSeverity.Error;
@@ -214,6 +223,7 @@ export class FppProject extends FppProjectManager implements vscode.Disposable {
                     cancellable: true
                 }, this.scan.bind(this));
             } catch (e) {
+                console.error(e);
                 vscode.window.showErrorMessage(`Failed to load locs.fpp: ${e}`);
                 this.locsNew.text = "Locs load failed";
                 this.locsNew.severity = vscode.LanguageStatusSeverity.Error;

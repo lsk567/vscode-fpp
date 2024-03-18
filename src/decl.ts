@@ -133,6 +133,34 @@ export class DeclCollector extends MemberTraverser {
     topologyPortsTrav = new class extends MemberTraverser {
         parent!: DeclCollector;
 
+        private update(ast: Fpp.ComponentInstanceDecl, member: Fpp.ComponentMember, componentScope: Fpp.QualifiedIdentifier) {
+            switch (member.type) {
+                case 'GeneralPortInstanceDecl':
+                    const portName = MemberTraverser.flat(componentScope, member.name);
+                    if (member.kind.isOutput) {
+                        this.parent.generalOutputPortInstances.set(portName, member);
+                        this.parent.translationUnitDeclarations.get(ast.location.source)!.add(
+                            DiangosicManager.asRange(ast.name.location),
+                            [FppTokenType.outputPortInstance, portName]
+                        );
+                    } else {
+                        this.parent.generalInputPortInstances.set(portName, member);
+                        this.parent.translationUnitDeclarations.get(ast.location.source)!.add(
+                            DiangosicManager.asRange(ast.name.location),
+                            [FppTokenType.inputPortInstance, portName]
+                        );
+                    }
+                    break;
+                case 'IncludeStmt':
+                    if (member.resolved) {
+                        for (const m of member.resolved.members) {
+                            this.update(ast, m, componentScope);
+                        }
+                    }
+                    break;
+            }
+        }
+
         protected componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
             const resolved = this.parent.resolve(ast.fppType.type, scope, FppTokenType.component);
             if (!resolved) {
@@ -147,22 +175,7 @@ export class DeclCollector extends MemberTraverser {
             const componentAst = this.parent.components.get(MemberTraverser.flat(resolved));
             if (componentAst) {
                 for (const member of componentAst.members) {
-                    if (member.type === "GeneralPortInstanceDecl") {
-                        const portName = MemberTraverser.flat(componentScope, member.name);
-                        if (member.kind.isOutput) {
-                            this.parent.generalOutputPortInstances.set(portName, member);
-                            this.parent.translationUnitDeclarations.get(ast.location.source)!.add(
-                                DiangosicManager.asRange(ast.name.location),
-                                [FppTokenType.outputPortInstance, portName]
-                            );
-                        } else {
-                            this.parent.generalInputPortInstances.set(portName, member);
-                            this.parent.translationUnitDeclarations.get(ast.location.source)!.add(
-                                DiangosicManager.asRange(ast.name.location),
-                                [FppTokenType.inputPortInstance, portName]
-                            );
-                        }
-                    }
+                    this.update(ast, member, componentScope);
                 }
             }
         }
@@ -468,6 +481,10 @@ export class DeclCollector extends MemberTraverser {
 
     generalPortInstanceDecl(ast: Fpp.GeneralPortInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
         const portName = MemberTraverser.flat(scope, ast.name);
+        if (ast.name.value === 'send') {
+            console.log(portName, ast);
+        }
+
         if (ast.kind.isOutput) {
             this.generalOutputPortDecl.set(portName, ast);
             this.translationUnitDeclarations.get(ast.location.source)!.add(

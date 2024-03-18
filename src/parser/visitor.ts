@@ -896,7 +896,13 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             const currentContext = this.includeContextStack[this.includeContextStack.length - 1];
 
             const parsePromise = this.onInclude(outAst.include.value, this.sourceStack, this.scope, currentContext);
-            this.promises.push([ctx, parsePromise.then(v => { outAst.resolved = v[1]; return v[0]; })]);
+            this.promises.push([ctx,
+                parsePromise.then(v => { outAst.resolved = v[1]; return v[0]; })
+                .catch((err) => {
+                    console.error(`Failed to include: ${outAst.include.value}`);
+                    throw err;
+                })
+            ]);
         }
 
         return outAst;
@@ -1341,7 +1347,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         }
 
         const out = this.visitFormalParameter(ctx.formalParameter());
-        out.annotation = this.annotation(undefined, undefined, ctx.postMultiAnnotation());
+        out.annotation = this.annotation(ctx.preAnnotation(), undefined, ctx.postMultiAnnotation());
         return out;
     }
 
