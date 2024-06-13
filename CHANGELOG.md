@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.9] - 2024-06-12
+
+- Re-release of 1.0.8 since package.json had some incorrect setting contributions
+
 ## [1.0.8] - 2024-06-12
 
 - Configure FPP locs search paths and select from locs found in project
