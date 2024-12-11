@@ -7,6 +7,8 @@ import { ProgContext } from "./FppParser";
 import { ProgTopologyContext } from "./FppParser";
 import { ProgComponentContext } from "./FppParser";
 import { AbstractTypeDeclContext } from "./FppParser";
+import { AliasTypeDeclContext } from "./FppParser";
+import { ActionDeclContext } from "./FppParser";
 import { ArrayDeclContext } from "./FppParser";
 import { ConstantDeclContext } from "./FppParser";
 import { StructMemberContext } from "./FppParser";
@@ -27,6 +29,24 @@ import { TelemetryLimitExprContext } from "./FppParser";
 import { TelemetryLimitContext } from "./FppParser";
 import { TelemetryUpdateContext } from "./FppParser";
 import { TelemetryChannelDeclContext } from "./FppParser";
+import { ActionDefContext } from "./FppParser";
+import { ChoiceDefContext } from "./FppParser";
+import { GuardDefContext } from "./FppParser";
+import { SignalDefContext } from "./FppParser";
+import { DoExprContext } from "./FppParser";
+import { TransitionExprContext } from "./FppParser";
+import { InitialTransitionContext } from "./FppParser";
+import { TransitionOrDoExprContext } from "./FppParser";
+import { StateTransitionContext } from "./FppParser";
+import { StateEntryContext } from "./FppParser";
+import { StateExitContext } from "./FppParser";
+import { StateMemberTemplContext } from "./FppParser";
+import { StateMemberContext } from "./FppParser";
+import { StateDefContext } from "./FppParser";
+import { StateMachineMemberTemplContext } from "./FppParser";
+import { StateMachineMemberContext } from "./FppParser";
+import { StateMachineDefContext } from "./FppParser";
+import { StateMachineInstanceContext } from "./FppParser";
 import { EnumMemberContext } from "./FppParser";
 import { EnumMemberNContext } from "./FppParser";
 import { EnumMemberLContext } from "./FppParser";
@@ -128,6 +148,28 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitAbstractTypeDecl?: (ctx: AbstractTypeDeclContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.aliasTypeDecl`.
+	 * @param ctx the parse tree
+	 */
+	enterAliasTypeDecl?: (ctx: AliasTypeDeclContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.aliasTypeDecl`.
+	 * @param ctx the parse tree
+	 */
+	exitAliasTypeDecl?: (ctx: AliasTypeDeclContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.actionDecl`.
+	 * @param ctx the parse tree
+	 */
+	enterActionDecl?: (ctx: ActionDeclContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.actionDecl`.
+	 * @param ctx the parse tree
+	 */
+	exitActionDecl?: (ctx: ActionDeclContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.arrayDecl`.
@@ -348,6 +390,204 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitTelemetryChannelDecl?: (ctx: TelemetryChannelDeclContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.actionDef`.
+	 * @param ctx the parse tree
+	 */
+	enterActionDef?: (ctx: ActionDefContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.actionDef`.
+	 * @param ctx the parse tree
+	 */
+	exitActionDef?: (ctx: ActionDefContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.choiceDef`.
+	 * @param ctx the parse tree
+	 */
+	enterChoiceDef?: (ctx: ChoiceDefContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.choiceDef`.
+	 * @param ctx the parse tree
+	 */
+	exitChoiceDef?: (ctx: ChoiceDefContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.guardDef`.
+	 * @param ctx the parse tree
+	 */
+	enterGuardDef?: (ctx: GuardDefContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.guardDef`.
+	 * @param ctx the parse tree
+	 */
+	exitGuardDef?: (ctx: GuardDefContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.signalDef`.
+	 * @param ctx the parse tree
+	 */
+	enterSignalDef?: (ctx: SignalDefContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.signalDef`.
+	 * @param ctx the parse tree
+	 */
+	exitSignalDef?: (ctx: SignalDefContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.doExpr`.
+	 * @param ctx the parse tree
+	 */
+	enterDoExpr?: (ctx: DoExprContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.doExpr`.
+	 * @param ctx the parse tree
+	 */
+	exitDoExpr?: (ctx: DoExprContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.transitionExpr`.
+	 * @param ctx the parse tree
+	 */
+	enterTransitionExpr?: (ctx: TransitionExprContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.transitionExpr`.
+	 * @param ctx the parse tree
+	 */
+	exitTransitionExpr?: (ctx: TransitionExprContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.initialTransition`.
+	 * @param ctx the parse tree
+	 */
+	enterInitialTransition?: (ctx: InitialTransitionContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.initialTransition`.
+	 * @param ctx the parse tree
+	 */
+	exitInitialTransition?: (ctx: InitialTransitionContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.transitionOrDoExpr`.
+	 * @param ctx the parse tree
+	 */
+	enterTransitionOrDoExpr?: (ctx: TransitionOrDoExprContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.transitionOrDoExpr`.
+	 * @param ctx the parse tree
+	 */
+	exitTransitionOrDoExpr?: (ctx: TransitionOrDoExprContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.stateTransition`.
+	 * @param ctx the parse tree
+	 */
+	enterStateTransition?: (ctx: StateTransitionContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.stateTransition`.
+	 * @param ctx the parse tree
+	 */
+	exitStateTransition?: (ctx: StateTransitionContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.stateEntry`.
+	 * @param ctx the parse tree
+	 */
+	enterStateEntry?: (ctx: StateEntryContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.stateEntry`.
+	 * @param ctx the parse tree
+	 */
+	exitStateEntry?: (ctx: StateEntryContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.stateExit`.
+	 * @param ctx the parse tree
+	 */
+	enterStateExit?: (ctx: StateExitContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.stateExit`.
+	 * @param ctx the parse tree
+	 */
+	exitStateExit?: (ctx: StateExitContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.stateMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	enterStateMemberTempl?: (ctx: StateMemberTemplContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.stateMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	exitStateMemberTempl?: (ctx: StateMemberTemplContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.stateMember`.
+	 * @param ctx the parse tree
+	 */
+	enterStateMember?: (ctx: StateMemberContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.stateMember`.
+	 * @param ctx the parse tree
+	 */
+	exitStateMember?: (ctx: StateMemberContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.stateDef`.
+	 * @param ctx the parse tree
+	 */
+	enterStateDef?: (ctx: StateDefContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.stateDef`.
+	 * @param ctx the parse tree
+	 */
+	exitStateDef?: (ctx: StateDefContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.stateMachineMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	enterStateMachineMemberTempl?: (ctx: StateMachineMemberTemplContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.stateMachineMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	exitStateMachineMemberTempl?: (ctx: StateMachineMemberTemplContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.stateMachineMember`.
+	 * @param ctx the parse tree
+	 */
+	enterStateMachineMember?: (ctx: StateMachineMemberContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.stateMachineMember`.
+	 * @param ctx the parse tree
+	 */
+	exitStateMachineMember?: (ctx: StateMachineMemberContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.stateMachineDef`.
+	 * @param ctx the parse tree
+	 */
+	enterStateMachineDef?: (ctx: StateMachineDefContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.stateMachineDef`.
+	 * @param ctx the parse tree
+	 */
+	exitStateMachineDef?: (ctx: StateMachineDefContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.stateMachineInstance`.
+	 * @param ctx the parse tree
+	 */
+	enterStateMachineInstance?: (ctx: StateMachineInstanceContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.stateMachineInstance`.
+	 * @param ctx the parse tree
+	 */
+	exitStateMachineInstance?: (ctx: StateMachineInstanceContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.enumMember`.

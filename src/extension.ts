@@ -5,93 +5,45 @@ import { FppParser, QualIdentContext } from './grammar/FppParser';
 import * as Fpp from './parser/ast';
 import * as Settings from './settings';
 
-import Signatures from "./signatures.json";
 import { CompletionRelevantInfo, getCandidates } from './completion';
 import { declRules, ignoreTokens } from './parser/common';
 import { FppProject } from './project';
 import { FppAnnotator, tokenParents } from './annotator';
 import { MemberTraverser } from './traverser';
-import { DeclCollector, FppTokenType, fppLegend, tokenTypeNames } from './decl';
+import { DeclCollector, SymbolType, fppLegend, tokenTypeNames } from './decl';
 import { DiangosicManager } from './diagnostics';
 import { RangeAssociation } from './associator';
 import { ComponentsProvider } from './dictionary';
 import { ConsolidatingItem, ConsolidatingTree } from './consolidate';
 import { isKeyword } from './keywords';
+import { generateSignature, signaturesDefinitions } from './signature';
+import { locs, LocsQuickPickFile, LocsQuickPickItem } from './locs';
 
-const signaturesDefinitions = (Signatures as Record<string, ISignature>);
 
-interface ISignature {
-    signature: string;
-    parameters: Record<string, string | string[]>;
-    stateMap?: {
-        offset: number;
-        map: Record<string, number[]>
-    } | string[];
-}
-
-function locs(context: vscode.ExtensionContext) {
-    return context.workspaceState.get<string>("fpp.locsFile");
-}
-
-function generateSignature(signature: ISignature, activeParameter: string): vscode.SignatureInformation {
-    const parameters: vscode.ParameterInformation[] = [];
-    let activeParameterIdx: number | undefined = undefined;
-
-    let i = 0;
-    for (const [name, desc] of Object.entries(signature.parameters)) {
-        let description: string;
-        if (typeof desc === "string") {
-            description = desc;
-        } else {
-            description = desc.join("\n");
-        }
-
-        if (name === activeParameter) {
-            activeParameterIdx = i;
-        }
-
-        parameters.push(new vscode.ParameterInformation(name, new vscode.MarkdownString(description)));
-        i++;
-    }
-
-    if (activeParameterIdx === undefined) {
-        // Keywords and symbols are not explicitely
-        // defined in the signature file
-        // We still include and highlight them in the signature
-        parameters.push(new vscode.ParameterInformation(activeParameter));
-        activeParameterIdx = parameters.length - 1;
-    }
-
-    const out = new vscode.SignatureInformation(signature.signature);
-    out.parameters = parameters;
-    out.activeParameter = activeParameterIdx;
-    return out;
-}
-
-function documentSymbolKind(type: FppTokenType): vscode.SymbolKind | undefined {
+function documentSymbolKind(type: SymbolType): vscode.SymbolKind | undefined {
     switch (type) {
-        case FppTokenType.graphGroup:
+        case SymbolType.graphGroup:
             return vscode.SymbolKind.Event;
-        case FppTokenType.module:
-        case FppTokenType.topology:
+        case SymbolType.module:
+        case SymbolType.topology:
             return vscode.SymbolKind.Namespace;
-        case FppTokenType.component: return vscode.SymbolKind.Class;
-        case FppTokenType.componentInstance: return vscode.SymbolKind.Variable;
-        case FppTokenType.constant: return vscode.SymbolKind.Constant;
-        case FppTokenType.port: return vscode.SymbolKind.Interface;
-        case FppTokenType.type: return vscode.SymbolKind.Enum;
-        case FppTokenType.inputPortDecl: return vscode.SymbolKind.Interface;
-        case FppTokenType.outputPortDecl: return vscode.SymbolKind.Interface;
-        case FppTokenType.command: return vscode.SymbolKind.Function;
-        case FppTokenType.event: return vscode.SymbolKind.String;
-        case FppTokenType.parameter: return vscode.SymbolKind.Property;
-        case FppTokenType.telemetry: return vscode.SymbolKind.Field;
+        case SymbolType.component: return vscode.SymbolKind.Class;
+        case SymbolType.componentInstance: return vscode.SymbolKind.Variable;
+        case SymbolType.constant: return vscode.SymbolKind.Constant;
+        case SymbolType.port: return vscode.SymbolKind.Interface;
+        case SymbolType.type: return vscode.SymbolKind.Enum;
+        case SymbolType.inputPortDecl: return vscode.SymbolKind.Interface;
+        case SymbolType.outputPortDecl: return vscode.SymbolKind.Interface;
+        case SymbolType.command: return vscode.SymbolKind.Function;
+        case SymbolType.event: return vscode.SymbolKind.String;
+        case SymbolType.parameter: return vscode.SymbolKind.Property;
+        case SymbolType.telemetry: return vscode.SymbolKind.Field;
 
-        case FppTokenType.inputPortInstance:
-        case FppTokenType.outputPortInstance:
-        case FppTokenType.formalParameter:
-        case FppTokenType.modifier:
-        case FppTokenType.specialPort:
+        case SymbolType.inputPortInstance:
+        case SymbolType.outputPortInstance:
+        case SymbolType.formalParameter:
+        case SymbolType.modifier:
+        case SymbolType.specialPort:
             // These are not symbols that will show up in the outline
             return;
     }
@@ -103,31 +55,13 @@ class FppDocumentSymbol extends vscode.DocumentSymbol implements ConsolidatingIt
     constructor(
         name: string,
         detail: string,
-        readonly token: FppTokenType,
+        readonly token: SymbolType,
         kind: vscode.SymbolKind,
         readonly uri: vscode.Uri,
         range: vscode.Range,
         selectionRange: vscode.Range
     ) {
         super(name, detail, kind, range, selectionRange);
-    }
-
-    isChild(child: FppDocumentSymbol): boolean {
-        return tokenParents.get(child.token)?.includes(this.token) ?? false;
-    }
-}
-
-class FppSymbolInformation extends vscode.SymbolInformation implements ConsolidatingItem {
-    children: FppDocumentSymbol[] = [];
-
-    constructor(
-        name: string,
-        readonly token: FppTokenType,
-        kind: vscode.SymbolKind,
-        containerName: string,
-        location: vscode.Location
-    ) {
-        super(name, kind, containerName, location);
     }
 
     isChild(child: FppDocumentSymbol): boolean {
@@ -250,28 +184,28 @@ class FppExtension implements
     }
 
     private readonly symbolTraverser = new class extends MemberTraverser {
-        symbols: [FppTokenType, string, vscode.Range, vscode.Range, string[]][] = [];
+        symbols: [SymbolType, string, vscode.Range, vscode.Range, string[]][] = [];
 
-        private memberDeclType(member: Fpp.Member): FppTokenType | undefined {
+        private memberDeclType(member: Fpp.Member): SymbolType | undefined {
             switch (member.type) {
-                case 'AbstractTypeDecl': return FppTokenType.type;
-                case 'ArrayDecl': return FppTokenType.type;
-                case 'ComponentDecl': return FppTokenType.component;
-                case 'ComponentInstanceDecl': return FppTokenType.componentInstance;
-                case 'ConstantDecl': return FppTokenType.constant;
-                case 'ModuleDecl': return FppTokenType.module;
-                case 'PortDecl': return FppTokenType.port;
-                case 'StructDecl': return FppTokenType.type;
-                case 'TopologyDecl': return FppTokenType.topology;
-                case 'EnumDecl': return FppTokenType.type;
-                case 'DirectGraphDecl': return FppTokenType.graphGroup;
-                case 'CommandDecl': return FppTokenType.command;
-                case 'ParamDecl': return FppTokenType.parameter;
-                case 'GeneralPortInstanceDecl': return FppTokenType.inputPortDecl;
-                case 'SpecialPortInstanceDecl': return FppTokenType.specialPort;
-                case 'TelemetryChannelDecl': return FppTokenType.telemetry;
-                case 'EventDecl': return FppTokenType.event;
-                case 'InternalPortDecl': return FppTokenType.specialPort;
+                case 'AbstractTypeDecl': return SymbolType.type;
+                case 'ArrayDecl': return SymbolType.type;
+                case 'ComponentDecl': return SymbolType.component;
+                case 'ComponentInstanceDecl': return SymbolType.componentInstance;
+                case 'ConstantDecl': return SymbolType.constant;
+                case 'ModuleDecl': return SymbolType.module;
+                case 'PortDecl': return SymbolType.port;
+                case 'StructDecl': return SymbolType.type;
+                case 'TopologyDecl': return SymbolType.topology;
+                case 'EnumDecl': return SymbolType.type;
+                case 'DirectGraphDecl': return SymbolType.graphGroup;
+                case 'CommandDecl': return SymbolType.command;
+                case 'ParamDecl': return SymbolType.parameter;
+                case 'GeneralPortInstanceDecl': return SymbolType.inputPortDecl;
+                case 'SpecialPortInstanceDecl': return SymbolType.specialPort;
+                case 'TelemetryChannelDecl': return SymbolType.telemetry;
+                case 'EventDecl': return SymbolType.event;
+                case 'InternalPortDecl': return SymbolType.specialPort;
 
                 case 'LocationStmt':
                 case 'IncludeStmt':
@@ -303,7 +237,7 @@ class FppExtension implements
         protected enumDecl(ast: Fpp.EnumDecl, scope: Fpp.QualifiedIdentifier): void {
             for (const member of ast.members) {
                 this.symbols.push([
-                    FppTokenType.constant,
+                    SymbolType.constant,
                     ast.location.source,
                     MemberTraverser.asRange(member.location),
                     MemberTraverser.asRange(member.name.location),
@@ -392,22 +326,41 @@ class FppExtension implements
         return this.project.reload();
     }
 
-    async provideDocumentSemanticTokens(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.SemanticTokens | undefined> {
-        return (await this.project.get(document, token, { disableRefresh: true })).tokens.get(document.uri.path)?.build();
+    async provideDocumentSemanticTokens(
+        document: vscode.TextDocument,
+        token: vscode.CancellationToken
+    ): Promise<vscode.SemanticTokens | undefined> {
+        return (await this.project.get(document, token, {
+            disableRefresh: true
+        })).tokens.get(document.uri.path)?.build();
     }
 
-    async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Definition | undefined> {
-        const definition = (await this.project.get(document, token)).definitions.get(document.uri.path)?.get(position);
+    async provideDefinition(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Definition | undefined> {
+        const definition = (await this.project.get(
+            document, token
+        )).definitions.get(document.uri.path)?.get(position);
+
         if (definition) {
             return FppAnnotator.asLocation(definition.name.location);
         }
     }
 
-    async provideDocumentLinks(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.DocumentLink[]> {
+    async provideDocumentLinks(
+        document: vscode.TextDocument,
+        token: vscode.CancellationToken
+    ): Promise<vscode.DocumentLink[]> {
         return (await this.project.get(document, token)).links.get(document.uri.path) ?? [];
     }
 
-    async provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Hover | undefined> {
+    async provideHover(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Hover | undefined> {
         if (this.inComment(document, position)) {
             return;
         }
@@ -435,10 +388,10 @@ class FppExtension implements
                 if (definition.fppType.complex) {
                     typeName = MemberTraverser.flat(definition.fppType.type);
 
-                    const possibleFppTypes: FppTokenType[] = [
-                        FppTokenType.type,
-                        FppTokenType.port,
-                        FppTokenType.component
+                    const possibleFppTypes: SymbolType[] = [
+                        SymbolType.type,
+                        SymbolType.port,
+                        SymbolType.component
                     ];
 
                     let resolved = false;
@@ -462,7 +415,7 @@ class FppExtension implements
             const fullName = FppAnnotator.flat(definition.scope, definition.name);
 
             const mdAssociation = new vscode.MarkdownString();
-            let signatureBlock: string = `(${definition.type.replace("Decl", "")}) ${fullName}`;
+            let signatureBlock: string = `(${definition.type.replace("Decl", "").replace("Def", "")}) ${fullName}`;
             if (typeName) {
                 signatureBlock += `: ${typeName}`;
             }
@@ -566,16 +519,16 @@ class FppExtension implements
         return out;
     }
 
-    private referenceCompletion(declType: FppTokenType, context: QualIdentContext, scope: string[]): vscode.CompletionItem[] {
-        const declTypeMap = new Map<FppTokenType, [Map<string, Fpp.Decl>, vscode.CompletionItemKind]>([
-            [FppTokenType.topology, [this.project.decl.topologies, vscode.CompletionItemKind.Module]],
-            [FppTokenType.component, [this.project.decl.components, vscode.CompletionItemKind.Class]],
-            [FppTokenType.componentInstance, [this.project.decl.componentInstances, vscode.CompletionItemKind.Variable]],
-            [FppTokenType.constant, [this.project.decl.constants, vscode.CompletionItemKind.EnumMember]],
-            [FppTokenType.port, [this.project.decl.ports, vscode.CompletionItemKind.Class]],
-            [FppTokenType.type, [this.project.decl.types, vscode.CompletionItemKind.Class]],
-            [FppTokenType.inputPortInstance, [this.project.decl.generalInputPortInstances, vscode.CompletionItemKind.Function]],
-            [FppTokenType.outputPortInstance, [this.project.decl.generalOutputPortInstances, vscode.CompletionItemKind.Function]],
+    private referenceCompletion(declType: SymbolType, context: QualIdentContext, scope: string[]): vscode.CompletionItem[] {
+        const declTypeMap = new Map<SymbolType, [Map<string, Fpp.Decl>, vscode.CompletionItemKind]>([
+            [SymbolType.topology, [this.project.decl.topologies, vscode.CompletionItemKind.Module]],
+            [SymbolType.component, [this.project.decl.components, vscode.CompletionItemKind.Class]],
+            [SymbolType.componentInstance, [this.project.decl.componentInstances, vscode.CompletionItemKind.Variable]],
+            [SymbolType.constant, [this.project.decl.constants, vscode.CompletionItemKind.EnumMember]],
+            [SymbolType.port, [this.project.decl.ports, vscode.CompletionItemKind.Class]],
+            [SymbolType.type, [this.project.decl.types, vscode.CompletionItemKind.Class]],
+            [SymbolType.inputPortInstance, [this.project.decl.generalInputPortInstances, vscode.CompletionItemKind.Function]],
+            [SymbolType.outputPortInstance, [this.project.decl.generalOutputPortInstances, vscode.CompletionItemKind.Function]],
         ]);
 
         const mapping = declTypeMap.get(declType);
@@ -594,14 +547,12 @@ class FppExtension implements
     provideCompletionItems(
         document: vscode.TextDocument,
         position: vscode.Position,
-        token: vscode.CancellationToken,
-        context: vscode.CompletionContext
     ): vscode.ProviderResult<vscode.CompletionItem[]> {
 
         // First things first, check if we are in a comment
         // The parser does not know how to recognize comments since
         // they are expelled at lexing time
-        // FPP only has find line comments which makes things simple
+        // FPP only has single line comments which makes things simple
         if (this.inComment(document, position)) {
             return;
         }
@@ -641,21 +592,21 @@ class FppExtension implements
             // A qualified identifier references some declaration
             // We need to figure out what type this is referencing
 
-            const singleQualIdentMappings: [number, FppTokenType][] = [
+            const singleQualIdentMappings: [number, SymbolType][] = [
                 // This is in order of priority
                 // Only the first two need to be injested first
-                [FppParser.RULE_expr, FppTokenType.constant],
-                [FppParser.RULE_typeName, FppTokenType.type],
-                [FppParser.RULE_formalParameterList, FppTokenType.type],
+                [FppParser.RULE_expr, SymbolType.constant],
+                [FppParser.RULE_typeName, SymbolType.type],
+                [FppParser.RULE_formalParameterList, SymbolType.type],
 
-                [FppParser.RULE_generalPortInstanceType, FppTokenType.port],
-                [FppParser.RULE_componentInstanceDecl, FppTokenType.component],
-                [FppParser.RULE_componentInstanceSpec, FppTokenType.componentInstance],
+                [FppParser.RULE_generalPortInstanceType, SymbolType.port],
+                [FppParser.RULE_componentInstanceDecl, SymbolType.component],
+                [FppParser.RULE_componentInstanceSpec, SymbolType.componentInstance],
                 // This is special since we there are two in the rule
                 // [FppParser.RULE_connectionNode, FppTokenType.componentInstance],
-                [FppParser.RULE_patternGraphSources, FppTokenType.componentInstance],
-                [FppParser.RULE_topologyImportStmt, FppTokenType.topology],
-                [FppParser.RULE_generalPortInstanceDecl, FppTokenType.port],
+                [FppParser.RULE_patternGraphSources, SymbolType.componentInstance],
+                [FppParser.RULE_topologyImportStmt, SymbolType.topology],
+                [FppParser.RULE_generalPortInstanceDecl, SymbolType.port],
 
                 // I'm not doing this cause its annoying ;)
                 // Also who the hell writes these manually
@@ -674,7 +625,7 @@ class FppExtension implements
             const connectionInfo = candidates.rules.get(FppParser.RULE_connection);
             if (connectionInfo) {
                 return out.concat(this.referenceCompletion(
-                    connectionInfo.context.childCount <= 1 ? FppTokenType.outputPortInstance : FppTokenType.inputPortInstance,
+                    connectionInfo.context.childCount <= 1 ? SymbolType.outputPortInstance : SymbolType.inputPortInstance,
                     qualIdentInfo?.context as QualIdentContext, candidates.scope
                 ));
             }
@@ -767,23 +718,6 @@ class FppExtension implements
         this.project.dispose();
     }
 }
-
-interface LocsQuickPickOpen extends vscode.QuickPickItem {
-    kind: vscode.QuickPickItemKind.Default;
-    isOpen: true;
-}
-
-interface LocsQuickPickFile extends vscode.QuickPickItem {
-    kind: vscode.QuickPickItemKind.Default;
-    isOpen: false;
-    uri: vscode.Uri;
-}
-
-interface LocsQuickPickSeparator extends vscode.QuickPickItem {
-    kind: vscode.QuickPickItemKind.Separator;
-}
-
-type LocsQuickPickItem = LocsQuickPickOpen | LocsQuickPickFile | LocsQuickPickSeparator;
 
 export function activate(context: vscode.ExtensionContext) {
     const extension = new FppExtension(context);

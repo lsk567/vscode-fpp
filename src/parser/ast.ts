@@ -35,15 +35,16 @@ export function isNumeric(type: string): boolean {
 }
 
 export type IntegralTypeKey = (
-    "U8" |
-    "I8" |
-    "U16" |
-    "I16" |
-    "U32" |
-    "I32" |
-    "U64" |
-    "I64"
+    | "U8"
+    | "I8"
+    | "U16"
+    | "I16"
+    | "U32"
+    | "I32"
+    | "U64"
+    | "I64"
 );
+
 export type FloatingTypeKey = "F32" | "F64";
 export type NumericTypeKey = IntegralTypeKey | FloatingTypeKey;
 export type PrimitiveTypeKey = NumericTypeKey | "bool";
@@ -145,6 +146,134 @@ export interface AbstractTypeDecl extends Decl {
     fppType: undefined;
 }
 
+export interface AliasTypeDecl extends Decl {
+    type: "AliasTypeDecl";
+    name: Identifier;
+
+    /* Underlying type this alias points to */
+    fppType: TypeName;
+}
+
+export interface ActionDef extends Decl {
+    type: "ActionDef";
+    name: Identifier;
+    fppType: TypeName;
+}
+
+export interface ChoiceDef extends Decl {
+    type: "ChoiceDef";
+    fppType: undefined;
+
+    name: Identifier;
+
+    guard: Identifier;
+    then: TransitionExpr;
+    else: TransitionExpr;
+}
+
+export interface GuardDef extends Decl {
+    type: "GuardDef";
+
+    name: Identifier;
+    fppType: TypeName;
+}
+
+export interface SignalDef extends Decl {
+    type: "SignalDef";
+    name: Identifier;
+    fppType: TypeName;
+}
+
+export interface StateExprValue {
+    // TODO(tumbar) What information needs to be resolved here?
+}
+
+export interface StateExpr extends Ast {
+    type: string;
+    evaluated?: StateExprValue;
+}
+
+export interface DoExpr extends StateExpr {
+    type: "DoExpr";
+    actions: Identifier[];
+}
+
+export interface TransitionExpr extends StateExpr {
+    type: "TransitionExpr";
+    do?: DoExpr;
+    state: QualifiedIdentifier;
+}
+
+export interface InitialTransition extends Decl {
+    type: "InitialTransition";
+    fppType: undefined;
+
+    transition: TransitionExpr;
+}
+
+export interface StateTransition extends Decl {
+    type: "StateTransition";
+    fppType: undefined;
+
+    signal: Identifier;
+    guard?: Identifier;
+    transition: TransitionExpr | DoExpr;
+}
+
+export interface StateEntry extends Decl {
+    type: "StateEntry";
+    fppType: undefined;
+
+    do: DoExpr;
+}
+
+export interface StateExit extends Decl {
+    type: "StateExit";
+    fppType: undefined;
+
+    do: DoExpr;
+}
+
+export type StateDefMember = (
+    | InitialTransition
+    | ChoiceDef
+    | StateDef
+    | StateTransition
+    | StateEntry
+    | StateExit
+);
+
+export interface StateDef extends Decl {
+    type: "StateDef";
+    fppType: undefined;
+
+    name: Identifier;
+    members: StateDefMember[];
+}
+
+export type StateMachineMember = (
+    | ChoiceDef
+    | GuardDef
+    | InitialTransition
+    | SignalDef
+    | StateDef
+    | ActionDef
+);
+
+export interface StateMachineDecl extends Decl {
+    type: "StateMachineDecl";
+    name: Identifier;
+    members: StateMachineMember[];
+}
+
+export interface StateMachineInstance extends Annotatable {
+    type: "StateMachineInstance";
+    name: Identifier;
+    stateMachine: QualifiedIdentifier;
+    priority?: Expr;
+    queueFull?: QueueFullBehavior;
+}
+
 export interface ArrayDecl extends Decl {
     type: "ArrayDecl";
     fppType: TypeName;
@@ -227,14 +356,14 @@ export interface SpecialOutputPortInstance extends PortInstance {
     isOutput: true;
     isSpecial: true;
     kind: Keyword<
-        "commandReg" |
-        "commandResp" |
-        "event" |
-        "paramGet" |
-        "paramSet" |
-        "telemetry" |
-        "textEvent" |
-        "timeGet"
+        | "commandReg"
+        | "commandResp"
+        | "event"
+        | "paramGet"
+        | "paramSet"
+        | "telemetry"
+        | "textEvent"
+        | "timeGet"
     >;
 }
 
@@ -245,12 +374,13 @@ export interface CommandRecvPortInstance extends PortInstance {
 }
 
 export type GeneralPortKind = (
-    GeneralInputPortInstance |
-    GeneralOutputPortInstance
+    | GeneralInputPortInstance
+    | GeneralOutputPortInstance
 );
+
 export type SpecialPortKind = (
-    CommandRecvPortInstance |
-    SpecialOutputPortInstance
+    | CommandRecvPortInstance
+    | SpecialOutputPortInstance
 );
 
 export interface GeneralPortInstanceDecl extends Decl {
@@ -285,22 +415,25 @@ export interface ProductRecordDecl extends Decl {
 }
 
 export type ComponentMember = (
-    AbstractTypeDecl |
-    ArrayDecl |
-    ConstantDecl |
-    StructDecl |
-    CommandDecl |
-    ParamDecl |
-    PortInstanceDecl |
-    TelemetryChannelDecl |
-    EnumDecl |
-    EventDecl |
-    IncludeStmt<ComponentMember> |
-    MatchStmt |
-    InternalPortDecl |
-    ProductContainerDecl |
-    ProductRecordDecl
+    | AbstractTypeDecl
+    | AliasTypeDecl
+    | ArrayDecl
+    | ConstantDecl
+    | StructDecl
+    | CommandDecl
+    | ParamDecl
+    | PortInstanceDecl
+    | TelemetryChannelDecl
+    | EnumDecl
+    | EventDecl
+    | IncludeStmt<ComponentMember>
+    | MatchStmt
+    | InternalPortDecl
+    | ProductContainerDecl
+    | ProductRecordDecl
+    | StateMachineInstance
 );
+
 export type ComponentKind = Keyword<"active" | "passive" | "queued">;
 export interface ComponentDecl extends Decl {
     type: "ComponentDecl";
@@ -339,14 +472,15 @@ export interface EnumDecl extends Decl {
 }
 
 export type EventSeverity = Keyword<
-    "activityHigh" |
-    "activityLow" |
-    "command" |
-    "diagnostic" |
-    "fatal" |
-    "warningHigh" |
-    "warningLow"
+    | "activityHigh"
+    | "activityLow"
+    | "command"
+    | "diagnostic"
+    | "fatal"
+    | "warningHigh"
+    | "warningLow"
 >;
+
 export interface EventDecl extends Decl {
     type: "EventDecl",
     fppType: undefined;
@@ -428,13 +562,14 @@ export interface DirectGraphDecl extends Decl {
 }
 
 export type PatternKind = Keyword<
-    "command" |
-    "event" |
-    "health" |
-    "param" |
-    "telemetry" |
-    "time"
+    | "command"
+    | "event"
+    | "health"
+    | "param"
+    | "telemetry"
+    | "time"
 >;
+
 export interface PatternGraphStmt extends Annotatable {
     type: "PatternGraphStmt";
     kind: PatternKind;
@@ -462,12 +597,12 @@ export interface TopologyDecl extends Decl {
 }
 
 export type LocationKind = Keyword<
-    "instance" |
-    "component" |
-    "constant" |
-    "port" |
-    "topology" |
-    "type"
+    | "instance"
+    | "component"
+    | "constant"
+    | "port"
+    | "topology"
+    | "type"
 >;
 
 export interface LocationStmt extends Annotatable {
@@ -478,18 +613,20 @@ export interface LocationStmt extends Annotatable {
 }
 
 export type ModuleMember = (
-    AbstractTypeDecl |
-    ArrayDecl |
-    ComponentDecl |
-    ComponentInstanceDecl |
-    ConstantDecl |
-    ModuleDecl |
-    PortDecl |
-    StructDecl |
-    TopologyDecl |
-    LocationStmt |
-    EnumDecl |
-    IncludeStmt<ModuleMember>
+    | AbstractTypeDecl
+    | AliasTypeDecl
+    | ArrayDecl
+    | ComponentDecl
+    | ComponentInstanceDecl
+    | ConstantDecl
+    | ModuleDecl
+    | PortDecl
+    | StructDecl
+    | TopologyDecl
+    | LocationStmt
+    | EnumDecl
+    | IncludeStmt<ModuleMember>
+    | StateMachineDecl
 );
 export interface ModuleDecl extends Decl {
     type: "ModuleDecl";
@@ -559,18 +696,24 @@ export interface StructExpr extends BasicExpr {
 };
 
 export type Expr = (
-    BinaryExpr |
-    NegExpr |
-    BooleanExpr |
-    StructExpr |
-    ArrayExpr |
-    PrimaryExpr
+    | BinaryExpr
+    | NegExpr
+    | BooleanExpr
+    | StructExpr
+    | ArrayExpr
+    | PrimaryExpr
 );
 
 export type QualifiedIdentifier = readonly Identifier[];
 
+export type Member = (
+    | ModuleMember
+    | TopologyMember
+    | ComponentMember
+    | StateMachineMember
+    | StateDefMember
+);
 
-export type Member = ( ModuleMember | TopologyMember | ComponentMember );
 export interface TranslationUnit<T = ModuleMember> extends Ast {
     type: "TranslationUnit";
     members: T[];
@@ -578,7 +721,7 @@ export interface TranslationUnit<T = ModuleMember> extends Ast {
 };
 
 
-export type TypeDecl = AbstractTypeDecl | StructDecl | ArrayDecl | EnumDecl;
+export type TypeDecl = AbstractTypeDecl | AliasTypeDecl | StructDecl | ArrayDecl | EnumDecl;
 export type ConstantDefinition = ConstantDecl | EnumMember;
 
 export enum PrimExprType {
@@ -623,10 +766,10 @@ export interface StructExprValue extends ExprValueBase<Record<string, ExprValue>
 export type NumericExprValue = IntExprValue | FloatExprValue;
 
 export type ExprValue = (
-    IntExprValue |
-    FloatExprValue |
-    BoolExprValue |
-    StrExprValue |
-    ArrayExprValue |
-    StructExprValue
+    | IntExprValue
+    | FloatExprValue
+    | BoolExprValue
+    | StrExprValue
+    | ArrayExprValue
+    | StructExprValue
 );

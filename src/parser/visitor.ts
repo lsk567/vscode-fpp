@@ -165,6 +165,12 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
+    /**
+     * Associates lexical items with items in the signature
+     * @param ctx Parsing context or token to mark
+     * @param rule rule id
+     * @param param parameter to park token
+     */
     private associate(ctx: ParserRuleContext | Token | undefined, rule: number, param: string) {
         if (ctx === undefined) { }
         else if (ctx instanceof ParserRuleContext) {
@@ -331,6 +337,24 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             name: this.identifier(ctx._name),
             location: this.loc(ctx),
             fppType: undefined
+        };
+    }
+
+    visitAliasTypeDecl(ctx: FppParser.AliasTypeDeclContext): Fpp.AliasTypeDecl {
+        if (!ctx) {
+            return this.error();
+        }
+
+        this.associate(ctx.TYPE()._symbol, ctx.ruleIndex, "type");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._type, ctx.ruleIndex, "typeName");
+
+        return {
+            type: "AliasTypeDecl",
+            scope: [...this.scope],
+            name: this.identifier(ctx._name),
+            location: this.loc(ctx),
+            fppType: this.visitTypeName(ctx._type),
         };
     }
 

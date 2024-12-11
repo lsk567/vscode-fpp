@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as Fpp from './parser/ast';
 
-import { ComponentDictionary, DeclCollector, FppTokenType, tokenTypeNames } from './decl';
+import { ComponentDictionary, DeclCollector, SymbolType, tokenTypeNames } from './decl';
 import { MemberTraverser } from './traverser';
 import { ConsolidatingItem, ConsolidatingTree } from './consolidate';
 import { tokenParents } from './annotator';
@@ -9,7 +9,7 @@ import { tokenParents } from './annotator';
 
 abstract class DictionaryEntry implements ConsolidatingItem {
     abstract name: string;
-    abstract token: FppTokenType;
+    abstract token: SymbolType;
     children: DictionaryEntry[] = [];
 
     abstract asTreeItem(): vscode.TreeItem;
@@ -24,7 +24,7 @@ abstract class DictionaryEntry implements ConsolidatingItem {
 }
 
 class ComponentModuleTree extends DictionaryEntry {
-    token = FppTokenType.module;
+    token = SymbolType.module;
 
     constructor(
         readonly name: string
@@ -78,7 +78,7 @@ abstract class DictionaryDecl<T extends Fpp.Decl> extends DictionaryEntry {
 }
 
 class DictionaryComponent extends DictionaryDecl<Fpp.ComponentDecl> {
-    token = FppTokenType.component;
+    token = SymbolType.component;
 
     constructor(dictionary: ComponentDictionary) {
         super(dictionary.component);
@@ -101,7 +101,7 @@ class DictionaryComponent extends DictionaryDecl<Fpp.ComponentDecl> {
 }
 
 class DictionaryCommand extends DictionaryDecl<Fpp.CommandDecl> {
-    token = FppTokenType.command;
+    token = SymbolType.command;
 
     asTreeItem(): vscode.TreeItem {
         const out = super.asTreeItem();
@@ -111,7 +111,7 @@ class DictionaryCommand extends DictionaryDecl<Fpp.CommandDecl> {
 }
 
 class DictionaryEvent extends DictionaryDecl<Fpp.EventDecl> {
-    token = FppTokenType.event;
+    token = SymbolType.event;
 
     asTreeItem(): vscode.TreeItem {
         const out = super.asTreeItem();
@@ -121,7 +121,7 @@ class DictionaryEvent extends DictionaryDecl<Fpp.EventDecl> {
 }
 
 class DictionaryParameter extends DictionaryDecl<Fpp.ParamDecl> {
-    token = FppTokenType.parameter;
+    token = SymbolType.parameter;
 
     asTreeItem(): vscode.TreeItem {
         const out = super.asTreeItem();
@@ -131,7 +131,7 @@ class DictionaryParameter extends DictionaryDecl<Fpp.ParamDecl> {
 }
 
 class DictionaryTelemetry extends DictionaryDecl<Fpp.TelemetryChannelDecl> {
-    token = FppTokenType.telemetry;
+    token = SymbolType.telemetry;
 
     asTreeItem(): vscode.TreeItem {
         const out = super.asTreeItem();
@@ -141,7 +141,7 @@ class DictionaryTelemetry extends DictionaryDecl<Fpp.TelemetryChannelDecl> {
 }
 
 class DictionaryRecord extends DictionaryDecl<Fpp.ProductRecordDecl> {
-    token = FppTokenType.record;
+    token = SymbolType.record;
 
     asTreeItem(): vscode.TreeItem {
         const out = super.asTreeItem();
@@ -151,7 +151,7 @@ class DictionaryRecord extends DictionaryDecl<Fpp.ProductRecordDecl> {
 }
 
 class DictionaryContainer extends DictionaryDecl<Fpp.ProductContainerDecl> {
-    token = FppTokenType.container;
+    token = SymbolType.container;
 
     asTreeItem(): vscode.TreeItem {
         const out = super.asTreeItem();
