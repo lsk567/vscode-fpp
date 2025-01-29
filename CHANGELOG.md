@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.10] - 2024-06-12
+## [1.0.11] - 2024-06-12
 
 - Fixed scoping sematics of state machine states
 - Added completions for a couple state machine expressions
