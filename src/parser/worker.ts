@@ -96,6 +96,8 @@ async function parse(
         case IncludeContext.component:
             out = visitor.visitProgComponent(parser.progComponent());
             break;
+        // case IncludeContext.stateMachine:
+        // case IncludeContext.state:
     }
 
     return [await visitor.finish(), out];

@@ -36,6 +36,9 @@ export abstract class MemberTraverser extends DiangosicManager {
                 case 'AbstractTypeDecl':
                     this.abstractTypeDecl(ast, scope);
                     break;
+                case 'AliasTypeDecl':
+                    this.aliasTypeDecl(ast, scope);
+                    break;
                 case 'ArrayDecl':
                     this.arrayDecl(ast, scope);
                     break;
@@ -111,15 +114,49 @@ export abstract class MemberTraverser extends DiangosicManager {
                 case 'ProductRecordDecl':
                     this.productRecordDecl(ast, scope);
                     break;
+                case 'StateMachineDecl':
+                    this.stateMachineDecl(ast, scope);
+                    break;
+                case 'StateMachineInstance':
+                    this.stateMachineInstance(ast, scope);
+                    break;
+                case 'ChoiceDef':
+                    this.choiceDef(ast, scope);
+                    break;
+                case 'GuardDef':
+                    this.guardDef(ast, scope);
+                    break;
+                case 'InitialTransition':
+                    this.initialTransistion(ast, scope);
+                    break;
+                case 'SignalDef':
+                    this.signalDef(ast, scope);
+                    break;
+                case 'StateDef':
+                    this.stateDef(ast, scope);
+                    break;
+                case 'ActionDef':
+                    this.actionDef(ast, scope);
+                    break;
+                case 'StateTransition':
+                    this.stateTransition(ast, scope);
+                    break;
+                case 'StateEntry':
+                    this.stateEntry(ast, scope);
+                    break;
+                case 'StateExit':
+                    this.stateExit(ast, scope);
+                    break;
                 default:
                     throw new Error(`Unhandled declaration type ${(ast as any).type}: ${ast}`);
             }
         } catch (e) {
-            // console.error(e);
+            console.error(e);
         }
     }
 
     protected abstractTypeDecl(ast: Fpp.AbstractTypeDecl, scope: Fpp.QualifiedIdentifier) { }
+    protected aliasTypeDecl(ast: Fpp.AliasTypeDecl, scope: Fpp.QualifiedIdentifier) { }
     protected arrayDecl(ast: Fpp.ArrayDecl, scope: Fpp.QualifiedIdentifier) { }
     protected constantDecl(ast: Fpp.ConstantDecl, scope: Fpp.QualifiedIdentifier) { }
     protected structDecl(ast: Fpp.StructDecl, scope: Fpp.QualifiedIdentifier) { }
@@ -141,6 +178,15 @@ export abstract class MemberTraverser extends DiangosicManager {
     protected directGraphDecl(ast: Fpp.DirectGraphDecl, scope: Fpp.QualifiedIdentifier) { }
     protected patternGraphStmt(ast: Fpp.PatternGraphStmt, scope: Fpp.QualifiedIdentifier) { }
     protected topologyImportStmt(ast: Fpp.TopologyImportStmt, scope: Fpp.QualifiedIdentifier) { }
+    protected stateMachineInstance(ast: Fpp.StateMachineInstance, scope: Fpp.QualifiedIdentifier) { }
+    protected choiceDef(ast: Fpp.ChoiceDef, scope: Fpp.QualifiedIdentifier) { }
+    protected guardDef(ast: Fpp.GuardDef, scope: Fpp.QualifiedIdentifier) { }
+    protected initialTransistion(ast: Fpp.InitialTransition, scope: Fpp.QualifiedIdentifier) { }
+    protected signalDef(ast: Fpp.SignalDef, scope: Fpp.QualifiedIdentifier) { }
+    protected actionDef(ast: Fpp.ActionDef, scope: Fpp.QualifiedIdentifier) { }
+    protected stateTransition(ast: Fpp.StateTransition, scope: Fpp.QualifiedIdentifier) { }
+    protected stateEntry(ast: Fpp.StateEntry, scope: Fpp.QualifiedIdentifier) { }
+    protected stateExit(ast: Fpp.StateExit, scope: Fpp.QualifiedIdentifier) { }
 
     protected includeStmt(ast: Fpp.IncludeStmt<Fpp.Member>, scope: Fpp.QualifiedIdentifier) {
         if (ast.resolved) {
@@ -173,6 +219,18 @@ export abstract class MemberTraverser extends DiangosicManager {
     protected topologyDecl(ast: Fpp.TopologyDecl, scope: Fpp.QualifiedIdentifier) {
         for (const member of ast.members) {
             // this.traverse(member, [...scope, ast.name]);
+            this.traverse(member, scope);
+        }
+    }
+
+    protected stateMachineDecl(ast: Fpp.StateMachineDecl, scope: Fpp.QualifiedIdentifier) {
+        for (const member of ast.members) {
+            this.traverse(member, [...scope, ast.name]);
+        }
+    }
+
+    protected stateDef(ast: Fpp.StateDef, scope: Fpp.QualifiedIdentifier) {
+        for (const member of ast.members) {
             this.traverse(member, scope);
         }
     }

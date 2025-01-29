@@ -6,22 +6,30 @@ import { ReferenceTracker } from './referenceTracker';
 import { RangeAssociator } from './associator';
 import { DiangosicManager } from './diagnostics';
 
-export enum FppTokenType {
-    module, // namespace
-    topology, // macro
-    component, // class
-    componentInstance, // variable
-    constant, // enumMember
-    graphGroup, // namespace
-    port, // interface
-    type, // type
-    modifier, // keyword
-    inputPortInstance, // function
-    outputPortInstance, // function
-    inputPortDecl, // function
-    outputPortDecl, // function
-    specialPort, // internal or special ports, function
-    formalParameter,  // parameter
+export enum SymbolType {
+    module,
+    topology,
+    component,
+    componentInstance,
+    constant,
+    graphGroup,
+    port,
+    type,
+    modifier,
+    inputPortInstance,
+    outputPortInstance,
+    inputPortDecl,
+    outputPortDecl,
+    specialPort,
+    formalParameter,
+
+    stateMachine,
+    stateMachineInstance,
+
+    action,
+    guard,
+    signal,
+    state,
 
     // Dictoinary entries
     command,
@@ -29,58 +37,50 @@ export enum FppTokenType {
     parameter,
     telemetry,
     record,
-    container
+    container,
 }
 
-export const tokenTypeNames: string[] = [
-    "Module",
-    "Topology",
-    "Component",
-    "Component Instance",
-    "Constant",
-    "Graph Group",
-    "Port",
-    "Type",
-    "Modifier",
-    "Input Port Instance",
-    "Output Port Instance",
-    "Input Port",
-    "Output Port",
-    "Special/Internal Port",
-    "Parameter",
+type TokenMetadata = [name: string, legendType: string];
 
-    "Command",
-    "Event",
-    "Parameter",
-    "Telemetry",
-    "Data Product Record",
-    "Data Product Container"
-];
+const tokenMetadataR: Record<SymbolType, TokenMetadata> = {
+    [SymbolType.module]: ["Module", "namespace"],
+    [SymbolType.topology]: ["Topology", "macro"],
+    [SymbolType.component]: ["Component", "class"],
+    [SymbolType.componentInstance]: ["Component Instance", "variable"],
+    [SymbolType.constant]: ["Constant", "enumMember"],
+    [SymbolType.graphGroup]: ["Graph Group", "namespace"],
+    [SymbolType.port]: ["Port", "interface"],
+    [SymbolType.type]: ["Type", "type"],
+    [SymbolType.modifier]: ["Modifier", "keyword"],
+    [SymbolType.inputPortInstance]: ["Input Port Instance", "function"],
+    [SymbolType.outputPortInstance]: ["Output Port Instance", "function"],
+    [SymbolType.inputPortDecl]: ["Input Port", "function"],
+    [SymbolType.outputPortDecl]: ["Output Port", "function"],
+    [SymbolType.specialPort]: ["Special/Internal Port", "function"],
+    [SymbolType.formalParameter]: ["Parameter", "parameter"],
+    [SymbolType.stateMachine]: ["State Machine", "class"],
+    [SymbolType.stateMachineInstance]: ["State Machine Instance", "variable"],
+    [SymbolType.command]: ["Command", "function"],
+    [SymbolType.event]: ["Event", "function"],
+    [SymbolType.parameter]: ["Parameter", "function"],
+    [SymbolType.telemetry]: ["Telemetry", "function"],
+    [SymbolType.record]: ["Data Product Record", "function"],
+    [SymbolType.container]: ["Data Product Container", "function"],
+    [SymbolType.action]: ["Action", "function"],
+    [SymbolType.guard]: ["Guard", "variable"],
+    [SymbolType.signal]: ["Signal", "event"],
+    [SymbolType.state]: ["State", "enumMember"]
+};
+
+const tokenMetadata = Object.entries(tokenMetadataR).sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+    .map(key => (tokenMetadataR as any)[key[0]] as TokenMetadata);
+
+export const tokenTypeNames: string[] = tokenMetadata.map(v => v[0]);
+console.log(tokenTypeNames);
+console.log(tokenMetadata);
 
 export const fppLegend = new vscode.SemanticTokensLegend(
-    [
-        'namespace',
-        'macro',
-        'class',
-        'variable',
-        'enumMember',
-        'namespace',
-        'interface',
-        'type',
-        'keyword',
-        'function',
-        'function',
-        'function',
-        'function',
-        'function',
-        'parameter',
-        'function',
-        'function',
-        'function',
-        'function',
-        'function',
-        'function',
-    ],
+    tokenMetadata.map(v => v[1]),
     []
 );
 
@@ -115,12 +115,19 @@ export class DeclCollector extends MemberTraverser {
     records = new Map<string, Fpp.ProductRecordDecl>();
     containers = new Map<string, Fpp.ProductContainerDecl>();
 
+    stateMachines = new Map<string, Fpp.StateMachineDecl>();
+    stateMachineInstances = new Map<string, Fpp.StateMachineInstance>();
+    actions = new Map<string, Fpp.ActionDef | Fpp.ChoiceDef>();
+    guards = new Map<string, Fpp.GuardDef>();
+    signals = new Map<string, Fpp.SignalDef>();
+    states = new Map<string, Fpp.StateDef>();
+
     dictionary = new Map<string, ComponentDictionary>();
     references = new ReferenceTracker<vscode.Range>();
 
     // Keep track of which files define what
     // This way we can clean and refresh a single file's declarations
-    translationUnitDeclarations = new Map<string, RangeAssociator<[FppTokenType, string]>>();
+    translationUnitDeclarations = new Map<string, RangeAssociator<[SymbolType, string]>>();
 
     // If a translation unit includes component instances,
     // there is a second stage of reference depth that should
@@ -141,13 +148,13 @@ export class DeclCollector extends MemberTraverser {
                         this.parent.generalOutputPortInstances.set(portName, member);
                         this.parent.translationUnitDeclarations.get(ast.location.source)!.add(
                             DiangosicManager.asRange(ast.name.location),
-                            [FppTokenType.outputPortInstance, portName]
+                            [SymbolType.outputPortInstance, portName]
                         );
                     } else {
                         this.parent.generalInputPortInstances.set(portName, member);
                         this.parent.translationUnitDeclarations.get(ast.location.source)!.add(
                             DiangosicManager.asRange(ast.name.location),
-                            [FppTokenType.inputPortInstance, portName]
+                            [SymbolType.inputPortInstance, portName]
                         );
                     }
                     break;
@@ -162,7 +169,7 @@ export class DeclCollector extends MemberTraverser {
         }
 
         protected componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
-            const resolved = this.parent.resolve(ast.fppType.type, scope, FppTokenType.component);
+            const resolved = this.parent.resolve(ast.fppType.type, scope, SymbolType.component);
             if (!resolved) {
                 // This error will be annotated later
                 return;
@@ -192,69 +199,88 @@ export class DeclCollector extends MemberTraverser {
             for (const [_, declTup] of alreadyDeclared) {
                 const [type, decl] = declTup;
                 switch (type) {
-                    case FppTokenType.component:
+                    case SymbolType.component:
                         this.components.delete(decl);
                         this.dictionary.delete(decl);
                         break;
-                    case FppTokenType.componentInstance:
+                    case SymbolType.componentInstance:
                         this.componentInstances.delete(decl);
                         break;
-                    case FppTokenType.inputPortInstance:
+                    case SymbolType.inputPortInstance:
                         this.generalInputPortInstances.delete(decl);
                         break;
-                    case FppTokenType.outputPortInstance:
+                    case SymbolType.outputPortInstance:
                         this.generalOutputPortInstances.delete(decl);
                         break;
-                    case FppTokenType.inputPortDecl:
+                    case SymbolType.inputPortDecl:
                         this.generalInputPortDecl.delete(decl);
                         break;
-                    case FppTokenType.outputPortDecl:
+                    case SymbolType.outputPortDecl:
                         this.generalOutputPortDecl.delete(decl);
                         break;
-                    case FppTokenType.constant:
+                    case SymbolType.constant:
                         this.constants.delete(decl);
                         break;
-                    case FppTokenType.graphGroup:
+                    case SymbolType.graphGroup:
                         this.graphGroups.delete(decl);
                         break;
-                    case FppTokenType.port:
+                    case SymbolType.port:
                         this.ports.delete(decl);
                         break;
-                    case FppTokenType.topology:
+                    case SymbolType.topology:
                         this.topologies.delete(decl);
                         break;
-                    case FppTokenType.type:
+                    case SymbolType.type:
                         this.types.delete(decl);
                         break;
-                    case FppTokenType.command:
+                    case SymbolType.command:
                         this.commands.delete(decl);
                         break;
-                    case FppTokenType.event:
+                    case SymbolType.event:
                         this.events.delete(decl);
                         break;
-                    case FppTokenType.parameter:
+                    case SymbolType.parameter:
                         this.parameters.delete(decl);
                         break;
-                    case FppTokenType.telemetry:
+                    case SymbolType.telemetry:
                         this.telemetry.delete(decl);
                         break;
-                    case FppTokenType.container:
+                    case SymbolType.container:
                         this.containers.delete(decl);
                         break;
-                    case FppTokenType.record:
+                    case SymbolType.record:
                         this.records.delete(decl);
                         break;
-                    case FppTokenType.modifier:
-                    case FppTokenType.specialPort:
-                    case FppTokenType.formalParameter:
-                    case FppTokenType.module:
+                    case SymbolType.stateMachine:
+                        this.stateMachines.delete(decl);
+                        break;
+                    case SymbolType.stateMachineInstance:
+                        this.stateMachineInstances.delete(decl);
+                        break;
+                    case SymbolType.action:
+                        this.actions.delete(decl);
+                        break;
+                    case SymbolType.guard:
+                        this.guards.delete(decl);
+                        break;
+                    case SymbolType.signal:
+                        this.signals.delete(decl);
+                        break;
+                    case SymbolType.state:
+                        this.states.delete(decl);
+                        break;
+
+                    case SymbolType.modifier:
+                    case SymbolType.specialPort:
+                    case SymbolType.formalParameter:
+                    case SymbolType.module:
                         // These cannot be referenced directly
                         break;
                 }
             }
         }
 
-        this.translationUnitDeclarations.set(grammarSource, new RangeAssociator<[FppTokenType, string]>());
+        this.translationUnitDeclarations.set(grammarSource, new RangeAssociator<[SymbolType, string]>());
         this.references.dispose(grammarSource);
     }
 
@@ -289,7 +315,7 @@ export class DeclCollector extends MemberTraverser {
 
     private typeCollect(decl: Fpp.TypeDecl, scope: Fpp.QualifiedIdentifier) {
         const name = MemberTraverser.flat(scope, decl.name);
-        if (this.check(name, FppTokenType.type, decl.name)) {
+        if (this.check(name, SymbolType.type, decl.name)) {
             return;
         }
 
@@ -297,13 +323,13 @@ export class DeclCollector extends MemberTraverser {
 
         this.translationUnitDeclarations.get(decl.location.source)!.add(
             DiangosicManager.asRange(decl.name.location),
-            [FppTokenType.type, name]
+            [SymbolType.type, name]
         );
     }
 
     private constantCollect(decl: Fpp.ConstantDecl | Fpp.EnumMember, scope: Fpp.QualifiedIdentifier) {
         const name = MemberTraverser.flat(scope, decl.name);
-        if (this.check(name, FppTokenType.constant, decl.name)) {
+        if (this.check(name, SymbolType.constant, decl.name)) {
             return;
         }
 
@@ -312,7 +338,7 @@ export class DeclCollector extends MemberTraverser {
         this.constants.set(name, decl);
         this.translationUnitDeclarations.get(decl.location.source)!.add(
             DiangosicManager.asRange(decl.name.location),
-            [FppTokenType.constant, name]
+            [SymbolType.constant, name]
         );
     }
 
@@ -320,13 +346,17 @@ export class DeclCollector extends MemberTraverser {
         const name = DeclCollector.flat(scope, ast.name);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.module, name]
+            [SymbolType.module, name]
         );
 
         super.moduleDecl(ast, scope);
     }
 
     abstractTypeDecl(ast: Fpp.AbstractTypeDecl, scope: Fpp.QualifiedIdentifier): void {
+        this.typeCollect(ast, scope);
+    }
+
+    aliasTypeDecl(ast: Fpp.AliasTypeDecl, scope: Fpp.QualifiedIdentifier): void {
         this.typeCollect(ast, scope);
     }
 
@@ -367,20 +397,20 @@ export class DeclCollector extends MemberTraverser {
 
     componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
-        if (this.check(name, FppTokenType.componentInstance, ast.name)) {
+        if (this.check(name, SymbolType.componentInstance, ast.name)) {
             return;
         }
 
         this.componentInstances.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.componentInstance, name]
+            [SymbolType.componentInstance, name]
         );
     }
 
     portDecl(ast: Fpp.PortDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
-        if (this.check(name, FppTokenType.port, ast.name)) {
+        if (this.check(name, SymbolType.port, ast.name)) {
             return;
         }
 
@@ -392,7 +422,7 @@ export class DeclCollector extends MemberTraverser {
         this.ports.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.port, name]
+            [SymbolType.port, name]
         );
     }
 
@@ -406,14 +436,14 @@ export class DeclCollector extends MemberTraverser {
         this.graphGroups.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.graphGroup, name]
+            [SymbolType.graphGroup, name]
         );
     }
 
     protected productRecordDecl(ast: Fpp.ProductRecordDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
 
-        if (this.check(name, FppTokenType.record, ast.name)) {
+        if (this.check(name, SymbolType.record, ast.name)) {
             return;
         }
 
@@ -425,7 +455,7 @@ export class DeclCollector extends MemberTraverser {
         this.records.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.record, name]
+            [SymbolType.record, name]
         );
 
         super.productRecordDecl(ast, scope);
@@ -434,7 +464,7 @@ export class DeclCollector extends MemberTraverser {
     protected productContainerDecl(ast: Fpp.ProductContainerDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
 
-        if (this.check(name, FppTokenType.container, ast.name)) {
+        if (this.check(name, SymbolType.container, ast.name)) {
             return;
         }
 
@@ -446,7 +476,7 @@ export class DeclCollector extends MemberTraverser {
         this.containers.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.container, name]
+            [SymbolType.container, name]
         );
 
         super.productContainerDecl(ast, scope);
@@ -454,12 +484,12 @@ export class DeclCollector extends MemberTraverser {
 
     componentDecl(ast: Fpp.ComponentDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
-        if (!this.check(name, FppTokenType.component, ast.name)) {
+        if (!this.check(name, SymbolType.component, ast.name)) {
             this.components.set(name, ast);
             this.dictionary.set(name, new ComponentDictionary(ast));
             this.translationUnitDeclarations.get(ast.location.source)!.add(
                 DiangosicManager.asRange(ast.name.location),
-                [FppTokenType.component, name]
+                [SymbolType.component, name]
             );
         }
 
@@ -468,11 +498,11 @@ export class DeclCollector extends MemberTraverser {
 
     topologyDecl(ast: Fpp.TopologyDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
-        if (!this.check(name, FppTokenType.topology, ast.name)) {
+        if (!this.check(name, SymbolType.topology, ast.name)) {
             this.topologies.set(name, ast);
             this.translationUnitDeclarations.get(ast.location.source)!.add(
                 DiangosicManager.asRange(ast.name.location),
-                [FppTokenType.topology, name]
+                [SymbolType.topology, name]
             );
         }
 
@@ -486,20 +516,20 @@ export class DeclCollector extends MemberTraverser {
             this.generalOutputPortDecl.set(portName, ast);
             this.translationUnitDeclarations.get(ast.location.source)!.add(
                 DiangosicManager.asRange(ast.name.location),
-                [FppTokenType.outputPortDecl, portName]
+                [SymbolType.outputPortDecl, portName]
             );
         } else {
             this.generalInputPortDecl.set(portName, ast);
             this.translationUnitDeclarations.get(ast.location.source)!.add(
                 DiangosicManager.asRange(ast.name.location),
-                [FppTokenType.inputPortDecl, portName]
+                [SymbolType.inputPortDecl, portName]
             );
         }
     }
 
     protected commandDecl(ast: Fpp.CommandDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
-        if (this.check(name, FppTokenType.command, ast.name)) {
+        if (this.check(name, SymbolType.command, ast.name)) {
             return;
         }
 
@@ -514,13 +544,13 @@ export class DeclCollector extends MemberTraverser {
         this.commands.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.command, name]
+            [SymbolType.command, name]
         );
     }
 
     protected eventDecl(ast: Fpp.EventDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
-        if (this.check(name, FppTokenType.event, ast.name)) {
+        if (this.check(name, SymbolType.event, ast.name)) {
             return;
         }
 
@@ -535,13 +565,13 @@ export class DeclCollector extends MemberTraverser {
         this.events.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.event, name]
+            [SymbolType.event, name]
         );
     }
 
     protected paramDecl(ast: Fpp.ParamDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
-        if (this.check(name, FppTokenType.parameter, ast.name)) {
+        if (this.check(name, SymbolType.parameter, ast.name)) {
             return;
         }
 
@@ -553,13 +583,13 @@ export class DeclCollector extends MemberTraverser {
         this.parameters.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.parameter, name]
+            [SymbolType.parameter, name]
         );
     }
 
     protected telemetryChannelDecl(ast: Fpp.TelemetryChannelDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
-        if (this.check(name, FppTokenType.telemetry, ast.name)) {
+        if (this.check(name, SymbolType.telemetry, ast.name)) {
             return;
         }
 
@@ -573,8 +603,88 @@ export class DeclCollector extends MemberTraverser {
         this.telemetry.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
-            [FppTokenType.telemetry, name]
+            [SymbolType.telemetry, name]
         );
+    }
+
+    protected actionDef(ast: Fpp.ActionDef, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.action, ast.name)) {
+            return;
+        }
+
+        this.actions.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.action, name]
+        );
+    }
+
+    protected choiceDef(ast: Fpp.ChoiceDef, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.action, ast.name)) {
+            return;
+        }
+
+        this.actions.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.action, name]
+        );
+    }
+
+    protected guardDef(ast: Fpp.GuardDef, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.guard, ast.name)) {
+            return;
+        }
+
+        this.guards.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.guard, name]
+        );
+    }
+
+    protected signalDef(ast: Fpp.SignalDef, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.signal, ast.name)) {
+            return;
+        }
+
+        this.signals.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.signal, name]
+        );
+    }
+
+    protected stateDef(ast: Fpp.StateDef, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.state, ast.name)) {
+            return;
+        }
+
+        this.states.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.state, name]
+        );
+    }
+
+    protected stateMachineDecl(ast: Fpp.StateMachineDecl, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.stateMachine, ast.name)) {
+            return;
+        }
+
+        this.stateMachines.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.stateMachine, name]
+        );
+
+        super.stateMachineDecl(ast, scope);
     }
 
     private conflict(name: string, original: Fpp.Identifier, conflict: Fpp.Identifier) {
@@ -592,53 +702,65 @@ export class DeclCollector extends MemberTraverser {
         this.emit(vscode.Uri.file(conflict.location.source), diag);
     }
 
-    get(name: string, type: FppTokenType): Fpp.Decl | undefined {
+    get(name: string, type: SymbolType): Fpp.Decl | undefined {
         switch (type) {
-            case FppTokenType.module:
-            case FppTokenType.modifier:
-            case FppTokenType.specialPort:
-            case FppTokenType.formalParameter:
+            case SymbolType.module:
+            case SymbolType.modifier:
+            case SymbolType.specialPort:
+            case SymbolType.formalParameter:
             default:
                 break;
 
-            case FppTokenType.topology:
+            case SymbolType.topology:
                 return this.topologies.get(name);
-            case FppTokenType.component:
+            case SymbolType.component:
                 return this.components.get(name);
-            case FppTokenType.componentInstance:
+            case SymbolType.componentInstance:
                 return this.componentInstances.get(name);
-            case FppTokenType.constant:
+            case SymbolType.constant:
                 return this.constants.get(name);
-            case FppTokenType.graphGroup:
+            case SymbolType.graphGroup:
                 return this.graphGroups.get(name);
-            case FppTokenType.port:
+            case SymbolType.port:
                 return this.ports.get(name);
-            case FppTokenType.type:
+            case SymbolType.type:
                 return this.types.get(name);
-            case FppTokenType.inputPortInstance:
+            case SymbolType.inputPortInstance:
                 return this.generalInputPortInstances.get(name);
-            case FppTokenType.outputPortInstance:
+            case SymbolType.outputPortInstance:
                 return this.generalOutputPortInstances.get(name);
-            case FppTokenType.inputPortDecl:
+            case SymbolType.inputPortDecl:
                 return this.generalInputPortDecl.get(name);
-            case FppTokenType.outputPortDecl:
+            case SymbolType.outputPortDecl:
                 return this.generalOutputPortDecl.get(name);
-            case FppTokenType.command:
+            case SymbolType.command:
                 return this.commands.get(name);
-            case FppTokenType.event:
+            case SymbolType.event:
                 return this.events.get(name);
-            case FppTokenType.parameter:
+            case SymbolType.parameter:
                 return this.parameters.get(name);
-            case FppTokenType.telemetry:
+            case SymbolType.telemetry:
                 return this.telemetry.get(name);
-            case FppTokenType.record:
+            case SymbolType.record:
                 return this.records.get(name);
-            case FppTokenType.container:
+            case SymbolType.container:
                 return this.containers.get(name);
+            case SymbolType.stateMachine:
+                return this.stateMachines.get(name);
+            case SymbolType.stateMachineInstance:
+                return this.stateMachineInstances.get(name);
+            case SymbolType.action:
+                return this.actions.get(name);
+            case SymbolType.guard:
+                return this.guards.get(name);
+            case SymbolType.signal:
+                return this.signals.get(name);
+            case SymbolType.state:
+                return this.states.get(name);
         }
     }
 
-    private check(name: string, type: FppTokenType, token: Fpp.Identifier): boolean {
+    private check(name: string, type: SymbolType, token: Fpp.Identifier): boolean {
         const t = this.get(name, type);
         if (t) {
             this.conflict(name, t.name, token);
@@ -648,7 +770,7 @@ export class DeclCollector extends MemberTraverser {
         return false;
     }
 
-    resolve(ident: Fpp.QualifiedIdentifier, scope: Fpp.QualifiedIdentifier, type: FppTokenType): Fpp.QualifiedIdentifier | undefined {
+    resolve(ident: Fpp.QualifiedIdentifier, scope: Fpp.QualifiedIdentifier, type: SymbolType): Fpp.QualifiedIdentifier | undefined {
         // Identifiers can optionally include their own scopes
         // To resolve an identifier we need to try all implicit combinations
         // of the current scope

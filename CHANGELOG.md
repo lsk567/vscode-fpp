@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.10] - 2024-06-12
+
+- Added support for state machines
+
 ## [1.0.9] - 2024-06-12
 
 - Re-release of 1.0.8 since package.json had some incorrect setting contributions

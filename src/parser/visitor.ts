@@ -16,7 +16,9 @@ import { TerminalNode } from 'antlr4ts/tree/TerminalNode';
 export enum IncludeContext {
     module,
     topology,
-    component
+    component,
+    // stateMachine,
+    // state,
 }
 
 export interface IncludeProduct {
@@ -165,6 +167,12 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
+    /**
+     * Associates lexical items with items in the signature
+     * @param ctx Parsing context or token to mark
+     * @param rule rule id
+     * @param param parameter to park token
+     */
     private associate(ctx: ParserRuleContext | Token | undefined, rule: number, param: string) {
         if (ctx === undefined) { }
         else if (ctx instanceof ParserRuleContext) {
@@ -317,6 +325,36 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
+    // visitProgStateMachine(ctx: FppParser.ProgStateMachineContext): Fpp.TranslationUnit<Fpp.StateMachineMember> {
+    //     if (!ctx) {
+    //         return this.error();
+    //     }
+
+    //     this.includeContextStack.push(IncludeContext.stateMachine);
+
+    //     return {
+    //         type: "TranslationUnit",
+    //         location: this.loc(ctx),
+    //         members: ctx.stateMachineMember().map(this.visitStateMachineMember.bind(this)) as Fpp.StateMachineMember[],
+    //         dependencies: []
+    //     };
+    // }
+
+    // visitProgState(ctx: FppParser.ProgStateContext): Fpp.TranslationUnit<Fpp.StateDefMember> {
+    //     if (!ctx) {
+    //         return this.error();
+    //     }
+
+    //     this.includeContextStack.push(IncludeContext.state);
+
+    //     return {
+    //         type: "TranslationUnit",
+    //         location: this.loc(ctx),
+    //         members: ctx.stateMember().map(this.visitStateMember.bind(this)) as Fpp.StateDefMember[],
+    //         dependencies: []
+    //     };
+    // }
+
     visitAbstractTypeDecl(ctx: FppParser.AbstractTypeDeclContext): Fpp.AbstractTypeDecl {
         if (!ctx) {
             return this.error();
@@ -331,6 +369,24 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             name: this.identifier(ctx._name),
             location: this.loc(ctx),
             fppType: undefined
+        };
+    }
+
+    visitAliasTypeDecl(ctx: FppParser.AliasTypeDeclContext): Fpp.AliasTypeDecl {
+        if (!ctx) {
+            return this.error();
+        }
+
+        this.associate(ctx.TYPE()._symbol, ctx.ruleIndex, "type");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._type, ctx.ruleIndex, "typeName");
+
+        return {
+            type: "AliasTypeDecl",
+            scope: [...this.scope],
+            name: this.identifier(ctx._name),
+            location: this.loc(ctx),
+            fppType: this.visitTypeName(ctx._type),
         };
     }
 
@@ -898,10 +954,10 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             const parsePromise = this.onInclude(outAst.include.value, this.sourceStack, this.scope, currentContext);
             this.promises.push([ctx,
                 parsePromise.then(v => { outAst.resolved = v[1]; return v[0]; })
-                .catch((err) => {
-                    console.error(`Failed to include: ${outAst.include.value}`);
-                    throw err;
-                })
+                    .catch((err) => {
+                        console.error(`Failed to include: ${outAst.include.value}`);
+                        throw err;
+                    })
             ]);
         }
 
@@ -1508,5 +1564,283 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         } else {
             return this.visitExpr(ctx._p);
         }
+    }
+
+    visitActionDef(ctx: FppParser.ActionDefContext): Fpp.ActionDef {
+        if (!ctx) {
+            return this.error();
+        }
+
+        const ty = ctx.typeName();
+
+        this.associate(ctx.ACTION()._symbol, ctx.ruleIndex, "action");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._type, ctx.ruleIndex, "type");
+
+        return {
+            type: "ActionDef",
+            scope: [...this.scope],
+            fppType: ty ? this.visitTypeName(ty) : undefined,
+            location: this.loc(ctx),
+            name: this.identifier(ctx._name),
+        };
+    }
+
+    visitChoiceDef(ctx: FppParser.ChoiceDefContext): Fpp.ChoiceDef {
+        if (!ctx) {
+            return this.error();
+        }
+
+        this.associate(ctx.CHOICE()._symbol, ctx.ruleIndex, "choice");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._guard, ctx.ruleIndex, "guard");
+        this.associate(ctx._then, ctx.ruleIndex, "thenTransition");
+        this.associate(ctx._else, ctx.ruleIndex, "elseTransition");
+
+        return {
+            type: "ChoiceDef",
+            scope: [...this.scope],
+            fppType: undefined,
+            location: this.loc(ctx),
+            name: this.identifier(ctx._name),
+            guard: this.identifier(ctx._guard),
+            then: this.visitTransitionExpr(ctx._then),
+            else: this.visitTransitionExpr(ctx._else),
+        };
+    }
+
+    visitGuardDef(ctx: FppParser.GuardDefContext): Fpp.GuardDef {
+        if (!ctx) {
+            return this.error();
+        }
+
+        this.associate(ctx.GUARD()._symbol, ctx.ruleIndex, "guard");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._type, ctx.ruleIndex, "type");
+
+        const ty = ctx.typeName();
+
+        return {
+            type: "GuardDef",
+            scope: [...this.scope],
+            fppType: ty ? this.visitTypeName(ty) : undefined,
+            location: this.loc(ctx),
+            name: this.identifier(ctx._name),
+        };
+    }
+
+    visitSignalDef(ctx: FppParser.SignalDefContext): Fpp.SignalDef {
+        if (!ctx) {
+            return this.error();
+        }
+
+        this.associate(ctx.SIGNAL()._symbol, ctx.ruleIndex, "signal");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._type, ctx.ruleIndex, "type");
+
+        const ty = ctx.typeName();
+
+        return {
+            type: "SignalDef",
+            scope: [...this.scope],
+            fppType: ty ? this.visitTypeName(ty) : undefined,
+            location: this.loc(ctx),
+            name: this.identifier(ctx._name),
+        };
+    }
+
+    visitDoExpr(ctx: FppParser.DoExprContext): Fpp.DoExpr {
+        if (!ctx) {
+            return this.error();
+        }
+
+        return {
+            type: "DoExpr",
+            location: this.loc(ctx),
+            actions: ctx.IDENTIFIER().map(v => this.identifier(v._symbol))
+        };
+    }
+
+    visitTransitionExpr(ctx: FppParser.TransitionExprContext): Fpp.TransitionExpr {
+        if (!ctx) {
+            return this.error();
+        }
+
+        const do_ = ctx.doExpr();
+
+        return {
+            type: "TransitionExpr",
+            location: this.loc(ctx),
+            do: do_ ? this.visitDoExpr(do_) : undefined,
+            state: this.visitQualIdent_(ctx._state)
+        };
+    }
+
+    visitInitialTransition(ctx: FppParser.InitialTransitionContext): Fpp.InitialTransition {
+        if (!ctx) {
+            return this.error();
+        }
+
+        return {
+            type: "InitialTransition",
+            location: this.loc(ctx),
+            transition: this.visitTransitionExpr(ctx._transition),
+        };
+    }
+
+    visitTransitionOrDoExpr(ctx: FppParser.TransitionOrDoExprContext): Fpp.DoExpr | Fpp.TransitionExpr {
+        if (!ctx) {
+            return this.error();
+        }
+
+        const transExpr = ctx.transitionExpr();
+        const doExpr = ctx.doExpr();
+
+        if (transExpr) {
+            return this.visitTransitionExpr(transExpr);
+        } else if (doExpr) {
+            return this.visitDoExpr(doExpr);
+        }
+
+        return this.error();
+    }
+
+    visitStateTransition(ctx: FppParser.StateTransitionContext): Fpp.StateTransition {
+        if (!ctx) {
+            return this.error();
+        }
+
+        return {
+            type: "StateTransition",
+            location: this.loc(ctx),
+            signal: this.identifier(ctx._signal),
+            guard: ctx._guard ? this.identifier(ctx._guard) : undefined,
+            transition: this.visitTransitionOrDoExpr(ctx._transition),
+        };
+    }
+
+    visitStateEntry(ctx: FppParser.StateEntryContext): Fpp.StateEntry {
+        if (!ctx) {
+            return this.error();
+        }
+
+        return {
+            type: "StateEntry",
+            location: this.loc(ctx),
+            do: this.visitDoExpr(ctx._do),
+        };
+    }
+
+    visitStateExit(ctx: FppParser.StateExitContext): Fpp.StateExit {
+        if (!ctx) {
+            return this.error();
+        }
+
+        return {
+            type: "StateExit",
+            location: this.loc(ctx),
+            do: this.visitDoExpr(ctx._do),
+        };
+    }
+
+    visitStateMember(ctx: FppParser.StateMemberContext): Fpp.StateDefMember {
+        const out = this.visit(ctx.stateMemberTempl()) as Fpp.StateDefMember;
+        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.ANNOTATION());
+        return out;
+    }
+
+    visitStateDef(ctx: FppParser.StateDefContext): Fpp.StateDef {
+        if (!ctx) {
+            return this.error();
+        }
+
+        const name = this.identifier(ctx._name);
+
+        // this.includeContextStack.push(IncludeContext.state);
+
+        const oldScope = this.scope;
+        this.scope = [...this.scope, name];
+
+        const members: Fpp.StateDefMember[] = [];
+        for (const memberCtx of ctx.stateMember()) {
+            try {
+                members.push(this.visitStateMember(memberCtx));
+            } catch (e) { }
+        }
+
+        this.scope = oldScope;
+        // this.includeContextStack.pop();
+
+        return {
+            type: "StateDef",
+            scope: [...this.scope],
+            fppType: undefined,
+            location: this.loc(ctx),
+            name,
+            members
+        };
+    }
+
+    visitStateMachineMember(ctx: FppParser.StateMachineMemberContext): Fpp.StateMachineMember {
+        const out = this.visit(ctx.stateMachineMemberTempl()) as Fpp.StateMachineMember;
+        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.ANNOTATION());
+        return out;
+    }
+
+    visitStateMachineDef(ctx: FppParser.StateMachineDefContext): Fpp.StateMachineDecl {
+        if (!ctx) {
+            return this.error();
+        }
+
+        const name = this.identifier(ctx._name);
+
+        // this.includeContextStack.push(IncludeContext.stateMachine);
+
+        const oldScope = this.scope;
+        this.scope = [...this.scope, name];
+
+        const members: Fpp.StateMachineMember[] = [];
+        for (const memberCtx of ctx.stateMachineMember()) {
+            try {
+                members.push(this.visitStateMachineMember(memberCtx));
+            } catch (e) { }
+        }
+
+        this.scope = oldScope;
+        // this.includeContextStack.pop();
+
+        return {
+            type: "StateMachineDecl",
+            scope: [...this.scope],
+            fppType: undefined,
+            location: this.loc(ctx),
+            name,
+            members
+        };
+    }
+
+    visitStateMachineInstance(ctx: FppParser.StateMachineInstanceContext): Fpp.StateMachineInstance {
+        if (!ctx) {
+            return this.error();
+        }
+
+        this.associate(ctx.STATE()._symbol, ctx.ruleIndex, "state");
+        this.associate(ctx.MACHINE()._symbol, ctx.ruleIndex, "machine");
+        this.associate(ctx.INSTANCE()._symbol, ctx.ruleIndex, "instance");
+        this.associate(ctx._name, ctx.ruleIndex, "name");
+        this.associate(ctx._stateMachine, ctx.ruleIndex, "stateMachine");
+        this.associate(ctx._priority, ctx.ruleIndex, "priority");
+        this.associate(ctx._queueFull, ctx.ruleIndex, "queueFull");
+
+        return {
+            type: "StateMachineInstance",
+            location: this.loc(ctx),
+            fppType: undefined,
+            scope: [...this.scope],
+            name: this.identifier(ctx._name),
+            stateMachine: this.visitQualIdent_(ctx._stateMachine),
+            priority: ctx._priority ? this.visitExpr(ctx._priority) : undefined,
+            queueFull: ctx._queueFull ? this.visitQueueFullBehavior(ctx._queueFull) : undefined
+        };
     }
 }

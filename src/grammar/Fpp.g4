@@ -15,7 +15,20 @@ progComponent:
     EOF
     ;
 
+// progStateMachine:
+//     NL* (stateMachineMember (semiDelim | EOF))* NL*
+//     EOF
+//     ;
+
+// progState:
+//     NL* (stateMember (semiDelim | EOF))* NL*
+//     EOF
+//     ;
+
 abstractTypeDecl: TYPE name=IDENTIFIER;
+
+aliasTypeDecl: TYPE name=IDENTIFIER '=' type=typeName;
+
 arrayDecl:
     ARRAY name=IDENTIFIER '=' '[' size=expr ']'
     type=typeName
@@ -103,6 +116,53 @@ telemetryChannelDecl:
     (HIGH high=telemetryLimit)?
     ;
 
+actionDef: ACTION name=IDENTIFIER (':' type=typeName)?;
+choiceDef: CHOICE name=IDENTIFIER '{' IF guard=IDENTIFIER then=transitionExpr ELSE else=transitionExpr '}';
+guardDef: GUARD name=IDENTIFIER (':' type=typeName)?;
+signalDef: SIGNAL name=IDENTIFIER (':' type=typeName)?;
+
+doExpr: DO '{' NL* (IDENTIFIER (commaDelim IDENTIFIER)*)? commaDelim? '}';
+transitionExpr: do=doExpr? ENTER state=qualIdent;
+initialTransition: INITIAL transition=transitionExpr;
+
+transitionOrDoExpr: transitionExpr | doExpr;
+stateTransition: ON signal=IDENTIFIER (IF guard=IDENTIFIER)? transition=transitionOrDoExpr;
+stateEntry: ENTRY do=doExpr;
+stateExit: EXIT do=doExpr;
+
+stateMemberTempl:
+    initialTransition
+    | choiceDef
+    | stateDef
+    | stateTransition
+    | stateEntry
+    | stateExit
+    ;
+
+stateMember: preAnnotation? stateMemberTempl ANNOTATION?;
+stateDef: STATE name=IDENTIFIER ('{'
+        NL* (stateMember semiDelim)* NL*
+    '}')?;
+
+stateMachineMemberTempl:
+    choiceDef
+    | guardDef
+    | initialTransition
+    | signalDef
+    | stateDef
+    | actionDef
+    ;
+
+stateMachineMember: preAnnotation? stateMachineMemberTempl ANNOTATION?;
+stateMachineDef: STATE MACHINE name=IDENTIFIER
+    ('{' NL* (stateMachineMember semiDelim)* NL* '}')?
+    ;
+
+stateMachineInstance: STATE MACHINE INSTANCE name=IDENTIFIER ':' stateMachine=qualIdent
+    (PRIORITY priority=expr)?
+    queueFull=queueFullBehavior?
+    ;
+
 enumMember: name=IDENTIFIER ('=' value=expr)?;
 enumMemberN: preAnnotation? enumMember (','? postAnnotation | commaDelim);
 enumMemberL: preAnnotation? enumMember (','? postAnnotation | commaDelim)?;
@@ -165,6 +225,7 @@ componentInstanceDecl:
 componentKind: ACTIVE | PASSIVE | QUEUED;
 componentMemberTempl:
     abstractTypeDecl
+    | aliasTypeDecl
     | arrayDecl
     | constantDecl
     | structDecl
@@ -180,6 +241,8 @@ componentMemberTempl:
     | matchStmt
     | recordSpecifierDecl
     | containerSpecifierDecl
+    | stateMachineInstance
+    | stateMachineDef
     ;
 
 componentMember: preAnnotation? componentMemberTempl ANNOTATION?;
@@ -250,6 +313,7 @@ locationStmt:
 
 moduleMemberTempl:
     abstractTypeDecl
+    | aliasTypeDecl
     | arrayDecl
     | componentDecl
     | componentInstanceDecl
@@ -261,6 +325,7 @@ moduleMemberTempl:
     | enumDecl
     | includeStmt
     | topologyDecl
+    | stateMachineDef
     ;
 
 moduleMember: preAnnotation? moduleMemberTempl ANNOTATION?;
@@ -356,17 +421,18 @@ LIT_INT: [0][Xx][0-9a-fA-F]+
 // Tokens
 ////////////////////////
 
-U8: 'U8';
-I8: 'I8';
-U16: 'U16';
-I16: 'I16';
-U32: 'U32';
-I32: 'I32';
-U64: 'U64';
-I64: 'I64';
 F32: 'F32';
 F64: 'F64';
+I16: 'I16';
+I32: 'I32';
+I64: 'I64';
+I8: 'I8';
+U16: 'U16';
+U32: 'U32';
+U64: 'U64';
+U8: 'U8';
 
+ACTION: 'action';
 ACTIVE: 'active';
 ACTIVITY: 'activity';
 ALWAYS: 'always';
@@ -378,6 +444,7 @@ BASE: 'base';
 BLOCK: 'block';
 BOOL: 'bool';
 CHANGE: 'change';
+CHOICE: 'choice';
 COMMAND: 'command';
 COMPONENT: 'component';
 CONNECTIONS: 'connections';
@@ -386,24 +453,34 @@ CONTAINER: 'container';
 CPU: 'cpu';
 DEFAULT: 'default';
 DIAGNOSTIC: 'diagnostic';
+DO: 'do';
 DROP: 'drop';
+ELSE: 'else';
+ENTER: 'enter';
+ENTRY: 'entry';
 ENUM: 'enum';
 EVENT: 'event';
+EXIT: 'exit';
 FALSE: 'false';
 FATAL: 'fatal';
 FORMAT: 'format';
 GET: 'get';
+GUARD: 'guard';
 GUARDED: 'guarded';
 HEALTH: 'health';
 HIGH: 'high';
+HOOK: 'hook';
 ID: 'id';
+IF: 'if';
 IMPORT: 'import';
 INCLUDE: 'include';
+INITIAL: 'initial';
 INPUT: 'input';
 INSTANCE: 'instance';
 INTERNAL: 'internal';
 LOCATE: 'locate';
 LOW: 'low';
+MACHINE: 'machine';
 MATCH: 'match';
 MODULE: 'module';
 ON: 'on';
@@ -431,8 +508,10 @@ SEND: 'send';
 SERIAL: 'serial';
 SET: 'set';
 SEVERITY: 'severity';
+SIGNAL: 'signal';
 SIZE: 'size';
 STACK: 'stack';
+STATE: 'state';
 STRING: 'string';
 STRUCT: 'struct';
 SYNC: 'sync';
@@ -443,6 +522,7 @@ TIME: 'time';
 TOPOLOGY: 'topology';
 TRUE: 'true';
 TYPE: 'type';
+UNMATCHED: 'unmatched';
 UPDATE: 'update';
 WARNING: 'warning';
 WITH: 'with';

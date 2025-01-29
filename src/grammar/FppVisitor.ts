@@ -7,6 +7,7 @@ import { ProgContext } from "./FppParser";
 import { ProgTopologyContext } from "./FppParser";
 import { ProgComponentContext } from "./FppParser";
 import { AbstractTypeDeclContext } from "./FppParser";
+import { AliasTypeDeclContext } from "./FppParser";
 import { ArrayDeclContext } from "./FppParser";
 import { ConstantDeclContext } from "./FppParser";
 import { StructMemberContext } from "./FppParser";
@@ -27,6 +28,24 @@ import { TelemetryLimitExprContext } from "./FppParser";
 import { TelemetryLimitContext } from "./FppParser";
 import { TelemetryUpdateContext } from "./FppParser";
 import { TelemetryChannelDeclContext } from "./FppParser";
+import { ActionDefContext } from "./FppParser";
+import { ChoiceDefContext } from "./FppParser";
+import { GuardDefContext } from "./FppParser";
+import { SignalDefContext } from "./FppParser";
+import { DoExprContext } from "./FppParser";
+import { TransitionExprContext } from "./FppParser";
+import { InitialTransitionContext } from "./FppParser";
+import { TransitionOrDoExprContext } from "./FppParser";
+import { StateTransitionContext } from "./FppParser";
+import { StateEntryContext } from "./FppParser";
+import { StateExitContext } from "./FppParser";
+import { StateMemberTemplContext } from "./FppParser";
+import { StateMemberContext } from "./FppParser";
+import { StateDefContext } from "./FppParser";
+import { StateMachineMemberTemplContext } from "./FppParser";
+import { StateMachineMemberContext } from "./FppParser";
+import { StateMachineDefContext } from "./FppParser";
+import { StateMachineInstanceContext } from "./FppParser";
 import { EnumMemberContext } from "./FppParser";
 import { EnumMemberNContext } from "./FppParser";
 import { EnumMemberLContext } from "./FppParser";
@@ -115,6 +134,13 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	 * @return the visitor result
 	 */
 	visitAbstractTypeDecl?: (ctx: AbstractTypeDeclContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.aliasTypeDecl`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitAliasTypeDecl?: (ctx: AliasTypeDeclContext) => Result;
 
 	/**
 	 * Visit a parse tree produced by `FppParser.arrayDecl`.
@@ -255,6 +281,132 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	 * @return the visitor result
 	 */
 	visitTelemetryChannelDecl?: (ctx: TelemetryChannelDeclContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.actionDef`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitActionDef?: (ctx: ActionDefContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.choiceDef`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitChoiceDef?: (ctx: ChoiceDefContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.guardDef`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitGuardDef?: (ctx: GuardDefContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.signalDef`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitSignalDef?: (ctx: SignalDefContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.doExpr`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitDoExpr?: (ctx: DoExprContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.transitionExpr`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitTransitionExpr?: (ctx: TransitionExprContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.initialTransition`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitInitialTransition?: (ctx: InitialTransitionContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.transitionOrDoExpr`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitTransitionOrDoExpr?: (ctx: TransitionOrDoExprContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.stateTransition`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStateTransition?: (ctx: StateTransitionContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.stateEntry`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStateEntry?: (ctx: StateEntryContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.stateExit`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStateExit?: (ctx: StateExitContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.stateMemberTempl`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStateMemberTempl?: (ctx: StateMemberTemplContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.stateMember`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStateMember?: (ctx: StateMemberContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.stateDef`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStateDef?: (ctx: StateDefContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.stateMachineMemberTempl`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStateMachineMemberTempl?: (ctx: StateMachineMemberTemplContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.stateMachineMember`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStateMachineMember?: (ctx: StateMachineMemberContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.stateMachineDef`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStateMachineDef?: (ctx: StateMachineDefContext) => Result;
+
+	/**
+	 * Visit a parse tree produced by `FppParser.stateMachineInstance`.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	visitStateMachineInstance?: (ctx: StateMachineInstanceContext) => Result;
 
 	/**
 	 * Visit a parse tree produced by `FppParser.enumMember`.
