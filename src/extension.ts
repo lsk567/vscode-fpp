@@ -530,7 +530,9 @@ class FppExtension implements
             [SymbolType.inputPortInstance, [this.project.decl.generalInputPortInstances, vscode.CompletionItemKind.Function]],
             [SymbolType.outputPortInstance, [this.project.decl.generalOutputPortInstances, vscode.CompletionItemKind.Function]],
             [SymbolType.action, [this.project.decl.actions, vscode.CompletionItemKind.Function]],
-            [SymbolType.stateMachine, [this.project.decl.stateMachines, vscode.CompletionItemKind.Class]]
+            [SymbolType.stateMachine, [this.project.decl.stateMachines, vscode.CompletionItemKind.Class]],
+            [SymbolType.signal, [this.project.decl.signals, vscode.CompletionItemKind.Event]],
+            [SymbolType.state, [this.project.decl.states, vscode.CompletionItemKind.EnumMember]]
         ]);
 
         const mapping = declTypeMap.get(declType);
@@ -544,6 +546,12 @@ class FppExtension implements
         }
 
         return [];
+    }
+
+    private symbolsInScope<T extends Fpp.Decl>(map: Map<string, T>, scope: string[]): [string, T][] {
+        const prefix = scope.join(".");
+        return Array.from(map.entries())
+            .filter(([qualIdent, _]) => qualIdent.startsWith(prefix));
     }
 
     provideCompletionItems(
@@ -633,6 +641,60 @@ class FppExtension implements
                     qualIdentInfo?.context as QualIdentContext, candidates.scope
                 ));
             }
+        }
+
+        if (candidates.rules.get(FppParser.RULE_doExpr)) {
+            if (candidates.tokens.has(FppParser.IDENTIFIER)) {
+                const decls = this.symbolsInScope(this.project.decl.actions, candidates.scope);
+                return decls.map(([_, v]) => new vscode.CompletionItem(v.name.value, vscode.CompletionItemKind.Function));
+            }
+        }
+
+        const stateTransition = candidates.rules.get(FppParser.RULE_stateTransition);
+        if (stateTransition) {
+            if (candidates.tokens.has(FppParser.IDENTIFIER)) {
+                // Decide what to suggest based on the previous token
+                const lastToken = stateTransition.context.stop;
+                if (lastToken) {
+                    switch (lastToken.type) {
+                        case FppParser.ON:
+                            return this.symbolsInScope(this.project.decl.signals, candidates.scope)
+                                .map(([_, v]) => new vscode.CompletionItem(v.name.value, vscode.CompletionItemKind.Function));
+                        case FppParser.IF:
+                            return this.symbolsInScope(this.project.decl.guards, candidates.scope)
+                                .map(([_, v]) => new vscode.CompletionItem(v.name.value, vscode.CompletionItemKind.Variable));
+                    }
+                }
+            }
+        }
+
+        const choiceDef = candidates.rules.get(FppParser.RULE_choiceDef);
+        if (choiceDef) {
+            if (candidates.tokens.has(FppParser.IDENTIFIER)) {
+                // Decide what to suggest based on the previous token
+                const lastToken = choiceDef.context.stop;
+                if (lastToken) {
+                    switch (lastToken.type) {
+                        case FppParser.CHOICE:
+                            return this.symbolsInScope(this.project.decl.guards, candidates.scope)
+                                .map(([_, v]) => new vscode.CompletionItem(v.name.value, vscode.CompletionItemKind.Function));
+                        case FppParser.IF:
+                            return this.symbolsInScope(this.project.decl.guards, candidates.scope)
+                                .map(([_, v]) => new vscode.CompletionItem(v.name.value, vscode.CompletionItemKind.Variable));
+                    }
+                }
+            }
+        }
+
+        if (candidates.rules.get(FppParser.RULE_transitionExpr)) {
+            // The current scope should be the state machine scope
+            // All states that start with this should be suggested
+            const decls = this.symbolsInScope(this.project.decl.states, candidates.scope);
+            const scope = candidates.scope.join(".");
+            return decls.map(([key, _]) => new vscode.CompletionItem(
+                key.substring(scope.length + 1),
+                vscode.CompletionItemKind.Function
+            ));
         }
 
         return out;

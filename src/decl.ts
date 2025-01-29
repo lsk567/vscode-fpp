@@ -76,8 +76,6 @@ const tokenMetadata = Object.entries(tokenMetadataR).sort((a, b) => parseInt(a[0
     .map(key => (tokenMetadataR as any)[key[0]] as TokenMetadata);
 
 export const tokenTypeNames: string[] = tokenMetadata.map(v => v[0]);
-console.log(tokenTypeNames);
-console.log(tokenMetadata);
 
 export const fppLegend = new vscode.SemanticTokensLegend(
     tokenMetadata.map(v => v[1]),
@@ -117,10 +115,13 @@ export class DeclCollector extends MemberTraverser {
 
     stateMachines = new Map<string, Fpp.StateMachineDecl>();
     stateMachineInstances = new Map<string, Fpp.StateMachineInstance>();
-    actions = new Map<string, Fpp.ActionDef | Fpp.ChoiceDef>();
+    actions = new Map<string, Fpp.ActionDef>();
     guards = new Map<string, Fpp.GuardDef>();
     signals = new Map<string, Fpp.SignalDef>();
-    states = new Map<string, Fpp.StateDef>();
+
+    // States have a special key encoding:
+    // normal.qualified.ident.for.statemachine|state.qual.ident
+    states = new Map<string, Fpp.StateDef | Fpp.ChoiceDef>();
 
     dictionary = new Map<string, ComponentDictionary>();
     references = new ReferenceTracker<vscode.Range>();
@@ -620,16 +621,16 @@ export class DeclCollector extends MemberTraverser {
         );
     }
 
-    protected choiceDef(ast: Fpp.ChoiceDef, scope: Fpp.QualifiedIdentifier): void {
-        const name = MemberTraverser.flat(scope, ast.name);
-        if (this.check(name, SymbolType.action, ast.name)) {
+    protected choiceDef(ast: Fpp.ChoiceDef, scope: Fpp.QualifiedIdentifier, stateScope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat([...scope, ...stateScope], ast.name);
+        if (this.check(name, SymbolType.state, ast.name)) {
             return;
         }
 
-        this.actions.set(name, ast);
+        this.states.set(name, ast);
         this.translationUnitDeclarations.get(ast.location.source)!.add(
             DiangosicManager.asRange(ast.name.location),
-            [SymbolType.action, name]
+            [SymbolType.state, name]
         );
     }
 
@@ -659,8 +660,8 @@ export class DeclCollector extends MemberTraverser {
         );
     }
 
-    protected stateDef(ast: Fpp.StateDef, scope: Fpp.QualifiedIdentifier): void {
-        const name = MemberTraverser.flat(scope, ast.name);
+    protected stateDef(ast: Fpp.StateDef, scope: Fpp.QualifiedIdentifier, stateScope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat([...scope, ...stateScope], ast.name);
         if (this.check(name, SymbolType.state, ast.name)) {
             return;
         }
@@ -670,6 +671,8 @@ export class DeclCollector extends MemberTraverser {
             DiangosicManager.asRange(ast.name.location),
             [SymbolType.state, name]
         );
+
+        super.stateDef(ast, scope, stateScope);
     }
 
     protected stateMachineDecl(ast: Fpp.StateMachineDecl, scope: Fpp.QualifiedIdentifier): void {
@@ -770,12 +773,17 @@ export class DeclCollector extends MemberTraverser {
         return false;
     }
 
-    resolve(ident: Fpp.QualifiedIdentifier, scope: Fpp.QualifiedIdentifier, type: SymbolType): Fpp.QualifiedIdentifier | undefined {
+    resolve(
+        ident: Fpp.QualifiedIdentifier,
+        scope: Fpp.QualifiedIdentifier,
+        type: SymbolType,
+        lookFrom: Fpp.QualifiedIdentifier = [],
+    ): Fpp.QualifiedIdentifier | undefined {
         // Identifiers can optionally include their own scopes
         // To resolve an identifier we need to try all implicit combinations
         // of the current scope
 
-        let tryScope: Fpp.QualifiedIdentifier = [];
+        let tryScope: Fpp.QualifiedIdentifier = [...lookFrom];
         for (const subScope of scope) {
             const full = tryScope.concat(ident);
             const name = MemberTraverser.flat(full);
