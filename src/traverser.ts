@@ -151,7 +151,7 @@ export abstract class MemberTraverser extends DiangosicManager {
                     throw new Error(`Unhandled declaration type ${(ast as any).type}: ${ast}`);
             }
         } catch (e) {
-            // console.error(e);
+            console.error(e);
         }
     }
 
@@ -231,7 +231,7 @@ export abstract class MemberTraverser extends DiangosicManager {
 
     protected stateDef(ast: Fpp.StateDef, scope: Fpp.QualifiedIdentifier) {
         for (const member of ast.members) {
-            this.traverse(member, [...scope, ast.name]);
+            this.traverse(member, scope);
         }
     }
 }

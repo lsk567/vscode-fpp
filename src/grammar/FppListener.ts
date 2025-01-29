@@ -8,7 +8,6 @@ import { ProgTopologyContext } from "./FppParser";
 import { ProgComponentContext } from "./FppParser";
 import { AbstractTypeDeclContext } from "./FppParser";
 import { AliasTypeDeclContext } from "./FppParser";
-import { ActionDeclContext } from "./FppParser";
 import { ArrayDeclContext } from "./FppParser";
 import { ConstantDeclContext } from "./FppParser";
 import { StructMemberContext } from "./FppParser";
@@ -159,17 +158,6 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitAliasTypeDecl?: (ctx: AliasTypeDeclContext) => void;
-
-	/**
-	 * Enter a parse tree produced by `FppParser.actionDecl`.
-	 * @param ctx the parse tree
-	 */
-	enterActionDecl?: (ctx: ActionDeclContext) => void;
-	/**
-	 * Exit a parse tree produced by `FppParser.actionDecl`.
-	 * @param ctx the parse tree
-	 */
-	exitActionDecl?: (ctx: ActionDeclContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.arrayDecl`.

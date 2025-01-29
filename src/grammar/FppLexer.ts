@@ -180,7 +180,7 @@ export class FppLexer extends Lexer {
 	];
 
 	private static readonly _LITERAL_NAMES: Array<string | undefined> = [
-		undefined, "'='", "':'", "'['", "']'", "','", "'{'", "'}'", "'->'", "'('", 
+		undefined, "'='", "'['", "']'", "':'", "','", "'{'", "'}'", "'->'", "'('", 
 		"')'", "'.'", "';'", "'-'", "'*'", "'/'", "'+'", undefined, undefined, 
 		undefined, undefined, undefined, undefined, undefined, undefined, undefined, 
 		"'F32'", "'F64'", "'I16'", "'I32'", "'I64'", "'I8'", "'U16'", "'U32'", 
@@ -453,9 +453,9 @@ export class FppLexer extends Lexer {
 		"\x02\x02\u0105\u041D\x03\x02\x02\x02\u0107\u0422\x03\x02\x02\x02\u0109" +
 		"\u042C\x03\x02\x02\x02\u010B\u0433\x03\x02\x02\x02\u010D\u043B\x03\x02" +
 		"\x02\x02\u010F\u0440\x03\x02\x02\x02\u0111\u0448\x03\x02\x02\x02\u0113" +
-		"\u0114\x07?\x02\x02\u0114\x04\x03\x02\x02\x02\u0115\u0116\x07<\x02\x02" +
-		"\u0116\x06\x03\x02\x02\x02\u0117\u0118\x07]\x02\x02\u0118\b\x03\x02\x02" +
-		"\x02\u0119\u011A\x07_\x02\x02\u011A\n\x03\x02\x02\x02\u011B\u011C\x07" +
+		"\u0114\x07?\x02\x02\u0114\x04\x03\x02\x02\x02\u0115\u0116\x07]\x02\x02" +
+		"\u0116\x06\x03\x02\x02\x02\u0117\u0118\x07_\x02\x02\u0118\b\x03\x02\x02" +
+		"\x02\u0119\u011A\x07<\x02\x02\u011A\n\x03\x02\x02\x02\u011B\u011C\x07" +
 		".\x02\x02\u011C\f\x03\x02\x02\x02\u011D\u011E\x07}\x02\x02\u011E\x0E\x03" +
 		"\x02\x02\x02\u011F\u0120\x07\x7F\x02\x02\u0120\x10\x03\x02\x02\x02\u0121" +
 		"\u0122\x07/\x02\x02\u0122\u0123\x07@\x02\x02\u0123\x12\x03\x02\x02\x02" +

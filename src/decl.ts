@@ -26,11 +26,10 @@ export enum SymbolType {
     stateMachine,
     stateMachineInstance,
 
-    actionDef,
-    choiceDef,
-    guardDef,
-    signalDef,
-    stateDef,
+    action,
+    guard,
+    signal,
+    state,
 
     // Dictoinary entries
     command,
@@ -67,18 +66,18 @@ const tokenMetadataR: Record<SymbolType, TokenMetadata> = {
     [SymbolType.telemetry]: ["Telemetry", "function"],
     [SymbolType.record]: ["Data Product Record", "function"],
     [SymbolType.container]: ["Data Product Container", "function"],
-    [SymbolType.actionDef]: ["Action", "function"],
-    [SymbolType.choiceDef]: ["Choice", "function"],
-    [SymbolType.guardDef]: ["Guard", "variable"],
-    [SymbolType.signalDef]: ["Signal", "event"],
-    [SymbolType.stateDef]: ["State", "enumMember"]
+    [SymbolType.action]: ["Action", "function"],
+    [SymbolType.guard]: ["Guard", "variable"],
+    [SymbolType.signal]: ["Signal", "event"],
+    [SymbolType.state]: ["State", "enumMember"]
 };
 
-const tokenMetadata = Object.values(SymbolType).filter(
-    v => typeof v === "number"
-).sort().map(key => tokenMetadataR[key]);
+const tokenMetadata = Object.entries(tokenMetadataR).sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+    .map(key => (tokenMetadataR as any)[key[0]] as TokenMetadata);
 
 export const tokenTypeNames: string[] = tokenMetadata.map(v => v[0]);
+console.log(tokenTypeNames);
+console.log(tokenMetadata);
 
 export const fppLegend = new vscode.SemanticTokensLegend(
     tokenMetadata.map(v => v[1]),
@@ -118,6 +117,10 @@ export class DeclCollector extends MemberTraverser {
 
     stateMachines = new Map<string, Fpp.StateMachineDecl>();
     stateMachineInstances = new Map<string, Fpp.StateMachineInstance>();
+    actions = new Map<string, Fpp.ActionDef | Fpp.ChoiceDef>();
+    guards = new Map<string, Fpp.GuardDef>();
+    signals = new Map<string, Fpp.SignalDef>();
+    states = new Map<string, Fpp.StateDef>();
 
     dictionary = new Map<string, ComponentDictionary>();
     references = new ReferenceTracker<vscode.Range>();
@@ -254,11 +257,18 @@ export class DeclCollector extends MemberTraverser {
                     case SymbolType.stateMachineInstance:
                         this.stateMachineInstances.delete(decl);
                         break;
-                    case SymbolType.actionDef:
-                    case SymbolType.choiceDef:
-                    case SymbolType.guardDef:
-                    case SymbolType.signalDef:
-                    case SymbolType.stateDef:
+                    case SymbolType.action:
+                        this.actions.delete(decl);
+                        break;
+                    case SymbolType.guard:
+                        this.guards.delete(decl);
+                        break;
+                    case SymbolType.signal:
+                        this.signals.delete(decl);
+                        break;
+                    case SymbolType.state:
+                        this.states.delete(decl);
+                        break;
 
                     case SymbolType.modifier:
                     case SymbolType.specialPort:
@@ -597,6 +607,86 @@ export class DeclCollector extends MemberTraverser {
         );
     }
 
+    protected actionDef(ast: Fpp.ActionDef, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.action, ast.name)) {
+            return;
+        }
+
+        this.actions.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.action, name]
+        );
+    }
+
+    protected choiceDef(ast: Fpp.ChoiceDef, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.action, ast.name)) {
+            return;
+        }
+
+        this.actions.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.action, name]
+        );
+    }
+
+    protected guardDef(ast: Fpp.GuardDef, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.guard, ast.name)) {
+            return;
+        }
+
+        this.guards.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.guard, name]
+        );
+    }
+
+    protected signalDef(ast: Fpp.SignalDef, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.signal, ast.name)) {
+            return;
+        }
+
+        this.signals.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.signal, name]
+        );
+    }
+
+    protected stateDef(ast: Fpp.StateDef, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.state, ast.name)) {
+            return;
+        }
+
+        this.states.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.state, name]
+        );
+    }
+
+    protected stateMachineDecl(ast: Fpp.StateMachineDecl, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.stateMachine, ast.name)) {
+            return;
+        }
+
+        this.stateMachines.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.stateMachine, name]
+        );
+
+        super.stateMachineDecl(ast, scope);
+    }
+
     private conflict(name: string, original: Fpp.Identifier, conflict: Fpp.Identifier) {
         const diag = new vscode.Diagnostic(
             MemberTraverser.asRange(conflict.location),
@@ -655,6 +745,18 @@ export class DeclCollector extends MemberTraverser {
                 return this.records.get(name);
             case SymbolType.container:
                 return this.containers.get(name);
+            case SymbolType.stateMachine:
+                return this.stateMachines.get(name);
+            case SymbolType.stateMachineInstance:
+                return this.stateMachineInstances.get(name);
+            case SymbolType.action:
+                return this.actions.get(name);
+            case SymbolType.guard:
+                return this.guards.get(name);
+            case SymbolType.signal:
+                return this.signals.get(name);
+            case SymbolType.state:
+                return this.states.get(name);
         }
     }
 

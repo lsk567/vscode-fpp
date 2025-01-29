@@ -8,7 +8,6 @@ import { ProgTopologyContext } from "./FppParser";
 import { ProgComponentContext } from "./FppParser";
 import { AbstractTypeDeclContext } from "./FppParser";
 import { AliasTypeDeclContext } from "./FppParser";
-import { ActionDeclContext } from "./FppParser";
 import { ArrayDeclContext } from "./FppParser";
 import { ConstantDeclContext } from "./FppParser";
 import { StructMemberContext } from "./FppParser";
@@ -142,13 +141,6 @@ export interface FppVisitor<Result> extends ParseTreeVisitor<Result> {
 	 * @return the visitor result
 	 */
 	visitAliasTypeDecl?: (ctx: AliasTypeDeclContext) => Result;
-
-	/**
-	 * Visit a parse tree produced by `FppParser.actionDecl`.
-	 * @param ctx the parse tree
-	 * @return the visitor result
-	 */
-	visitActionDecl?: (ctx: ActionDeclContext) => Result;
 
 	/**
 	 * Visit a parse tree produced by `FppParser.arrayDecl`.

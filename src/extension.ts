@@ -529,6 +529,8 @@ class FppExtension implements
             [SymbolType.type, [this.project.decl.types, vscode.CompletionItemKind.Class]],
             [SymbolType.inputPortInstance, [this.project.decl.generalInputPortInstances, vscode.CompletionItemKind.Function]],
             [SymbolType.outputPortInstance, [this.project.decl.generalOutputPortInstances, vscode.CompletionItemKind.Function]],
+            [SymbolType.action, [this.project.decl.actions, vscode.CompletionItemKind.Function]],
+            [SymbolType.stateMachine, [this.project.decl.stateMachines, vscode.CompletionItemKind.Class]]
         ]);
 
         const mapping = declTypeMap.get(declType);
@@ -607,6 +609,8 @@ class FppExtension implements
                 [FppParser.RULE_patternGraphSources, SymbolType.componentInstance],
                 [FppParser.RULE_topologyImportStmt, SymbolType.topology],
                 [FppParser.RULE_generalPortInstanceDecl, SymbolType.port],
+
+                [FppParser.RULE_stateMachineInstance, SymbolType.stateMachine],
 
                 // I'm not doing this cause its annoying ;)
                 // Also who the hell writes these manually

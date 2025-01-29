@@ -59,6 +59,14 @@ export const tokenParents = new Map<SymbolType, SymbolType[]>([
     [SymbolType.parameter, [SymbolType.module, SymbolType.component]],
     [SymbolType.telemetry, [SymbolType.module, SymbolType.component]],
     [SymbolType.telemetry, [SymbolType.module, SymbolType.component]],
+    // [SymbolType.action, [SymbolType.stateMachine, SymbolType.state]],
+    [SymbolType.action, [SymbolType.stateMachine]],
+    [SymbolType.guard, [SymbolType.stateMachine]],
+    [SymbolType.signal, [SymbolType.stateMachine]],
+    // [SymbolType.choice, [SymbolType.stateMachine, SymbolType.state]],
+    [SymbolType.state, [SymbolType.stateMachine, SymbolType.state]],
+    [SymbolType.stateMachine, [SymbolType.module, SymbolType.component]],
+    [SymbolType.stateMachineInstance, [SymbolType.component]],
 ]);
 
 /**
@@ -182,13 +190,23 @@ export class FppAnnotator extends MemberTraverser {
                 if (i + 1 === ident.length) {
                     this.semantic(ident[i], type);
 
-                    this.emit(
-                        vscode.Uri.file(ident[i].location.source),
-                        new vscode.Diagnostic(
-                            MemberTraverser.asRange(ident[i].location),
-                            `No ${tokenTypeNames[type].toLowerCase()} '${ident[i].value}' found in ${MemberTraverser.flat(ident.slice(0, 1))}`
-                        )
-                    );
+                    if (ident.length === 1) {
+                        this.emit(
+                            vscode.Uri.file(ident[i].location.source),
+                            new vscode.Diagnostic(
+                                MemberTraverser.asRange(ident[i].location),
+                                `No ${tokenTypeNames[type].toLowerCase()} '${ident[i].value}' found`
+                            )
+                        );
+                    } else {
+                        this.emit(
+                            vscode.Uri.file(ident[i].location.source),
+                            new vscode.Diagnostic(
+                                MemberTraverser.asRange(ident[i].location),
+                                `No ${tokenTypeNames[type].toLowerCase()} '${ident[i].value}' found in ${MemberTraverser.flat(ident.slice(0, 1))}`
+                            )
+                        );
+                    }
                 } else {
                     this.semantic(ident[i], SymbolType.module);
                 }
@@ -213,7 +231,11 @@ export class FppAnnotator extends MemberTraverser {
         // Mark all resolved tokens with their semantics
         // Skip any inferred tokens
         let i = 1;
-        let possibleTypes: SymbolType[] = tokenParents.get(type)!;
+        let possibleTypes = tokenParents.get(type);
+        if (!possibleTypes) {
+            throw new Error(`No token parent registered for symbol type ${SymbolType[type]}`);
+        }
+
         for (; i < resolved.length; i++) {
             const buildI = resolved.slice(0, resolved.length - i);
             const build = MemberTraverser.flat(buildI);
@@ -291,9 +313,15 @@ export class FppAnnotator extends MemberTraverser {
         this.semantic(ast.name, SymbolType.type);
     }
 
-    protected aliasTypeDecl(ast: Fpp.AliasTypeDecl, scope: Fpp.QualifiedIdentifier): void {
+    aliasTypeDecl(ast: Fpp.AliasTypeDecl, scope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, SymbolType.type);
         this.type(ast.fppType, scope);
+
+        // TODO(tumbar) Remove once its supported
+        this.emit(vscode.Uri.file(ast.location.source), new vscode.Diagnostic(
+            MemberTraverser.asRange(ast.location),
+            'Type aliases are not supported yet'
+        ));
     }
 
     arrayDecl(ast: Fpp.ArrayDecl, scope: Fpp.QualifiedIdentifier): void {
@@ -595,6 +623,94 @@ export class FppAnnotator extends MemberTraverser {
 
     topologyImportStmt(ast: Fpp.TopologyImportStmt, scope: Fpp.QualifiedIdentifier): void {
         this.identifier(ast.topology, scope, SymbolType.topology);
+    }
+
+    doExpr(ast: Fpp.DoExpr, scope: Fpp.QualifiedIdentifier): void {
+        for (const action of ast.actions) {
+            this.identifier([...scope, action], scope, SymbolType.action);
+        }
+    }
+
+    transitionExpr(ast: Fpp.TransitionExpr, scope: Fpp.QualifiedIdentifier): void {
+        this.identifier(ast.state, scope, SymbolType.state);
+        if (ast.do) {
+            this.doExpr(ast.do, scope);
+        }
+    }
+
+    actionDef(ast: Fpp.ActionDef, scope: Fpp.QualifiedIdentifier): void {
+        this.semantic(ast.name, SymbolType.action);
+        if (ast.fppType) {
+            this.type(ast.fppType, scope);
+        }
+    }
+
+    choiceDef(ast: Fpp.ChoiceDef, scope: Fpp.QualifiedIdentifier): void {
+        this.semantic(ast.name, SymbolType.action);
+        this.identifier([...scope, ast.guard], scope, SymbolType.guard);
+        this.transitionExpr(ast.then, scope);
+        this.transitionExpr(ast.else, scope);
+    }
+
+    guardDef(ast: Fpp.GuardDef, scope: Fpp.QualifiedIdentifier): void {
+        this.semantic(ast.name, SymbolType.guard);
+        if (ast.fppType) {
+            this.type(ast.fppType, scope);
+        }
+    }
+
+    signalDef(ast: Fpp.SignalDef, scope: Fpp.QualifiedIdentifier): void {
+        this.semantic(ast.name, SymbolType.signal);
+        if (ast.fppType) {
+            this.type(ast.fppType, scope);
+        }
+    }
+
+    initialTransistion(ast: Fpp.InitialTransition, scope: Fpp.QualifiedIdentifier): void {
+        this.transitionExpr(ast.transition, scope);
+    }
+
+    stateTransition(ast: Fpp.StateTransition, scope: Fpp.QualifiedIdentifier): void {
+        this.identifier([...scope, ast.signal], scope, SymbolType.signal);
+        if (ast.guard) {
+            this.identifier([...scope, ast.guard], scope, SymbolType.guard);
+        }
+
+        switch (ast.transition.type) {
+            case 'TransitionExpr':
+                this.transitionExpr(ast.transition, scope);
+                break;
+            case 'DoExpr':
+                this.doExpr(ast.transition, scope);
+                break;
+        }
+    }
+
+    stateEntry(ast: Fpp.StateEntry, scope: Fpp.QualifiedIdentifier): void {
+        this.doExpr(ast.do, scope);
+    }
+
+    stateExit(ast: Fpp.StateExit, scope: Fpp.QualifiedIdentifier): void {
+        this.doExpr(ast.do, scope);
+    }
+
+    stateDef(ast: Fpp.StateDef, scope: Fpp.QualifiedIdentifier): void {
+        this.semantic(ast.name, SymbolType.state);
+        super.stateDef(ast, scope);
+    }
+
+    stateMachineDecl(ast: Fpp.StateMachineDecl, scope: Fpp.QualifiedIdentifier): void {
+        this.semantic(ast.name, SymbolType.stateMachine);
+        super.stateMachineDecl(ast, scope);
+    }
+
+    stateMachineInstance(ast: Fpp.StateMachineInstance, scope: Fpp.QualifiedIdentifier): void {
+        this.semantic(ast.name, SymbolType.stateMachineInstance);
+        this.identifier(ast.stateMachine, scope, SymbolType.stateMachine);
+
+        if (ast.priority) {
+            this.expr(ast.priority, scope, { complex: false, type: "U32", location: Fpp.implicitLocation });
+        }
     }
 
     componentDecl(ast: Fpp.ComponentDecl, scope: Fpp.QualifiedIdentifier): void {

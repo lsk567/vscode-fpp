@@ -7,6 +7,7 @@ export interface RangeRuleAssociation {
 
 export const declRules = new Set([
     FppParser.RULE_abstractTypeDecl,
+    FppParser.RULE_aliasTypeDecl,
     FppParser.RULE_arrayDecl,
     FppParser.RULE_commandDecl,
     FppParser.RULE_componentInstanceDecl,
@@ -27,6 +28,10 @@ export const declRules = new Set([
     FppParser.RULE_portDecl,
     FppParser.RULE_specialPortInstanceDecl,
     FppParser.RULE_structDecl,
+    FppParser.RULE_actionDef,
+    FppParser.RULE_choiceDef,
+    FppParser.RULE_guardDef,
+    FppParser.RULE_stateMachineInstance,
 ]);
 
 export const ignoreTokens = new Set([

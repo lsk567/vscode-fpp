@@ -157,7 +157,7 @@ export interface AliasTypeDecl extends Decl {
 export interface ActionDef extends Decl {
     type: "ActionDef";
     name: Identifier;
-    fppType: TypeName;
+    fppType: TypeName | undefined;
 }
 
 export interface ChoiceDef extends Decl {
@@ -175,13 +175,13 @@ export interface GuardDef extends Decl {
     type: "GuardDef";
 
     name: Identifier;
-    fppType: TypeName;
+    fppType: TypeName | undefined;
 }
 
 export interface SignalDef extends Decl {
     type: "SignalDef";
     name: Identifier;
-    fppType: TypeName;
+    fppType: TypeName | undefined;
 }
 
 export interface StateExprValue {
@@ -204,33 +204,26 @@ export interface TransitionExpr extends StateExpr {
     state: QualifiedIdentifier;
 }
 
-export interface InitialTransition extends Decl {
+export interface InitialTransition extends Annotatable {
     type: "InitialTransition";
-    fppType: undefined;
-
     transition: TransitionExpr;
 }
 
-export interface StateTransition extends Decl {
+export interface StateTransition extends Annotatable {
     type: "StateTransition";
-    fppType: undefined;
 
     signal: Identifier;
     guard?: Identifier;
     transition: TransitionExpr | DoExpr;
 }
 
-export interface StateEntry extends Decl {
+export interface StateEntry extends Annotatable {
     type: "StateEntry";
-    fppType: undefined;
-
     do: DoExpr;
 }
 
-export interface StateExit extends Decl {
+export interface StateExit extends Annotatable {
     type: "StateExit";
-    fppType: undefined;
-
     do: DoExpr;
 }
 
@@ -266,7 +259,7 @@ export interface StateMachineDecl extends Decl {
     members: StateMachineMember[];
 }
 
-export interface StateMachineInstance extends Annotatable {
+export interface StateMachineInstance extends Decl {
     type: "StateMachineInstance";
     name: Identifier;
     stateMachine: QualifiedIdentifier;

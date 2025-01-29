@@ -15,11 +15,19 @@ progComponent:
     EOF
     ;
 
+// progStateMachine:
+//     NL* (stateMachineMember (semiDelim | EOF))* NL*
+//     EOF
+//     ;
+
+// progState:
+//     NL* (stateMember (semiDelim | EOF))* NL*
+//     EOF
+//     ;
+
 abstractTypeDecl: TYPE name=IDENTIFIER;
 
 aliasTypeDecl: TYPE name=IDENTIFIER '=' type=typeName;
-
-actionDecl: ACTION name=IDENTIFIER (':' type=typeName)?;
 
 arrayDecl:
     ARRAY name=IDENTIFIER '=' '[' size=expr ']'
@@ -113,7 +121,7 @@ choiceDef: CHOICE name=IDENTIFIER '{' IF guard=IDENTIFIER then=transitionExpr EL
 guardDef: GUARD name=IDENTIFIER (':' type=typeName)?;
 signalDef: SIGNAL name=IDENTIFIER (':' type=typeName)?;
 
-doExpr: DO '{' NL* (IDENTIFIER (commaDelim IDENTIFIER)*)? '}';
+doExpr: DO '{' NL* (IDENTIFIER (commaDelim IDENTIFIER)*)? commaDelim? '}';
 transitionExpr: do=doExpr? ENTER state=qualIdent;
 initialTransition: INITIAL transition=transitionExpr;
 
@@ -234,11 +242,7 @@ componentMemberTempl:
     | recordSpecifierDecl
     | containerSpecifierDecl
     | stateMachineInstance
-
-    // FIXME(tumbar) Should I enable this syntax?
-    // technically this is not allowed here but we will allow this syntax and warn later in the analysis
-    // state machine definitions are only allowed in module definitions
-    // | stateMachineDef
+    | stateMachineDef
     ;
 
 componentMember: preAnnotation? componentMemberTempl ANNOTATION?;

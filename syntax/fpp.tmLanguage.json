@@ -47,7 +47,7 @@
             "patterns": [
                 {
                     "name": "storage.type.class.fpp",
-                    "match": "\\b(?<![$])(array|struct|always|assert|at|base|block|change|command|component|connections|constant|cpu|default|drop|enum|event|format|get|health|id|import|include|input|instance|internal|locate|match|module|on|opcode|orange|output|param|phase|port|priority|private|queue|recv|red|ref|reg|request|resp|save|send|serial|set|severity|size|stack|telemetry|text|throttle|time|topology|type|update|with|yellow|record|container|product)\\b"
+                    "match": "\\b(?<![$])(action|always|array|assert|at|base|block|bool|change|choice|command|component|connections|constant|container|cpu|default|do|drop|else|enter|entry|enum|event|exit|format|get|guard|health|hook|id|if|import|include|initial|input|instance|internal|locate|machine|match|module|on|opcode|orange|output|param|phase|port|priority|private|product|queue|record|recv|red|ref|reg|request|resp|save|send|serial|set|severity|signal|size|stack|state|string|struct|telemetry|text|throttle|time|topology|type|unmatched|update|with|yellow)\\b"
                 }
             ]
         },
