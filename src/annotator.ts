@@ -172,14 +172,15 @@ export class FppAnnotator extends MemberTraverser {
     identifier(
         ident: Fpp.QualifiedIdentifier,
         scope: Fpp.QualifiedIdentifier,
-        type: SymbolType
+        type: SymbolType,
+        lookFrom: Fpp.QualifiedIdentifier = [],
     ): Fpp.Decl | undefined {
         if (!ident) {
             return;
         }
 
         // Marks all parts of the qual-ident
-        const resolved = this.decl.resolve(ident, scope, type);
+        const resolved = this.decl.resolve(ident, scope, type, lookFrom);
         if (!resolved) {
             if (!ident[0]) {
                 return;
@@ -231,7 +232,7 @@ export class FppAnnotator extends MemberTraverser {
         // Mark all resolved tokens with their semantics
         // Skip any inferred tokens
         let i = 1;
-        let possibleTypes = tokenParents.get(type);
+        let possibleTypes: SymbolType[] | undefined = tokenParents.get(type);
         if (!possibleTypes) {
             throw new Error(`No token parent registered for symbol type ${SymbolType[type]}`);
         }
@@ -251,7 +252,10 @@ export class FppAnnotator extends MemberTraverser {
                 decl = this.decl.get(build, tryT);
                 if (decl) {
                     foundT = tryT;
-                    possibleTypes = tokenParents.get(tryT)!;
+                    possibleTypes = tokenParents.get(tryT);
+                    if (!possibleTypes) {
+                        throw new Error(`No token parent registered for symbol type ${SymbolType[type]}`);
+                    }
                     break;
                 }
             }
@@ -625,16 +629,16 @@ export class FppAnnotator extends MemberTraverser {
         this.identifier(ast.topology, scope, SymbolType.topology);
     }
 
-    doExpr(ast: Fpp.DoExpr, scope: Fpp.QualifiedIdentifier): void {
+    doExpr(ast: Fpp.DoExpr, scope: Fpp.QualifiedIdentifier, stateScope: Fpp.QualifiedIdentifier): void {
         for (const action of ast.actions) {
             this.identifier([...scope, action], scope, SymbolType.action);
         }
     }
 
-    transitionExpr(ast: Fpp.TransitionExpr, scope: Fpp.QualifiedIdentifier): void {
-        this.identifier(ast.state, scope, SymbolType.state);
+    transitionExpr(ast: Fpp.TransitionExpr, scope: Fpp.QualifiedIdentifier, stateScope: Fpp.QualifiedIdentifier): void {
+        this.identifier(ast.state, stateScope, SymbolType.state, scope);
         if (ast.do) {
-            this.doExpr(ast.do, scope);
+            this.doExpr(ast.do, scope, stateScope);
         }
     }
 
@@ -645,11 +649,11 @@ export class FppAnnotator extends MemberTraverser {
         }
     }
 
-    choiceDef(ast: Fpp.ChoiceDef, scope: Fpp.QualifiedIdentifier): void {
+    choiceDef(ast: Fpp.ChoiceDef, scope: Fpp.QualifiedIdentifier, stateScope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, SymbolType.action);
         this.identifier([...scope, ast.guard], scope, SymbolType.guard);
-        this.transitionExpr(ast.then, scope);
-        this.transitionExpr(ast.else, scope);
+        this.transitionExpr(ast.then, scope, stateScope);
+        this.transitionExpr(ast.else, scope, stateScope);
     }
 
     guardDef(ast: Fpp.GuardDef, scope: Fpp.QualifiedIdentifier): void {
@@ -666,11 +670,11 @@ export class FppAnnotator extends MemberTraverser {
         }
     }
 
-    initialTransistion(ast: Fpp.InitialTransition, scope: Fpp.QualifiedIdentifier): void {
-        this.transitionExpr(ast.transition, scope);
+    initialTransistion(ast: Fpp.InitialTransition, scope: Fpp.QualifiedIdentifier, stateScope: Fpp.QualifiedIdentifier): void {
+        this.transitionExpr(ast.transition, scope, stateScope);
     }
 
-    stateTransition(ast: Fpp.StateTransition, scope: Fpp.QualifiedIdentifier): void {
+    stateTransition(ast: Fpp.StateTransition, scope: Fpp.QualifiedIdentifier, stateScope: Fpp.QualifiedIdentifier): void {
         this.identifier([...scope, ast.signal], scope, SymbolType.signal);
         if (ast.guard) {
             this.identifier([...scope, ast.guard], scope, SymbolType.guard);
@@ -678,25 +682,25 @@ export class FppAnnotator extends MemberTraverser {
 
         switch (ast.transition.type) {
             case 'TransitionExpr':
-                this.transitionExpr(ast.transition, scope);
+                this.transitionExpr(ast.transition, scope, stateScope);
                 break;
             case 'DoExpr':
-                this.doExpr(ast.transition, scope);
+                this.doExpr(ast.transition, scope, stateScope);
                 break;
         }
     }
 
-    stateEntry(ast: Fpp.StateEntry, scope: Fpp.QualifiedIdentifier): void {
-        this.doExpr(ast.do, scope);
+    stateEntry(ast: Fpp.StateEntry, scope: Fpp.QualifiedIdentifier, stateScope: Fpp.QualifiedIdentifier): void {
+        this.doExpr(ast.do, scope, stateScope);
     }
 
-    stateExit(ast: Fpp.StateExit, scope: Fpp.QualifiedIdentifier): void {
-        this.doExpr(ast.do, scope);
+    stateExit(ast: Fpp.StateExit, scope: Fpp.QualifiedIdentifier, stateScope: Fpp.QualifiedIdentifier): void {
+        this.doExpr(ast.do, scope, stateScope);
     }
 
-    stateDef(ast: Fpp.StateDef, scope: Fpp.QualifiedIdentifier): void {
+    stateDef(ast: Fpp.StateDef, scope: Fpp.QualifiedIdentifier, stateScope: Fpp.QualifiedIdentifier): void {
         this.semantic(ast.name, SymbolType.state);
-        super.stateDef(ast, scope);
+        super.stateDef(ast, scope, stateScope);
     }
 
     stateMachineDecl(ast: Fpp.StateMachineDecl, scope: Fpp.QualifiedIdentifier): void {

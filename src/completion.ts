@@ -12,7 +12,7 @@ import {
 } from 'antlr4ts';
 
 import { FppLexer } from './grammar/FppLexer';
-import { ComponentDeclContext, FppParser, ModuleDeclContext } from './grammar/FppParser';
+import { ComponentDeclContext, FppParser, ModuleDeclContext, StateMachineDefContext } from './grammar/FppParser';
 import { ATN, ATNConfigSet, ATNState, RuleTransition } from 'antlr4ts/atn';
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor';
 import { FppVisitor } from './grammar/FppVisitor';
@@ -131,6 +131,13 @@ class BasicVisitor extends AbstractParseTreeVisitor<void> implements FppVisitor<
         super.visitChildren(ctx);
         this.scope = oldScope;
     }
+
+    visitStateMachineDef(ctx: StateMachineDefContext) {
+        const oldScope = this.scope;
+        this.scope = [...oldScope, ctx.IDENTIFIER().text];
+        super.visitChildren(ctx);
+        this.scope = oldScope;
+    }
 }
 
 class FppParserWrapper extends FppParser {
@@ -238,9 +245,12 @@ function getRuleMetadata(context: ParserRuleContext, state: number, relevantRule
 
     for (; relevantContext; invokingState = relevantContext.invokingState, relevantContext = relevantContext.parent) {
         if (relevantContext.ruleIndex === FppParser.RULE_moduleDecl ||
-            relevantContext.ruleIndex === FppParser.RULE_componentDecl
+            relevantContext.ruleIndex === FppParser.RULE_componentDecl ||
+            relevantContext.ruleIndex === FppParser.RULE_stateMachineDef
         ) {
-            const declName = (relevantContext as (ModuleDeclContext | ComponentDeclContext)).tryGetToken(FppParser.IDENTIFIER, 0)?.text;
+            const declName = (relevantContext as (
+                ModuleDeclContext | ComponentDeclContext | StateMachineDefContext
+            )).tryGetToken(FppParser.IDENTIFIER, 0)?.text;
             if (declName) {
                 scope.push(declName);
             } else {
