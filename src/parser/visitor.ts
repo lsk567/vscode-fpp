@@ -962,7 +962,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             this.promises.push([ctx,
                 parsePromise.then(v => { outAst.resolved = v[1]; return v[0]; })
                     .catch((err) => {
-                        console.error(`Failed to include: ${outAst.include.value}`);
+                        console.error(`Failed to include: ${outAst.include.value}: ${err}`);
                         throw err;
                     })
             ]);

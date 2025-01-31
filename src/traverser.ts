@@ -117,6 +117,9 @@ export abstract class MemberTraverser extends DiangosicManager {
                 case 'StateMachineDecl':
                     this.stateMachineDecl(ast, scope);
                     break;
+                case 'InitialTransition':
+                    this.initialTransistion(ast, scope, []);
+                    break;
                 case 'StateMachineInstance':
                     this.stateMachineInstance(ast, scope);
                     break;
