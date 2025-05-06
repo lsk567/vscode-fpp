@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.18] - 2025-05-06
+
+- Fixes the handling of special DP ports by adding their instances to the symbol table and resolving the keyword combinations
+
 ## [1.0.17] - 2025-05-06
 
 - Fixed some subtle parsing issues with comments and annotations
