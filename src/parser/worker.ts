@@ -17,6 +17,7 @@ import { parentPort } from 'worker_threads';
 import { AstVisitor, IncludeContext, IncludeProduct } from './visitor';
 import { IFppMessage, IDiagnostic, IFppWorkerRequest } from './message';
 import { TextDecoder } from 'util';
+// import { Lexer } from './lexer';
 
 
 class SyntaxErrorListener implements ANTLRErrorListener<any> {

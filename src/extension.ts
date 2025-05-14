@@ -619,7 +619,8 @@ class FppExtension implements
                 // This is special since we there are two in the rule
                 // [FppParser.RULE_connectionNode, FppTokenType.componentInstance],
                 [FppParser.RULE_patternGraphSources, SymbolType.componentInstance],
-                [FppParser.RULE_topologyImportStmt, SymbolType.topology],
+                [FppParser.RULE_importTopologyStmt, SymbolType.topology],
+                [FppParser.RULE_importInterfaceStmt, SymbolType.interface],
                 [FppParser.RULE_generalPortInstanceDecl, SymbolType.port],
 
                 [FppParser.RULE_stateMachineInstance, SymbolType.stateMachine],

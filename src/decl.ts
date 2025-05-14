@@ -10,6 +10,7 @@ export enum SymbolType {
     module,
     topology,
     component,
+    interface,
     componentInstance,
     constant,
     graphGroup,
@@ -47,6 +48,7 @@ const tokenMetadataR: Record<SymbolType, TokenMetadata> = {
     [SymbolType.topology]: ["Topology", "macro"],
     [SymbolType.component]: ["Component", "class"],
     [SymbolType.componentInstance]: ["Component Instance", "variable"],
+    [SymbolType.interface]: ["Interface", "interface"],
     [SymbolType.constant]: ["Constant", "enumMember"],
     [SymbolType.graphGroup]: ["Graph Group", "namespace"],
     [SymbolType.port]: ["Port", "interface"],
@@ -97,6 +99,7 @@ export class DeclCollector extends MemberTraverser {
     // Declarations map with their fully qualified id
     components = new Map<string, Fpp.ComponentDecl>();
     componentInstances = new Map<string, Fpp.ComponentInstanceDecl>();
+    interfaces = new Map<string, Fpp.InterfaceDecl>();
     constants = new Map<string, Fpp.ConstantDefinition>();
     inputPortInstances = new Map<string, Fpp.PortInstanceDecl>();
     outputPortInstances = new Map<string, Fpp.PortInstanceDecl>();
@@ -445,6 +448,19 @@ export class DeclCollector extends MemberTraverser {
         );
     }
 
+    interfaceDecl(ast: Fpp.InterfaceDecl, scope: Fpp.QualifiedIdentifier): void {
+        const name = MemberTraverser.flat(scope, ast.name);
+        if (this.check(name, SymbolType.componentInstance, ast.name)) {
+            return;
+        }
+
+        this.interfaces.set(name, ast);
+        this.translationUnitDeclarations.get(ast.location.source)!.add(
+            DiangosicManager.asRange(ast.name.location),
+            [SymbolType.interface, name]
+        );
+    }
+
     portDecl(ast: Fpp.PortDecl, scope: Fpp.QualifiedIdentifier): void {
         const name = MemberTraverser.flat(scope, ast.name);
         if (this.check(name, SymbolType.port, ast.name)) {
@@ -757,6 +773,8 @@ export class DeclCollector extends MemberTraverser {
                 return this.componentInstances.get(name);
             case SymbolType.constant:
                 return this.constants.get(name);
+            case SymbolType.interface:
+                return this.interfaces.get(name);
             case SymbolType.graphGroup:
                 return this.graphGroups.get(name);
             case SymbolType.port:

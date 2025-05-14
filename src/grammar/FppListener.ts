@@ -8,6 +8,7 @@ import { ProgTopologyContext } from "./FppParser";
 import { ProgComponentContext } from "./FppParser";
 import { AbstractTypeDeclContext } from "./FppParser";
 import { AliasTypeDeclContext } from "./FppParser";
+import { ArrayDefaultContext } from "./FppParser";
 import { ArrayDeclContext } from "./FppParser";
 import { ConstantDeclContext } from "./FppParser";
 import { StructMemberContext } from "./FppParser";
@@ -71,10 +72,19 @@ import { DirectGraphDeclContext } from "./FppParser";
 import { PatternKindContext } from "./FppParser";
 import { PatternGraphSourcesContext } from "./FppParser";
 import { PatternGraphStmtContext } from "./FppParser";
-import { TopologyImportStmtContext } from "./FppParser";
+import { ImportTopologyStmtContext } from "./FppParser";
+import { ImportInterfaceStmtContext } from "./FppParser";
+import { TelemetryChannelIdentifierContext } from "./FppParser";
+import { TelemetryPacketSpecifierContext } from "./FppParser";
+import { TelemetryPacketSetMemberTemplContext } from "./FppParser";
+import { TelemetryPacketSetMemberContext } from "./FppParser";
+import { TelemetryPacketSetDeclContext } from "./FppParser";
 import { TopologyMemberTemplContext } from "./FppParser";
 import { TopologyMemberContext } from "./FppParser";
 import { TopologyDeclContext } from "./FppParser";
+import { InterfaceMemberTemplContext } from "./FppParser";
+import { InterfaceMemberContext } from "./FppParser";
+import { InterfaceDeclContext } from "./FppParser";
 import { LocationKindContext } from "./FppParser";
 import { LocationStmtContext } from "./FppParser";
 import { ModuleMemberTemplContext } from "./FppParser";
@@ -94,6 +104,7 @@ import { SemiDelimContext } from "./FppParser";
 import { ArrayExprContext } from "./FppParser";
 import { StructAssignmentContext } from "./FppParser";
 import { StructExprContext } from "./FppParser";
+import { ScalarExprContext } from "./FppParser";
 import { ExprContext } from "./FppParser";
 import { PostAnnotationContext } from "./FppParser";
 import { PostMultiAnnotationContext } from "./FppParser";
@@ -159,6 +170,17 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitAliasTypeDecl?: (ctx: AliasTypeDeclContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.arrayDefault`.
+	 * @param ctx the parse tree
+	 */
+	enterArrayDefault?: (ctx: ArrayDefaultContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.arrayDefault`.
+	 * @param ctx the parse tree
+	 */
+	exitArrayDefault?: (ctx: ArrayDefaultContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.arrayDecl`.
@@ -854,15 +876,81 @@ export interface FppListener extends ParseTreeListener {
 	exitPatternGraphStmt?: (ctx: PatternGraphStmtContext) => void;
 
 	/**
-	 * Enter a parse tree produced by `FppParser.topologyImportStmt`.
+	 * Enter a parse tree produced by `FppParser.importTopologyStmt`.
 	 * @param ctx the parse tree
 	 */
-	enterTopologyImportStmt?: (ctx: TopologyImportStmtContext) => void;
+	enterImportTopologyStmt?: (ctx: ImportTopologyStmtContext) => void;
 	/**
-	 * Exit a parse tree produced by `FppParser.topologyImportStmt`.
+	 * Exit a parse tree produced by `FppParser.importTopologyStmt`.
 	 * @param ctx the parse tree
 	 */
-	exitTopologyImportStmt?: (ctx: TopologyImportStmtContext) => void;
+	exitImportTopologyStmt?: (ctx: ImportTopologyStmtContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.importInterfaceStmt`.
+	 * @param ctx the parse tree
+	 */
+	enterImportInterfaceStmt?: (ctx: ImportInterfaceStmtContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.importInterfaceStmt`.
+	 * @param ctx the parse tree
+	 */
+	exitImportInterfaceStmt?: (ctx: ImportInterfaceStmtContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.telemetryChannelIdentifier`.
+	 * @param ctx the parse tree
+	 */
+	enterTelemetryChannelIdentifier?: (ctx: TelemetryChannelIdentifierContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.telemetryChannelIdentifier`.
+	 * @param ctx the parse tree
+	 */
+	exitTelemetryChannelIdentifier?: (ctx: TelemetryChannelIdentifierContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.telemetryPacketSpecifier`.
+	 * @param ctx the parse tree
+	 */
+	enterTelemetryPacketSpecifier?: (ctx: TelemetryPacketSpecifierContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.telemetryPacketSpecifier`.
+	 * @param ctx the parse tree
+	 */
+	exitTelemetryPacketSpecifier?: (ctx: TelemetryPacketSpecifierContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.telemetryPacketSetMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	enterTelemetryPacketSetMemberTempl?: (ctx: TelemetryPacketSetMemberTemplContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.telemetryPacketSetMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	exitTelemetryPacketSetMemberTempl?: (ctx: TelemetryPacketSetMemberTemplContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.telemetryPacketSetMember`.
+	 * @param ctx the parse tree
+	 */
+	enterTelemetryPacketSetMember?: (ctx: TelemetryPacketSetMemberContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.telemetryPacketSetMember`.
+	 * @param ctx the parse tree
+	 */
+	exitTelemetryPacketSetMember?: (ctx: TelemetryPacketSetMemberContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.telemetryPacketSetDecl`.
+	 * @param ctx the parse tree
+	 */
+	enterTelemetryPacketSetDecl?: (ctx: TelemetryPacketSetDeclContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.telemetryPacketSetDecl`.
+	 * @param ctx the parse tree
+	 */
+	exitTelemetryPacketSetDecl?: (ctx: TelemetryPacketSetDeclContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.topologyMemberTempl`.
@@ -896,6 +984,39 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitTopologyDecl?: (ctx: TopologyDeclContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.interfaceMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	enterInterfaceMemberTempl?: (ctx: InterfaceMemberTemplContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.interfaceMemberTempl`.
+	 * @param ctx the parse tree
+	 */
+	exitInterfaceMemberTempl?: (ctx: InterfaceMemberTemplContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.interfaceMember`.
+	 * @param ctx the parse tree
+	 */
+	enterInterfaceMember?: (ctx: InterfaceMemberContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.interfaceMember`.
+	 * @param ctx the parse tree
+	 */
+	exitInterfaceMember?: (ctx: InterfaceMemberContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.interfaceDecl`.
+	 * @param ctx the parse tree
+	 */
+	enterInterfaceDecl?: (ctx: InterfaceDeclContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.interfaceDecl`.
+	 * @param ctx the parse tree
+	 */
+	exitInterfaceDecl?: (ctx: InterfaceDeclContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.locationKind`.
@@ -1105,6 +1226,17 @@ export interface FppListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	exitStructExpr?: (ctx: StructExprContext) => void;
+
+	/**
+	 * Enter a parse tree produced by `FppParser.scalarExpr`.
+	 * @param ctx the parse tree
+	 */
+	enterScalarExpr?: (ctx: ScalarExprContext) => void;
+	/**
+	 * Exit a parse tree produced by `FppParser.scalarExpr`.
+	 * @param ctx the parse tree
+	 */
+	exitScalarExpr?: (ctx: ScalarExprContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `FppParser.expr`.

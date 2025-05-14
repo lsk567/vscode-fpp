@@ -29,10 +29,12 @@ abstractTypeDecl: TYPE name=IDENTIFIER;
 
 aliasTypeDecl: TYPE name=IDENTIFIER '=' type=typeName;
 
+arrayDefault: arrayExpr | scalarExpr;
+
 arrayDecl:
     ARRAY name=IDENTIFIER '=' '[' size=expr ']'
     type=typeName
-    (DEFAULT default_=arrayExpr)?
+    (DEFAULT default_=arrayDefault)?
     (FORMAT format=LIT_STRING)?
     ;
 
@@ -101,7 +103,11 @@ generalPortInstanceDecl:
     queueFull=queueFullBehavior?
     ;
 
-specialPortInstanceDecl: specialPortKind PORT name=IDENTIFIER;
+specialPortInstanceDecl:
+    specialPortKind PORT name=IDENTIFIER
+    (PRIORITY priority=expr)?
+    queueFull=queueFullBehavior?
+    ;
 
 telemetryLimitKind: RED | ORANGE | YELLOW;
 telemetryLimitExpr: kind=telemetryLimitKind limit=expr;
@@ -139,7 +145,7 @@ stateMemberTempl:
     | stateExit
     ;
 
-stateMember: preAnnotation? stateMemberTempl ANNOTATION?;
+stateMember: preAnnotation? stateMemberTempl NL? postAnnotation?;
 stateDef: STATE name=IDENTIFIER ('{'
         NL* (stateMember semiDelim)* NL*
     '}')?;
@@ -153,7 +159,7 @@ stateMachineMemberTempl:
     | actionDef
     ;
 
-stateMachineMember: preAnnotation? stateMachineMemberTempl ANNOTATION?;
+stateMachineMember: preAnnotation? stateMachineMemberTempl NL? postAnnotation?;
 stateMachineDef: STATE MACHINE name=IDENTIFIER
     ('{' NL* (stateMachineMember semiDelim)* NL* '}')?
     ;
@@ -164,11 +170,11 @@ stateMachineInstance: STATE MACHINE INSTANCE name=IDENTIFIER ':' stateMachine=qu
     ;
 
 enumMember: name=IDENTIFIER ('=' value=expr)?;
-enumMemberN: preAnnotation? enumMember (','? postAnnotation | commaDelim);
-enumMemberL: preAnnotation? enumMember (','? postAnnotation | commaDelim)?;
+enumMemberN: preAnnotation? enumMember (','? (NL? postAnnotation)? | commaDelim);
+enumMemberL: preAnnotation? enumMember (','? (NL? postAnnotation)? | commaDelim);
 enumDecl: ENUM name=IDENTIFIER (':' type=intType)?
     '{'
-        NL* (enumMemberN* enumMemberL)?
+        NL* (enumMemberN* enumMemberL)? NL*
     '}' (DEFAULT default_=expr)?
     ;
 
@@ -207,7 +213,7 @@ containerSpecifierDecl:
     PRODUCT CONTAINER name=IDENTIFIER (ID id=expr)? (DEFAULT PRIORITY priority=expr)?
     ;
 
-initSpecifier: preAnnotation? PHASE phaseExpr=expr code=LIT_STRING;
+initSpecifier: preAnnotation? PHASE phaseExpr=expr code=LIT_STRING NL? postAnnotation?;
 componentInstanceDecl:
     INSTANCE name=IDENTIFIER ':' fppType=qualIdent
     BASE ID base_id=expr
@@ -230,6 +236,7 @@ componentMemberTempl:
     | constantDecl
     | structDecl
     | commandDecl
+    | importInterfaceStmt
     | paramDecl
     | generalPortInstanceDecl
     | specialPortInstanceDecl
@@ -245,7 +252,7 @@ componentMemberTempl:
     | stateMachineDef
     ;
 
-componentMember: preAnnotation? componentMemberTempl ANNOTATION?;
+componentMember: preAnnotation? componentMemberTempl NL? postAnnotation?;
 
 componentDecl:
     kind=componentKind COMPONENT name=IDENTIFIER '{'
@@ -260,7 +267,7 @@ portDecl:
 
 componentInstanceSpec: PRIVATE? INSTANCE name=qualIdent;
 connectionNode: node=qualIdent ('[' index=expr ']')?;
-connection: source=connectionNode '->' destination=connectionNode;
+connection: UNMATCHED? source=connectionNode '->' destination=connectionNode;
 directGraphDecl:
     CONNECTIONS name=IDENTIFIER '{'
         NL* (connection commaDelim)* NL*
@@ -279,23 +286,61 @@ patternKind:
 patternGraphSources: (qualIdent (commaDelim qualIdent)* commaDelim?);
 patternGraphStmt:
     kind=patternKind CONNECTIONS INSTANCE target=qualIdent
-    patternGraphSources?
+    ('{' NL* patternGraphSources NL* '}')?
     ;
 
-topologyImportStmt: IMPORT topology=qualIdent;
+importTopologyStmt: IMPORT symbol=qualIdent;
+importInterfaceStmt: IMPORT symbol=qualIdent;
+
+telemetryChannelIdentifier: preAnnotation? qualIdent NL? postAnnotation?;
+
+telemetryPacketSpecifier:
+    PACKET name=IDENTIFIER (ID id=expr) GROUP group=expr
+    '{' NL* (packets=telemetryChannelIdentifier commaDelim)* NL* '}'
+    ;
+
+telemetryPacketSetMemberTempl:
+    includeStmt
+    | telemetryPacketSpecifier
+    ;
+
+telemetryPacketSetMember:
+    preAnnotation? telemetryPacketSetMemberTempl NL? postAnnotation?;
+
+telemetryPacketSetDecl:
+    TELEMETRY PACKETS name=IDENTIFIER
+    ('{' NL* (telemetryPacketSetMember semiDelim)* NL* '}')?
+    (OMIT '{' NL* (omit=telemetryChannelIdentifier commaDelim)* NL* '}')?
+    ;
+
 topologyMemberTempl:
     componentInstanceSpec
     | directGraphDecl
     | patternGraphStmt
-    | topologyImportStmt
+    | importTopologyStmt
+    | telemetryPacketSetDecl
     | includeStmt
     ;
 
-topologyMember: preAnnotation? topologyMemberTempl ANNOTATION?;
+topologyMember: preAnnotation? topologyMemberTempl NL? postAnnotation?;
 
 topologyDecl:
     TOPOLOGY name=IDENTIFIER '{'
         NL* (topologyMember semiDelim)* NL*
+    '}'
+    ;
+
+interfaceMemberTempl:
+    generalPortInstanceDecl
+    | specialPortInstanceDecl
+    | importInterfaceStmt
+    ;
+
+interfaceMember: preAnnotation? interfaceMemberTempl NL? postAnnotation?;
+
+interfaceDecl:
+    INTERFACE name=IDENTIFIER '{'
+        NL* (interfaceMember semiDelim)* NL*
     '}'
     ;
 
@@ -307,6 +352,7 @@ locationKind:
     | TOPOLOGY
     | TYPE
     | STATE MACHINE
+    | INTERFACE
     ;
 locationStmt:
     LOCATE kind=locationKind
@@ -319,6 +365,7 @@ moduleMemberTempl:
     | componentDecl
     | componentInstanceDecl
     | constantDecl
+    | interfaceDecl
     | moduleDecl
     | portDecl
     | structDecl
@@ -329,7 +376,7 @@ moduleMemberTempl:
     | stateMachineDef
     ;
 
-moduleMember: preAnnotation? moduleMemberTempl ANNOTATION?;
+moduleMember: preAnnotation? moduleMemberTempl NL? postAnnotation?;
 
 moduleDecl: MODULE name=IDENTIFIER '{'
         NL* (moduleMember semiDelim)* NL*
@@ -362,22 +409,29 @@ semiDelim: ';' NL* | NL+;
 //////////////////////
 // Helper definitions
 //////////////////////
-arrayExpr: '[' NL* (expr (commaDelim expr)*)? ']';
+
+arrayExpr:
+    '[' NL* (scalarExpr (commaDelim scalarExpr)*)? ']'
+    ;
 
 structAssignment: name=IDENTIFIER '=' value=expr;
 structExpr: '{' NL* (structAssignment (commaDelim structAssignment)* commaDelim?)? '}';
-expr:
-    '-' unary=expr
-    | left=expr op=('*' | '/') right=expr
-    | left=expr op=('+' | '-') right=expr
-    | arrayExpr
-    | structExpr
+scalarExpr:
+    '-' unary=scalarExpr
+    | left=scalarExpr op=('*' | '/') right=scalarExpr
+    | left=scalarExpr op=('+' | '-') right=scalarExpr
     | qualIdent
     | LIT_BOOLEAN
     | LIT_FLOAT
     | LIT_INT
     | LIT_STRING
-    | '(' p=expr ')'
+    | '(' p=scalarExpr ')'
+    ;
+
+expr:
+    arrayExpr
+    | structExpr
+    | scalarExpr
     ;
 
 //////////////////////
@@ -402,10 +456,10 @@ WS: [ \r\t]+ -> skip;
 WS_NL: '\\'[ ]*[\n] -> skip;
 COMMENT: [#]~[\n]* -> skip;
 
-ANNOTATION: [@]~[\n]*[\n];
-postAnnotation: ANNOTATION NL*;
-postMultiAnnotation: ANNOTATION+ NL*;
-preAnnotation: ANNOTATION+ NL*;
+ANNOTATION: [@]~[\n]*;
+postAnnotation: ANNOTATION;
+postMultiAnnotation: NL? (ANNOTATION NL)+ NL*;
+preAnnotation: (ANNOTATION NL)+ NL*;
 
 LIT_BOOLEAN: FALSE | TRUE;
 LIT_STRING: LONG_STRING | SHORT_STRING;
@@ -467,6 +521,7 @@ FALSE: 'false';
 FATAL: 'fatal';
 FORMAT: 'format';
 GET: 'get';
+GROUP: 'group';
 GUARD: 'guard';
 GUARDED: 'guarded';
 HEALTH: 'health';
@@ -479,16 +534,20 @@ INCLUDE: 'include';
 INITIAL: 'initial';
 INPUT: 'input';
 INSTANCE: 'instance';
+INTERFACE: 'interface';
 INTERNAL: 'internal';
 LOCATE: 'locate';
 LOW: 'low';
 MACHINE: 'machine';
 MATCH: 'match';
 MODULE: 'module';
+OMIT: 'omit';
 ON: 'on';
 OPCODE: 'opcode';
 ORANGE: 'orange';
 OUTPUT: 'output';
+PACKET: 'packet';
+PACKETS: 'packets';
 PARAM: 'param';
 PASSIVE: 'passive';
 PHASE: 'phase';

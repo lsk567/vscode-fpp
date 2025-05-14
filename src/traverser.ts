@@ -84,6 +84,9 @@ export abstract class MemberTraverser extends DiangosicManager {
                 case 'ComponentInstanceDecl':
                     this.componentInstanceDecl(ast, scope);
                     break;
+                case 'InterfaceDecl':
+                    this.interfaceDecl(ast, scope);
+                    break;
                 case 'ModuleDecl':
                     this.moduleDecl(ast, scope);
                     break;
@@ -104,6 +107,9 @@ export abstract class MemberTraverser extends DiangosicManager {
                     break;
                 case 'PatternGraphStmt':
                     this.patternGraphStmt(ast, scope);
+                    break;
+                case 'InterfaceImportStmt':
+                    this.interfaceImportStmt(ast, scope);
                     break;
                 case 'TopologyImportStmt':
                     this.topologyImportStmt(ast, scope);
@@ -168,6 +174,7 @@ export abstract class MemberTraverser extends DiangosicManager {
     protected componentInstanceSpec(ast: Fpp.ComponentInstanceSpec, scope: Fpp.QualifiedIdentifier) { }
     protected directGraphDecl(ast: Fpp.DirectGraphDecl, scope: Fpp.QualifiedIdentifier) { }
     protected patternGraphStmt(ast: Fpp.PatternGraphStmt, scope: Fpp.QualifiedIdentifier) { }
+    protected interfaceImportStmt(ast: Fpp.InterfaceImportStmt, scope: Fpp.QualifiedIdentifier) { }
     protected topologyImportStmt(ast: Fpp.TopologyImportStmt, scope: Fpp.QualifiedIdentifier) { }
     protected stateMachineInstance(ast: Fpp.StateMachineInstance, scope: Fpp.QualifiedIdentifier) { }
     protected guardDef(ast: Fpp.GuardDef, scope: Fpp.QualifiedIdentifier) { }
@@ -197,6 +204,12 @@ export abstract class MemberTraverser extends DiangosicManager {
     }
 
     protected componentDecl(ast: Fpp.ComponentDecl, scope: Fpp.QualifiedIdentifier) {
+        for (const member of ast.members) {
+            this.traverse(member, [...scope, ast.name]);
+        }
+    }
+
+    protected interfaceDecl(ast: Fpp.InterfaceDecl, scope: Fpp.QualifiedIdentifier) {
         for (const member of ast.members) {
             this.traverse(member, [...scope, ast.name]);
         }

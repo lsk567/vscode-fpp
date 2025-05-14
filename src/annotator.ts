@@ -356,10 +356,9 @@ export class FppAnnotator extends MemberTraverser {
                     case Fpp.PrimExprType.floating:
                     case Fpp.PrimExprType.boolean:
                     case Fpp.PrimExprType.string:
-                        return undefined;
                     case Fpp.PrimExprType.array:
                     case Fpp.PrimExprType.struct:
-                        return `A constant cannot take a ${value.type} value`;
+                        return undefined;
                 }
             }
         });
@@ -460,6 +459,11 @@ export class FppAnnotator extends MemberTraverser {
             this.semantic(param.name, SymbolType.formalParameter);
             this.type(param.type, scope);
         }
+    }
+
+    interfaceDecl(ast: Fpp.InterfaceDecl, scope: Fpp.QualifiedIdentifier): void {
+        this.semantic(ast.name, SymbolType.interface);
+        super.interfaceDecl(ast, scope);
     }
 
     componentInstanceDecl(ast: Fpp.ComponentInstanceDecl, scope: Fpp.QualifiedIdentifier): void {
@@ -636,8 +640,12 @@ export class FppAnnotator extends MemberTraverser {
         }
     }
 
+    interfaceImportStmt(ast: Fpp.InterfaceImportStmt, scope: Fpp.QualifiedIdentifier): void {
+        this.identifier(ast.symbol, scope, SymbolType.interface);
+    }
+
     topologyImportStmt(ast: Fpp.TopologyImportStmt, scope: Fpp.QualifiedIdentifier): void {
-        this.identifier(ast.topology, scope, SymbolType.topology);
+        this.identifier(ast.symbol, scope, SymbolType.topology);
     }
 
     doExpr(ast: Fpp.DoExpr, scope: Fpp.QualifiedIdentifier, stateScope: Fpp.QualifiedIdentifier): void {

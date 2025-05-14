@@ -270,7 +270,7 @@ export interface StateMachineInstance extends Decl {
 export interface ArrayDecl extends Decl {
     type: "ArrayDecl";
     fppType: TypeName;
-    default_?: ArrayExpr;
+    default_?: ArrayExpr | ScalarExpr;
     size: Expr;
     format?: StringLiteral;
 }
@@ -394,6 +394,8 @@ export interface SpecialPortInstanceDecl extends Decl {
     type: "SpecialPortInstanceDecl";
     kind: SpecialPortKind;
     fppType: undefined;
+    priority?: Expr;
+    queueFullBehavior?: QueueFullBehavior;
 }
 
 export type PortInstanceDecl = GeneralPortInstanceDecl | SpecialPortInstanceDecl;
@@ -418,6 +420,7 @@ export type ComponentMember = (
     | ConstantDecl
     | StructDecl
     | CommandDecl
+    | InterfaceImportStmt
     | ParamDecl
     | PortInstanceDecl
     | TelemetryChannelDecl
@@ -436,6 +439,17 @@ export interface ComponentDecl extends Decl {
     type: "ComponentDecl";
     kind: ComponentKind;
     members: ComponentMember[];
+    fppType: undefined;
+}
+
+export type InterfaceMember = (
+    | PortInstanceDecl
+    | InterfaceImportStmt
+);
+
+export interface InterfaceDecl extends Decl {
+    type: "InterfaceDecl";
+    members: InterfaceMember[];
     fppType: undefined;
 }
 
@@ -576,15 +590,20 @@ export interface PatternGraphStmt extends Annotatable {
 
 export interface TopologyImportStmt extends Annotatable {
     type: "TopologyImportStmt";
-    topology: QualifiedIdentifier;
+    symbol: QualifiedIdentifier;
+}
+
+export interface InterfaceImportStmt extends Annotatable {
+    type: "InterfaceImportStmt";
+    symbol: QualifiedIdentifier;
 }
 
 export type TopologyMember = (
-    ComponentInstanceSpec |
-    DirectGraphDecl |
-    PatternGraphStmt |
-    TopologyImportStmt |
-    IncludeStmt<TopologyMember>
+    | ComponentInstanceSpec
+    | DirectGraphDecl
+    | PatternGraphStmt
+    | TopologyImportStmt
+    | IncludeStmt<TopologyMember>
 );
 
 export interface TopologyDecl extends Decl {
@@ -616,6 +635,7 @@ export type ModuleMember = (
     | ComponentDecl
     | ComponentInstanceDecl
     | ConstantDecl
+    | InterfaceDecl
     | ModuleDecl
     | PortDecl
     | StructDecl
@@ -692,13 +712,17 @@ export interface StructExpr extends BasicExpr {
     value: StructAssignment[];
 };
 
-export type Expr = (
+export type ScalarExpr = (
     | BinaryExpr
     | NegExpr
     | BooleanExpr
+    | PrimaryExpr
+);
+
+export type Expr = (
     | StructExpr
     | ArrayExpr
-    | PrimaryExpr
+    | ScalarExpr
 );
 
 export type QualifiedIdentifier = readonly Identifier[];

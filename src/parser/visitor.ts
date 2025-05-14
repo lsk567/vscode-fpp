@@ -391,6 +391,23 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
+    visitArrayDefault(ctx: FppParser.ArrayDefaultContext): Fpp.ArrayExpr | Fpp.ScalarExpr {
+        if (!ctx) {
+            return this.error();
+        }
+
+        const arrayExpr = ctx.arrayExpr();
+        const scalarExpr = ctx.scalarExpr();
+
+        if (arrayExpr) {
+            return this.visitArrayExpr(arrayExpr);
+        } else if (scalarExpr) {
+            return this.visitScalarExpr(scalarExpr);
+        } else {
+            return this.error();
+        }
+    }
+
     visitArrayDecl(ctx: FppParser.ArrayDeclContext): Fpp.ArrayDecl {
         if (!ctx) {
             return this.error();
@@ -415,7 +432,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             location: this.loc(ctx),
             fppType: this.visitTypeName(ctx._type),
             size: this.visitExpr(ctx._size),
-            default_: default_ ? this.visitArrayExpr(default_) : undefined,
+            default_: default_ ? this.visitArrayDefault(default_) : undefined,
             format: format ? this.stringLiteral(format) : undefined
         };
     }
@@ -737,7 +754,8 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             kind: this.visitGeneralPortKind(ctx._kind),
             n: ctx._n ? this.visitExpr(ctx._n) : undefined,
             fppType: this.visitGeneralPortInstanceType_(ctx._type),
-            queueFullBehavior: ctx._queueFull ? this.visitQueueFullBehavior(ctx._queueFull) : undefined
+            queueFullBehavior: ctx._queueFull ? this.visitQueueFullBehavior(ctx._queueFull) : undefined,
+            priority: ctx._priority ? this.visitExpr(ctx._priority) : undefined
         };
     }
 
@@ -756,7 +774,9 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             fppType: undefined,
             location: this.loc(ctx),
             name: this.identifier(ctx._name),
-            kind: this.visitSpecialPortKind(ctx.specialPortKind())
+            kind: this.visitSpecialPortKind(ctx.specialPortKind()),
+            priority: ctx._priority ? this.visitExpr(ctx._priority) : undefined,
+            queueFullBehavior: ctx._queueFull ? this.visitQueueFullBehavior(ctx._queueFull) : undefined,
         };
     }
 
@@ -1153,19 +1173,25 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
     visitComponentMember(ctx: FppParser.ComponentMemberContext): Fpp.ComponentMember {
         const out = this.visit(ctx.componentMemberTempl()) as Fpp.ComponentMember;
-        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.ANNOTATION());
+        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.postAnnotation()?.ANNOTATION());
+        return out;
+    }
+
+    visitInterfaceMember(ctx: FppParser.InterfaceMemberContext): Fpp.InterfaceMember {
+        const out = this.visit(ctx.interfaceMemberTempl()) as Fpp.InterfaceMember;
+        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.postAnnotation()?.ANNOTATION());
         return out;
     }
 
     visitModuleMember(ctx: FppParser.ModuleMemberContext): Fpp.ModuleMember {
         const out = this.visit(ctx.moduleMemberTempl()) as Fpp.ModuleMember;
-        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.ANNOTATION());
+        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.postAnnotation()?.ANNOTATION());
         return out;
     }
 
     visitTopologyMember(ctx: FppParser.TopologyMemberContext): Fpp.TopologyMember {
         const out = this.visit(ctx.topologyMemberTempl()) as Fpp.TopologyMember;
-        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.ANNOTATION());
+        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.postAnnotation()?.ANNOTATION());
         return out;
     }
 
@@ -1199,6 +1225,39 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             location: this.loc(ctx),
             name,
             kind: this.visitComponentKind(ctx._kind),
+            members
+        };
+    }
+
+    visitInterfaceDecl(ctx: FppParser.InterfaceDeclContext): Fpp.InterfaceDecl {
+        if (!ctx) {
+            return this.error();
+        }
+
+        const name = this.identifier(ctx._name);
+
+        this.includeContextStack.push(IncludeContext.component);
+
+        const oldScope = this.scope;
+        this.scope = [...this.scope, name];
+
+        const members: Fpp.InterfaceMember[] = [];
+        for (const memberCtx of ctx.interfaceMember()) {
+            try {
+                members.push(this.visitInterfaceMember(memberCtx));
+            } catch (e) { }
+        }
+
+        this.includeContextStack.pop();
+
+        this.scope = oldScope;
+
+        return {
+            type: "InterfaceDecl",
+            scope: [...this.scope],
+            fppType: undefined,
+            location: this.loc(ctx),
+            name,
             members
         };
     }
@@ -1314,7 +1373,19 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
-    visitTopologyImportStmt(ctx: FppParser.TopologyImportStmtContext): Fpp.TopologyImportStmt {
+    visitImportInterfaceStmt(ctx: FppParser.ImportInterfaceStmtContext): Fpp.InterfaceImportStmt {
+        if (!ctx) {
+            return this.error();
+        }
+
+        return {
+            type: "InterfaceImportStmt",
+            location: this.loc(ctx),
+            symbol: this.visitQualIdent_(ctx._symbol)
+        };
+    }
+
+    visitImportTopologyStmt(ctx: FppParser.ImportInterfaceStmtContext): Fpp.TopologyImportStmt {
         if (!ctx) {
             return this.error();
         }
@@ -1322,7 +1393,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         return {
             type: "TopologyImportStmt",
             location: this.loc(ctx),
-            topology: this.visitQualIdent_(ctx._topology)
+            symbol: this.visitQualIdent_(ctx._symbol)
         };
     }
 
@@ -1509,7 +1580,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         return {
             type: "ArrayExpr",
             location: this.loc(ctx),
-            value: ctx.expr().map((v) => this.visitExpr(v))
+            value: ctx.scalarExpr().map((v) => this.visitScalarExpr(v))
         };
     }
 
@@ -1537,13 +1608,10 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
         };
     }
 
-    visitExpr(ctx: FppParser.ExprContext): Fpp.Expr {
+    visitScalarExpr(ctx: FppParser.ScalarExprContext): Fpp.ScalarExpr {
         if (!ctx) {
             return this.error();
         }
-
-        const arrayExpr = ctx.arrayExpr();
-        const structExpr = ctx.structExpr();
 
         if (ctx.LIT_FLOAT()) {
             return {
@@ -1580,22 +1648,38 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
             return {
                 type: "NegExpr",
                 location: this.loc(ctx),
-                value: this.visitExpr(ctx._unary)
+                value: this.visitScalarExpr(ctx._unary)
             };
         } else if (ctx._op) {
             return {
                 type: "BinaryExpr",
                 location: this.loc(ctx),
-                left: this.visitExpr(ctx._left),
-                right: this.visitExpr(ctx._right),
+                left: this.visitScalarExpr(ctx._left),
+                right: this.visitScalarExpr(ctx._right),
                 operator: this.keywordT(ctx._op)
             };
-        } else if (arrayExpr) {
+        } else {
+            return this.visitScalarExpr(ctx._p);
+        }
+    }
+
+    visitExpr(ctx: FppParser.ExprContext): Fpp.Expr {
+        if (!ctx) {
+            return this.error();
+        }
+
+        const arrayExpr = ctx.arrayExpr();
+        const structExpr = ctx.structExpr();
+        const scalarExpr = ctx.scalarExpr();
+
+        if (arrayExpr) {
             return this.visitArrayExpr(arrayExpr);
         } else if (structExpr) {
             return this.visitStructExpr(structExpr);
+        } else if (scalarExpr) {
+            return this.visitScalarExpr(scalarExpr);
         } else {
-            return this.visitExpr(ctx._p);
+            return this.error();
         }
     }
 
@@ -1778,7 +1862,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
     visitStateMember(ctx: FppParser.StateMemberContext): Fpp.StateDefMember {
         const out = this.visit(ctx.stateMemberTempl()) as Fpp.StateDefMember;
-        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.ANNOTATION());
+        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.postAnnotation()?.ANNOTATION());
         return out;
     }
 
@@ -1816,7 +1900,7 @@ export class AstVisitor extends AbstractParseTreeVisitor<Fpp.Ast> implements Fpp
 
     visitStateMachineMember(ctx: FppParser.StateMachineMemberContext): Fpp.StateMachineMember {
         const out = this.visit(ctx.stateMachineMemberTempl()) as Fpp.StateMachineMember;
-        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.ANNOTATION());
+        out.annotation = this.annotation(ctx.preAnnotation(), undefined, undefined, ctx.postAnnotation()?.ANNOTATION());
         return out;
     }
 
