@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.19] - 2025-05-06
+
+- Added interfaces (a future feature)
+- Telemetry packet syntax
+- Cleaned more annotation bugs
+
 ## [1.0.18] - 2025-05-06
 
 - Fixes the handling of special DP ports by adding their instances to the symbol table and resolving the keyword combinations
