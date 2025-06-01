@@ -97,10 +97,11 @@
     },
     "scripts": {
         "vscode:prepublish": "yarn clean && yarn run compile",
-        "clean": "rm -rf out/",
+        "build": "node esbuild.mjs",
+        "clean": "rm -rf out/ pack/",
         "esbuild-base": "esbuild --bundle --external:vscode --target=ES2021 --format=cjs --platform=node --minify",
-        "compile-extension": "yarn run esbuild-base ./src/extension.ts --outfile=out/extension.js",
-        "compile-worker": "yarn run esbuild-base ./src/parser/worker.ts --outfile=out/worker.js",
+        "compile-extension": "yarn run esbuild-base ./packages/extension/extension.ts --outfile=out/extension.js",
+        "compile-worker": "yarn run esbuild-base ./packages/extension/parser/worker.ts --outfile=out/worker.js",
         "compile": "yarn run compile-extension && yarn run compile-worker",
         "watch": "tsc -watch -p ./",
         "antlr": "antlr4ts -visitor src/grammar/Fpp.g4 && node ./scripts/update-signatures.js src/signatures.json src/grammar/FppParser.ts"
@@ -121,6 +122,5 @@
         "glob": "^8.0.3",
         "mocha": "^10.1.0",
         "typescript": "^4.8.4"
-    },
-    "dependencies": {}
+    }
 }
