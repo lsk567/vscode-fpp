@@ -19,6 +19,8 @@ import { isKeyword } from './keywords';
 import { generateSignature, signaturesDefinitions } from './signature';
 import { locs, LocsQuickPickFile, LocsQuickPickItem, LocsQuickPickType } from './locs';
 
+import { registerDefaultCommands } from 'sprotty-vscode';
+import { WebviewPanelManager } from 'sprotty-vscode/lib';
 
 function documentSymbolKind(type: SymbolType): vscode.SymbolKind | undefined {
     switch (type) {
@@ -791,8 +793,6 @@ class FppExtension implements
 }
 
 export function activate(context: vscode.ExtensionContext) {
-
-    console.log("Inside activate!");
     const extension = new FppExtension(context);
 
     context.subscriptions.push(
@@ -899,6 +899,15 @@ export function activate(context: vscode.ExtensionContext) {
             }
         })
     );
+
+    // Set up webview panel manager for freestyle webviews
+    const webviewPanelManager = new WebviewPanelManager({
+        extensionUri: context.extensionUri,
+        defaultDiagramType: 'fppDiagrams',
+        supportedFileExtensions: ['.fpp'],
+        singleton: true
+    });
+    registerDefaultCommands(webviewPanelManager, context, { extensionPrefix: 'fpp' });
 }
 
 export function deactivate() { }
