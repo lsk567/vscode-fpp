@@ -791,6 +791,8 @@ class FppExtension implements
 }
 
 export function activate(context: vscode.ExtensionContext) {
+
+    console.log("Inside activate!");
     const extension = new FppExtension(context);
 
     context.subscriptions.push(
