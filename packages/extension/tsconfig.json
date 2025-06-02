@@ -5,14 +5,13 @@
     "rootDir": "src",
     "outDir": "out",
     "lib": [
-      "ES2022",
+      "es2021",
       "dom"
     ],
     "declaration": false,
     "declarationMap": false,
-    "types": [] // Disables automatic inclusion of global @types/* packages. In this case, the hoisted @types/node package and the DOM package have type conflicts.
   },
   "include": [
     "src"
-  ],
+  ]
 }

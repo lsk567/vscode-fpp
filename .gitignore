@@ -9,3 +9,4 @@ pack
 src/grammar/venv
 
 **/package-lock.json
+**/*.tsbuildinfo
