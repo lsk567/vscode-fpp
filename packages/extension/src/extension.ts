@@ -20,7 +20,7 @@ import { generateSignature, signaturesDefinitions } from './signature';
 import { locs, LocsQuickPickFile, LocsQuickPickItem, LocsQuickPickType } from './locs';
 
 import { registerDefaultCommands } from 'sprotty-vscode';
-import { WebviewPanelManager } from 'sprotty-vscode/lib';
+import { FppWebviewPanelManager } from './webview';
 
 function documentSymbolKind(type: SymbolType): vscode.SymbolKind | undefined {
     switch (type) {
@@ -901,12 +901,13 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Set up webview panel manager for freestyle webviews
-    const webviewPanelManager = new WebviewPanelManager({
+    const webviewPanelManager = new FppWebviewPanelManager({
         extensionUri: context.extensionUri,
         defaultDiagramType: 'fppDiagrams',
         supportedFileExtensions: ['.fpp'],
         singleton: true
     });
+    console.log("Instantiated WebviewPanelManager");
     registerDefaultCommands(webviewPanelManager, context, { extensionPrefix: 'fpp' });
 }
 

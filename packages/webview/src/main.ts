@@ -17,23 +17,56 @@ import 'reflect-metadata';
 import 'sprotty-vscode-webview/css/sprotty-vscode.css';
 
 import { Container } from 'inversify';
-import { configureModelElement } from 'sprotty';
-import { SprottyDiagramIdentifier } from 'sprotty-vscode-webview';
-import { SprottyLspEditStarter } from 'sprotty-vscode-webview/lib/lsp/editing';
-import { createStateDiagramContainer } from './di.config';
-import { PaletteButtonView } from './html-views';
-import { PaletteButton } from 'sprotty-vscode-webview/lib/lsp/editing';
+import { configureModelElement, DiagramServerProxy, KeyTool, TYPES } from 'sprotty';
+import { DiagramIdentifierNotification, SprottyDiagramIdentifier, VscodeDiagramServer, VscodeDiagramWidget, VscodeDiagramWidgetFactory, WebviewReadyNotification } from 'sprotty-vscode-webview';
+import { SprottyStarter } from 'sprotty-vscode-webview/lib';
+import { createFppContainer } from './di.config';
+import { HOST_EXTENSION } from 'vscode-messenger-common';
+import { VsCodeApi, VsCodeMessenger } from 'sprotty-vscode-webview/lib/services';
 
-export class StatesSprottyStarter extends SprottyLspEditStarter {
+export class FppSprottyStarter extends SprottyStarter {
 
     protected override createContainer(diagramIdentifier: SprottyDiagramIdentifier) {
-        return createStateDiagramContainer(diagramIdentifier.clientId);
+        return createFppContainer(diagramIdentifier.clientId);
+    }
+
+    protected override sendReadyMessage(): void {
+        console.log("Sprotty Webview ready!");
+        this.messenger.sendNotification(WebviewReadyNotification, HOST_EXTENSION, { readyMessage: 'Sprotty Webview ready' });
+    }
+
+    protected override acceptDiagramIdentifier(): void {
+        console.log('Waiting for diagram identifier!');
+        this.messenger.onNotification(DiagramIdentifierNotification, newIdentifier => {
+            if (this.container) {
+                const oldIdentifier = this.container.get<SprottyDiagramIdentifier>(SprottyDiagramIdentifier);
+                oldIdentifier.diagramType = newIdentifier.diagramType;
+                oldIdentifier.uri = newIdentifier.uri;
+                const diagramWidget = this.container.get(VscodeDiagramWidget);
+                diagramWidget.requestModel();
+            } else {
+                console.log('...received!', newIdentifier);
+                this.container = this.createContainer(newIdentifier);
+                this.addVscodeBindings(this.container, newIdentifier);
+                console.log('Binded added!');
+                this.container.get(VscodeDiagramWidget);
+                console.log('VscodeDiagramWidget received!');
+            }
+        });
     }
 
     protected override addVscodeBindings(container: Container, diagramIdentifier: SprottyDiagramIdentifier): void {
-        super.addVscodeBindings(container, diagramIdentifier);
-        configureModelElement(container, 'button:create', PaletteButton, PaletteButtonView);
+        container.bind(VsCodeApi).toConstantValue(this.vscodeApi);
+        container.bind(VsCodeMessenger).toConstantValue(this.messenger);
+        container.bind(VscodeDiagramWidget).toSelf().inSingletonScope();
+        container.bind(VscodeDiagramWidgetFactory).toFactory(context => {
+            return () => context.container.get<VscodeDiagramWidget>(VscodeDiagramWidget);
+        });
+        container.bind(SprottyDiagramIdentifier).toConstantValue(diagramIdentifier);
+        container.bind(VscodeDiagramServer).toSelf().inSingletonScope();
+        // container.bind(TYPES.ModelSource).toService(VscodeDiagramServer); // FIXME: This line is problematic when LocalModelSource is bound!
+        container.bind(DiagramServerProxy).toService(VscodeDiagramServer);
     }
 }
 
-new StatesSprottyStarter().start();
+new FppSprottyStarter().start();
