@@ -32,12 +32,12 @@ export const graph: SGraph = {
             position: { x: 50, y: 0 },
             size: { width: 30, height: 30 }
         },
-        <SEdge>{
-            type: 'edge',
-            id: 'edge01',
-            sourceId: 'task01',
-            targetId: 'task02',
-            routerKind: 'manhattan',
-        }
+        // <SEdge>{
+        //     type: 'edge',
+        //     id: 'edge01',
+        //     sourceId: 'task01',
+        //     targetId: 'task02',
+        //     routerKind: 'manhattan',
+        // }
     ]
 };

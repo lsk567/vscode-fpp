@@ -7,6 +7,10 @@
     stroke: var(--vscode-button-secondaryForeground);
 }
 
+.sprotty-node.running {
+    fill: green;
+}
+
 .sprotty-label {
     fill: var(--vscode-button-foreground);
     stroke-width: 0;
