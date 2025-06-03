@@ -17,12 +17,14 @@ import 'reflect-metadata';
 import 'sprotty-vscode-webview/css/sprotty-vscode.css';
 
 import { Container } from 'inversify';
-import { configureModelElement, DiagramServerProxy, KeyTool, TYPES } from 'sprotty';
+import { configureModelElement, DiagramServerProxy, KeyTool, LocalModelSource, TYPES } from 'sprotty';
 import { DiagramIdentifierNotification, SprottyDiagramIdentifier, VscodeDiagramServer, VscodeDiagramWidget, VscodeDiagramWidgetFactory, WebviewReadyNotification } from 'sprotty-vscode-webview';
 import { SprottyStarter } from 'sprotty-vscode-webview/lib';
 import { createFppContainer } from './di.config';
 import { HOST_EXTENSION } from 'vscode-messenger-common';
 import { VsCodeApi, VsCodeMessenger } from 'sprotty-vscode-webview/lib/services';
+
+import { graph } from './model-source';
 
 export class FppSprottyStarter extends SprottyStarter {
 
@@ -64,7 +66,14 @@ export class FppSprottyStarter extends SprottyStarter {
         });
         container.bind(SprottyDiagramIdentifier).toConstantValue(diagramIdentifier);
         container.bind(VscodeDiagramServer).toSelf().inSingletonScope();
-        // container.bind(TYPES.ModelSource).toService(VscodeDiagramServer);    // FIXME: This line is problematic when LocalModelSource is bound!
+        
+        //// Select model source. Use remote for production.
+        // container.bind(TYPES.ModelSource).toService(VscodeDiagramServer);
+        //// Or use local to test rendering.
+        container.bind(TYPES.ModelSource).to(LocalModelSource).inSingletonScope();
+        const modelSource = container.get<LocalModelSource>(TYPES.ModelSource);
+        modelSource.setModel(graph);
+        
         container.bind(DiagramServerProxy).toService(VscodeDiagramServer);
         // container.rebind(KeyTool).to(DisabledKeyTool);                       // FIXME: DisabledKeyTool cannot be found for some reason.
     }
