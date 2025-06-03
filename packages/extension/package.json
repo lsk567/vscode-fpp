@@ -133,7 +133,7 @@
     "scripts": {
         "vscode:prepublish": "yarn clean && yarn run compile",
         "build": "yarn run antlr && yarn run compile-extension && yarn run compile-worker",
-        "clean": "shx rm -rf out pack ../../pack/extension",
+        "clean": "shx rm -rf out ../../pack/extension",
         "esbuild-base": "esbuild --bundle --external:vscode --target=ES2021 --format=cjs --platform=node --minify",
         "compile-extension": "yarn run esbuild-base src/extension.ts --outfile=../../pack/extension/extension.js",
         "compile-worker": "yarn run esbuild-base src/parser/worker.ts --outfile=../../pack/extension/worker.js",

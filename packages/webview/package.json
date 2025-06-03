@@ -42,7 +42,7 @@
   "scripts": {
     "prepare": "yarn run clean && yarn run build",
     "clean": "shx rm -rf out/ ../../pack/webview",
-    "build": "esbuild src/main.ts --bundle --outfile=../extension/pack/webview.js --target=es2022 --platform=browser --loader:.ts=ts --loader:.css=css --sourcemap --minify",
+    "build": "esbuild src/main.ts --bundle --outfile=../../pack/webview/webview.js --target=es2022 --platform=browser --loader:.ts=ts --loader:.css=css --sourcemap --minify",
     "typecheck": "tsc -p ./",
     "watch": "yarn run typecheck --watch"
   }

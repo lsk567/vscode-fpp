@@ -12,7 +12,7 @@ export const graph: SGraph = {
             isFinished: true,
             isRunning: false,
             position: { x: 0, y: 0 },
-            size: { width: 100, height: 100 }
+            size: { width: 10, height: 10 }
         },
         <SNode & TaskNode>{
             type: 'task',
@@ -20,8 +20,8 @@ export const graph: SGraph = {
             name: 'Second Task',
             isFinished: false,
             isRunning: true,
-            position: { x: 0, y: 200 },
-            size: { width: 100, height: 100 }
+            position: { x: 20, y: 0 },
+            size: { width: 20, height: 20 }
         },
         <SNode & TaskNode>{
             type: 'task',
@@ -29,8 +29,8 @@ export const graph: SGraph = {
             name: 'Third Task',
             isFinished: false,
             isRunning: false,
-            position: { x: 150, y: 0 },
-            size: { width: 100, height: 100 }
+            position: { x: 50, y: 0 },
+            size: { width: 30, height: 30 }
         },
         <SEdge>{
             type: 'edge',
