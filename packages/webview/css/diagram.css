@@ -6,3 +6,7 @@
     stroke-width: 2;
     stroke: var(--vscode-button-secondaryForeground);
 }
+
+.comp-label {
+    fill: var(--vscode-foreground);
+}

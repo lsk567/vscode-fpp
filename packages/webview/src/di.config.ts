@@ -3,12 +3,12 @@ import 'sprotty/css/sprotty.css';
 
 import { Container, ContainerModule } from 'inversify';
 import { configureModelElement, configureViewerOptions, loadDefaultModules, LocalModelSource, overrideViewerOptions, PolylineEdgeView, RectangularNodeView, SEdgeImpl, SGraphImpl, SGraphView, SNodeImpl, TYPES } from 'sprotty';
-import { TaskNodeView } from './views';
+import { ComponentNodeView } from './views';
 
 const myModule = new ContainerModule((bind, unbind, isBound, rebind) => {
     const context = { bind, unbind, isBound, rebind };
     configureModelElement(context, 'graph', SGraphImpl, SGraphView);
-    configureModelElement(context, 'task', SNodeImpl, TaskNodeView);
+    configureModelElement(context, 'component', SNodeImpl, ComponentNodeView);
     configureModelElement(context, 'edge', SEdgeImpl, PolylineEdgeView);
 });
 

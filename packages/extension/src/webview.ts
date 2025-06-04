@@ -3,7 +3,7 @@ import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction } from 'sprott
 import * as vscode from "vscode";
 import { FppProject } from "./project";
 import { DeclCollector } from "./decl";
-import { ComponentNode } from "./diagram/models";
+import { ComponentNode } from "../../webview/src/models";
 
 export class FppWebviewPanelManager extends WebviewPanelManager {
     constructor(readonly options: WebviewPanelManagerOptions, readonly fppProject: FppProject) {
@@ -28,13 +28,13 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             children: []
         };
         Array.from(decl.componentInstances.entries()).forEach(([key, comp], index) => {
-            console.log(comp);
+            // console.log(comp);
             const node = <SNode & ComponentNode>{
-                type: 'task',
+                type: 'component',
                 id: key,
                 name: comp.name.value,
-                position: { x: 0, y: index * 20 },
-                size: { width: 10, height: 10 }
+                position: { x: 0, y: index * 100 },
+                size: { width: 81, height: 50 }   // Golden ratio = 1.618
             };
             graph.children.push(node);
         });

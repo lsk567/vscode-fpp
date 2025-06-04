@@ -24,7 +24,6 @@ import { createFppContainer } from './di.config';
 import { HOST_EXTENSION } from 'vscode-messenger-common';
 import { VsCodeApi, VsCodeMessenger } from 'sprotty-vscode-webview/lib/services';
 
-import { graph } from './model-source';
 import { FppWorkerDiagramProxy } from './proxy';
 
 export class FppSprottyStarter extends SprottyStarter {
