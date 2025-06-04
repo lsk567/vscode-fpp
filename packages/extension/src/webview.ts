@@ -3,7 +3,7 @@ import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction } from 'sprott
 import * as vscode from "vscode";
 import { FppProject } from "./project";
 import { DeclCollector } from "./decl";
-import { TaskNode } from "./diagram/models";
+import { ComponentNode } from "./diagram/models";
 
 export class FppWebviewPanelManager extends WebviewPanelManager {
     constructor(readonly options: WebviewPanelManagerOptions, readonly fppProject: FppProject) {
@@ -22,47 +22,22 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     }
 
     protected generateSprottyGraph(decl: DeclCollector): SGraph {
-        console.log("decl: ", decl);
         const graph: SGraph = {
             type: 'graph',
             id: 'graph',
-            children: [
-                <SNode & TaskNode>{
-                    type: 'task',
-                    id: 'task01',
-                    name: 'First Task',
-                    isFinished: true,
-                    isRunning: false,
-                    position: { x: 0, y: 0 },
-                    size: { width: 10, height: 10 }
-                },
-                <SNode & TaskNode>{
-                    type: 'task',
-                    id: 'task02',
-                    name: 'Second Task',
-                    isFinished: false,
-                    isRunning: true,
-                    position: { x: 20, y: 0 },
-                    size: { width: 20, height: 20 }
-                },
-                <SNode & TaskNode>{
-                    type: 'task',
-                    id: 'task03',
-                    name: 'Third Task',
-                    isFinished: false,
-                    isRunning: false,
-                    position: { x: 50, y: 0 },
-                    size: { width: 30, height: 30 }
-                },
-                // <SEdge>{
-                //     type: 'edge',
-                //     id: 'edge01',
-                //     sourceId: 'task01',
-                //     targetId: 'task02',
-                //     routerKind: 'manhattan',
-                // }
-            ]
+            children: []
         };
+        Array.from(decl.componentInstances.entries()).forEach(([key, comp], index) => {
+            console.log(comp);
+            const node = <SNode & ComponentNode>{
+                type: 'task',
+                id: key,
+                name: comp.name.value,
+                position: { x: 0, y: index * 20 },
+                size: { width: 10, height: 10 }
+            };
+            graph.children.push(node);
+        });
         return graph;
     }
 
