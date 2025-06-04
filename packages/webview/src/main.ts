@@ -25,6 +25,7 @@ import { HOST_EXTENSION } from 'vscode-messenger-common';
 import { VsCodeApi, VsCodeMessenger } from 'sprotty-vscode-webview/lib/services';
 
 import { graph } from './model-source';
+import { FppWorkerDiagramProxy } from './proxy';
 
 export class FppSprottyStarter extends SprottyStarter {
 
@@ -44,8 +45,9 @@ export class FppSprottyStarter extends SprottyStarter {
                 const oldIdentifier = this.container.get<SprottyDiagramIdentifier>(SprottyDiagramIdentifier);
                 oldIdentifier.diagramType = newIdentifier.diagramType;
                 oldIdentifier.uri = newIdentifier.uri;
+
                 const diagramWidget = this.container.get(VscodeDiagramWidget);
-                diagramWidget.requestModel();
+                diagramWidget.requestModel(); // Send a RequestModelAction to extension.
             } else {
                 console.log('...received!', newIdentifier);
                 this.container = this.createContainer(newIdentifier);
@@ -68,11 +70,13 @@ export class FppSprottyStarter extends SprottyStarter {
         container.bind(VscodeDiagramServer).toSelf().inSingletonScope();
         
         //// Select model source. Use remote for production.
-        // container.bind(TYPES.ModelSource).toService(VscodeDiagramServer);
+        container.bind(TYPES.ModelSource).to(FppWorkerDiagramProxy).inSingletonScope();
+        const modelSource = container.get<FppWorkerDiagramProxy>(TYPES.ModelSource);
+
         //// Or use local to test rendering.
-        container.bind(TYPES.ModelSource).to(LocalModelSource).inSingletonScope();
-        const modelSource = container.get<LocalModelSource>(TYPES.ModelSource);
-        modelSource.setModel(graph);
+        // container.bind(TYPES.ModelSource).to(LocalModelSource).inSingletonScope();
+        // const modelSource = container.get<LocalModelSource>(TYPES.ModelSource);
+        // modelSource.setModel(graph);
         
         container.bind(DiagramServerProxy).toService(VscodeDiagramServer);
         // container.rebind(KeyTool).to(DisabledKeyTool);                       // FIXME: DisabledKeyTool cannot be found for some reason.
