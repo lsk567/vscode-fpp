@@ -82,7 +82,7 @@ class FppExtension implements
     vscode.SignatureHelpProvider,
     vscode.Disposable {
 
-    private project: FppProject;
+    readonly project: FppProject;
 
     private subscriptions: vscode.Disposable[];
     private componentsProvider: ComponentsProvider;
@@ -906,7 +906,7 @@ export function activate(context: vscode.ExtensionContext) {
         defaultDiagramType: 'fppDiagrams',
         supportedFileExtensions: ['.fpp'],
         singleton: true
-    });
+    }, extension.project);
     console.log("Instantiated WebviewPanelManager");
     registerDefaultCommands(webviewPanelManager, context, { extensionPrefix: 'fpp' });
 }
