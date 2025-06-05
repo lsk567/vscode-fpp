@@ -905,7 +905,7 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    // Set up webview panel manager for freestyle webviews
+    // Set up webview panel manager for freestyle webviews.
     const webviewPanelManager = new FppWebviewPanelManager({
         extensionUri: context.extensionUri,
         defaultDiagramType: 'fppDiagrams',
@@ -915,6 +915,7 @@ export function activate(context: vscode.ExtensionContext) {
     console.log("Instantiated WebviewPanelManager");
     registerDefaultCommands(webviewPanelManager, context, { extensionPrefix: 'fpp' });
 
+    // Set up CodeLens provider to have neat buttons float above definitions.
     const codelensProvider = new CodelensProvider();
     context.subscriptions.push(
         vscode.languages.registerCodeLensProvider("*", codelensProvider),
@@ -924,24 +925,8 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand("fpp.disableCodeLens", () => {
             vscode.workspace.getConfiguration("fpp").update("enableCodeLens", false, true);
         }),
-        // FIXME: Factor the CodeLens handler function below into (perhaps) webview manager.
-        vscode.commands.registerCommand("fpp.visualizeConnectionGroup", (args: any[]) => {
-            const connectionGroupName = args[0];
-            vscode.window.setStatusBarMessage(`Visualizing ${connectionGroupName}...`, 5000);
-            // Generate an SGraph for the connection group.
-            const graph = SGraphGenerator.connectionGroup(extension.project.decl, connectionGroupName);
-            const msg = SetModelAction.create(graph);
-            var activeEndpoint = undefined;
-            if (webviewPanelManager.endpoints.length > 0) {
-                activeEndpoint = webviewPanelManager.endpoints[0];
-            }
-            if (activeEndpoint) {
-                activeEndpoint.sendAction(msg);
-                console.log("Sending back msg: ", msg);
-            } else {
-                console.log("Active endpoint not found!");
-            }
-        })
+        vscode.commands.registerCommand("fpp.visualizeConnectionGroup",
+            (args: any[]) => webviewPanelManager.codeLensVisualizeConnectionGroup(args))
     );
 }
 

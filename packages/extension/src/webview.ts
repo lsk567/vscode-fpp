@@ -1,3 +1,14 @@
+/**
+ * This file manages all interactions with the live Sprotty diagram in the webview.
+ * 
+ * The interactions include: 
+ * 
+ * 1. the extension responding to messages coming from the webview
+ * (i.e., handlers registered to WebviewEndpoint under FppWebviewPanelManager);
+ * 
+ * 2. the extension actively sending messages to the webview, upon user request
+ * from the CodeLens buttons (buttons floating above definitions).
+ */
 import { createFileUri, createWebviewPanel, SprottyDiagramIdentifier, WebviewEndpoint, WebviewPanelManager, WebviewPanelManagerOptions } from "sprotty-vscode";
 import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction } from 'sprotty-protocol';
 import * as vscode from "vscode";
@@ -22,6 +33,24 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     }
 
     /**
+     * Create an endpoint to the webview and register handlers of incoming messages from the webview.
+     */
+    protected override createEndpoint(identifier: SprottyDiagramIdentifier): WebviewEndpoint {
+        const activeWebview = super.createEndpoint(identifier);
+        if (activeWebview) {
+            console.log("Active webview");
+        } else {
+            console.log("Inactive webview!");
+        }
+        this.addRequestModelHandler(activeWebview); 
+        return activeWebview;
+    }
+
+    /************************************************************/
+    /***** Handlers for responding to messages from webview *****/
+    /************************************************************/
+
+    /**
      * This function registers a handler for RequestModelAction from the frontend webview.
      * Webview sends RequestModelAction at initialization.
      * This handler should construct an SGraph and send it to webview.
@@ -41,18 +70,27 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         endpoint.addActionHandler(RequestModelAction.KIND, handler);
     }
 
-    /**
-     * Create an endpoint to the webview and register handlers of incoming messages from the webview.
-     */
-    protected override createEndpoint(identifier: SprottyDiagramIdentifier): WebviewEndpoint {
-        const activeWebview = super.createEndpoint(identifier);
-        if (activeWebview) {
-            console.log("Active webview");
-        } else {
-            console.log("Inactive webview!");
+    /*********************************************************************************/
+    /***** Handlers for sending messages to webview upon user's CodeLens actions *****/
+    /*********************************************************************************/
+
+    public codeLensVisualizeConnectionGroup(args: any[]) {
+        const connectionGroupName = args[0];
+        vscode.window.setStatusBarMessage(`Visualizing ${connectionGroupName}...`, 5000);
+        console.log("this.fppProject = ", this.fppProject);
+        // Generate an SGraph for the connection group.
+        const graph = SGraphGenerator.connectionGroup(this.fppProject.decl, connectionGroupName);
+        const msg = SetModelAction.create(graph);
+        var activeEndpoint = undefined;
+        if (this.endpoints.length > 0) {
+            activeEndpoint = this.endpoints[0];
         }
-        this.addRequestModelHandler(activeWebview); 
-        return activeWebview;
+        if (activeEndpoint) {
+            activeEndpoint.sendAction(msg);
+            console.log("Sending back msg: ", msg);
+        } else {
+            console.log("Active endpoint not found!");
+        }
     }
 }
 
@@ -98,7 +136,12 @@ export class SGraphGenerator {
      * @returns An SGraph to be sent to webview
      */
     static connectionGroup(decl: DeclCollector, connectionGroupName: string): SGraph {
-        const graph: SGraph = this.initGraph();
+        const graph: SGraph = {
+            type: 'graph',
+            id: 'graph',
+            children: []
+        };
+        // const graph: SGraph = this.initGraph();
 
         return graph;
     }
