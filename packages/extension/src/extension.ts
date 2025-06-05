@@ -20,7 +20,9 @@ import { generateSignature, signaturesDefinitions } from './signature';
 import { locs, LocsQuickPickFile, LocsQuickPickItem, LocsQuickPickType } from './locs';
 
 import { registerDefaultCommands } from 'sprotty-vscode';
-import { FppWebviewPanelManager } from './webview';
+import { FppWebviewPanelManager, SGraphGenerator } from './webview';
+import { CodelensProvider } from './codelens';
+import { SetModelAction } from 'sprotty-protocol';
 
 function documentSymbolKind(type: SymbolType): vscode.SymbolKind | undefined {
     switch (type) {
@@ -795,6 +797,9 @@ class FppExtension implements
 export function activate(context: vscode.ExtensionContext) {
     const extension = new FppExtension(context);
 
+    // When pushing Disposible into context.subscriptions,
+    // the extension automatically calls dispose() on each
+    // item in the array.
     context.subscriptions.push(
         extension,
         vscode.commands.registerCommand('fpp.reload', extension.reload.bind(extension)),
@@ -909,6 +914,35 @@ export function activate(context: vscode.ExtensionContext) {
     }, extension.project);
     console.log("Instantiated WebviewPanelManager");
     registerDefaultCommands(webviewPanelManager, context, { extensionPrefix: 'fpp' });
+
+    const codelensProvider = new CodelensProvider();
+    context.subscriptions.push(
+        vscode.languages.registerCodeLensProvider("*", codelensProvider),
+        vscode.commands.registerCommand("fpp.enableCodeLens", () => {
+            vscode.workspace.getConfiguration("fpp").update("enableCodeLens", true, true);
+        }),
+        vscode.commands.registerCommand("fpp.disableCodeLens", () => {
+            vscode.workspace.getConfiguration("fpp").update("enableCodeLens", false, true);
+        }),
+        // FIXME: Factor the CodeLens handler function below into (perhaps) webview manager.
+        vscode.commands.registerCommand("fpp.visualizeConnectionGroup", (args: any[]) => {
+            const connectionGroupName = args[0];
+            vscode.window.setStatusBarMessage(`Visualizing ${connectionGroupName}...`, 5000);
+            // Generate an SGraph for the connection group.
+            const graph = SGraphGenerator.connectionGroup(extension.project.decl, connectionGroupName);
+            const msg = SetModelAction.create(graph);
+            var activeEndpoint = undefined;
+            if (webviewPanelManager.endpoints.length > 0) {
+                activeEndpoint = webviewPanelManager.endpoints[0];
+            }
+            if (activeEndpoint) {
+                activeEndpoint.sendAction(msg);
+                console.log("Sending back msg: ", msg);
+            } else {
+                console.log("Active endpoint not found!");
+            }
+        })
+    );
 }
 
 export function deactivate() { }

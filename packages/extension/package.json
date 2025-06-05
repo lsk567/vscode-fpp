@@ -48,6 +48,16 @@
                 "title": "Open FPP Diagram",
                 "icon": "$(telescope)",
                 "category": "FPP Diagram"
+            },
+            {
+                "command": "fpp.enableCodeLens",
+                "title": "Enable FPP CodeLens",
+                "category": "FPP CodeLens"
+            },
+            {
+                "command": "fpp.disableCodeLens",
+                "title": "Disable FPP Codelens",
+                "category": "FPP CodeLens"
             }
         ],
         "languages": [
@@ -126,13 +136,17 @@
                 "fpp.locsExclude": {
                     "type": "string",
                     "markdownDescription": "Glob pattern path to exclude from `locs.fpp` search"
+                },
+                "fpp.enableCodeLens": {
+                    "type": "boolean",
+                    "default": true
                 }
             }
         }
     },
     "scripts": {
         "vscode:prepublish": "yarn clean && yarn run compile",
-        "build": "yarn run antlr && yarn run compile-extension && yarn run compile-worker",
+        "build": "yarn run compile-extension && yarn run compile-worker",
         "clean": "shx rm -rf out ../../pack/extension",
         "esbuild-base": "esbuild --bundle --external:vscode --target=ES2021 --format=cjs --platform=node --minify",
         "compile-extension": "yarn run esbuild-base src/extension.ts --outfile=../../pack/extension/extension.js",
