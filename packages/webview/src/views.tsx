@@ -28,6 +28,7 @@ export class ComponentNodeView implements IView {
             >
                 {node.name}
             </text>
+            {context.renderChildren(node)}
         </g>;
     }
 }

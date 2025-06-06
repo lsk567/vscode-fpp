@@ -17,6 +17,7 @@ import { DeclCollector, SymbolType } from "./decl";
 import { ComponentNode } from "../../webview/src/models";
 import { ComponentDecl, PortDecl, PortInstance, PortInstanceDecl } from "./parser/ast";
 import { MemberTraverser } from "./traverser";
+import { v4 as uuid } from 'uuid';
 
 export class FppWebviewPanelManager extends WebviewPanelManager {
 
@@ -138,14 +139,6 @@ export class SGraphGenerator {
             // Push SNode into graph.
             graph.children.push(node);
         });
-        graph.children.push(<SPort>{
-            type: 'port',
-            id: 'port.test',
-            name: 'test port',
-            position: { x: 50, y: 50 },
-            size: { width: 20, height: 20 },   // Golden ratio = 1.618
-        });
-        console.log();
         return graph;
     }
 
@@ -199,36 +192,36 @@ export class SGraphGenerator {
             id: uid,
             name: comp.name.value,
             position: { x: 0, y: 0 },
-            size: { width: 81, height: 50 },   // Golden ratio = 1.618
-            children: [
-                <SPort>{
-                    type: 'port',
-                    id: uid + '.test',
-                    name: 'test port',
-                    position: { x: 50, y: 50 },
-                    size: { width: 20, height: 20 },   // Golden ratio = 1.618
-                }
-            ],
+            children: [],
             isActive: false,
             isQueued: false,
             isPassive: false
         };
+
         // Add an SPort to children for each port of the component.
-        // comp.members.forEach((val, i) => {
-        //     if (this.isPortInstanceDecl(val)) {
-        //         console.log(`${val.name.value} is a port!`);
-        //         // FIXME: Is there a better way to get a fully qualified name?
-        //         const uid = val.scope.map(i => i.value).join('.') + val.name.value;
-        //         node.children!.push(this.modelPort(val, uid));
-        //     }
-        // });
+        comp.members.forEach((val, i) => {
+            if (this.isPortInstanceDecl(val)) {
+                console.log(`${val.name.value} is a port!`);
+                // Currently, UUID ensures the uniqueness of the port instance ID.
+                // FIXME: Is there a better way to get unique ID?
+                // FIXME: Is there a better way to get a fully qualified name?
+                const uid = val.scope.map(i => i.value).join('.') + val.name.value + '.' + uuid();
+                node.children!.push(this.modelPort(val, uid));
+            }
+        });
+
+        // Adjust node height based on the number of children.
+        node.size = { width: 81, height: node.children!.length * 20};
+
         return node;
     }
 
     static modelPort(port: PortInstanceDecl, uid: string): SPort {
         return <SPort>{
             type: 'port',
-            id: uid
+            id: uid,
+            name: port.name.value,
+            size: { width: 20, height: 20 }
         };
     }
 
