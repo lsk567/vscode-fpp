@@ -10,7 +10,7 @@
  * from the CodeLens buttons (buttons floating above definitions).
  */
 import { createFileUri, createWebviewPanel, SprottyDiagramIdentifier, WebviewEndpoint, WebviewPanelManager, WebviewPanelManagerOptions } from "sprotty-vscode";
-import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction, SPort } from 'sprotty-protocol';
+import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction, SPort, SLabel, RequestBoundsAction, ComputedBoundsAction, UpdateModelAction } from 'sprotty-protocol';
 import * as vscode from "vscode";
 import { FppProject } from "../project";
 import { DeclCollector, SymbolType } from "../decl";
@@ -46,7 +46,8 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         } else {
             console.log("Inactive webview!");
         }
-        this.addRequestModelHandler(activeWebview); 
+        this.addRequestModelHandler(activeWebview);
+        this.addComputedBoundsHandler(activeWebview);
         return activeWebview;
     }
 
@@ -67,11 +68,25 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             console.log("Received RequestModelAction: ", action);
             console.log("Generate SGraph...");
             const graph = SGraphGenerator.topology(this.fppProject.decl);
-            const msg = SetModelAction.create(graph);
+            
+            const msg = RequestBoundsAction.create(graph);
             await endpoint.sendAction(msg);
-            console.log("Send back msg: ", msg);
+            console.log("Send back RequestBoundsAction msg: ", msg);
         };
         endpoint.addActionHandler(RequestModelAction.KIND, handler);
+    }
+
+    protected addComputedBoundsHandler(endpoint: WebviewEndpoint) {
+        const handler = async (action: ComputedBoundsAction) => {
+            console.log("Received ComputedBoundsAction: ", action);
+            console.log("Generate SGraph...");
+            const graph: SGraph = SGraphGenerator.topology(this.fppProject.decl);
+            
+            const msg = UpdateModelAction.create(graph);
+            await endpoint.sendAction(msg);
+            console.log("Send back UpdateModelAction msg: ", msg);
+        };
+        endpoint.addActionHandler(ComputedBoundsAction.KIND, handler);
     }
 
     /*************************************************************************/
@@ -190,8 +205,12 @@ export class SGraphGenerator {
         var node = <ComponentNode>{
             type: 'component',
             id: uid,
-            position: { x: 0, y: 0 },
+            position: { x: 10, y: 10 },
+            // FIXME: Check if micro-layout works.
             layout: 'vbox',
+            layoutOptions: {
+                hAlign: 'left'
+            },
             children: [],
             astNode: comp
         };
@@ -199,7 +218,6 @@ export class SGraphGenerator {
         // Add an SPort to children for each port of the component.
         comp.members.forEach((val, i) => {
             if (this.isPortInstanceDecl(val)) {
-                console.log(`${val.name.value} is a port!`);
                 // Currently, UUID ensures the uniqueness of the port instance ID.
                 // FIXME: Is there a better way to get unique ID?
                 // FIXME: Is there a better way to get a fully qualified name?
@@ -230,7 +248,6 @@ export class SGraphGenerator {
      * Caution: This needs to update when `ast.ts` is changed.
      */
     static isPortInstanceDecl(obj: any): obj is PortInstanceDecl {
-        console.log("isPortInstanceDecl: ", obj);
         return obj && (obj.type === 'GeneralPortInstanceDecl'
             || obj.type === 'SpecialPortInstanceDecl'
         );

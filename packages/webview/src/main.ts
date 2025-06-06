@@ -17,7 +17,7 @@ import 'reflect-metadata';
 import 'sprotty-vscode-webview/css/sprotty-vscode.css';
 
 import { Container } from 'inversify';
-import { configureModelElement, DiagramServerProxy, KeyTool, LocalModelSource, TYPES } from 'sprotty';
+import { configureModelElement, ConsoleLogger, DiagramServerProxy, KeyTool, LocalModelSource, TYPES } from 'sprotty';
 import { DiagramIdentifierNotification, SprottyDiagramIdentifier, VscodeDiagramServer, VscodeDiagramWidget, VscodeDiagramWidgetFactory, WebviewReadyNotification } from 'sprotty-vscode-webview';
 import { SprottyStarter } from 'sprotty-vscode-webview/lib';
 import { createFppContainer } from './di.config';
@@ -75,6 +75,10 @@ export class FppSprottyStarter extends SprottyStarter {
         // container.bind(TYPES.ModelSource).to(LocalModelSource).inSingletonScope();
         // const modelSource = container.get<LocalModelSource>(TYPES.ModelSource);
         // modelSource.setModel(graph);
+
+        // Inject ConsoleLogger into classes that want ILogger.
+        container.rebind(TYPES.ILogger).to(ConsoleLogger).inSingletonScope();
+
     }
 }
 
