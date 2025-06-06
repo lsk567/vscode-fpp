@@ -12,11 +12,11 @@
 import { createFileUri, createWebviewPanel, SprottyDiagramIdentifier, WebviewEndpoint, WebviewPanelManager, WebviewPanelManagerOptions } from "sprotty-vscode";
 import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction, SPort } from 'sprotty-protocol';
 import * as vscode from "vscode";
-import { FppProject } from "./project";
-import { DeclCollector, SymbolType } from "./decl";
-import { ComponentNode } from "../../webview/src/models";
-import { ComponentDecl, PortDecl, PortInstance, PortInstanceDecl } from "./parser/ast";
-import { MemberTraverser } from "./traverser";
+import { FppProject } from "../project";
+import { DeclCollector, SymbolType } from "../decl";
+import { ComponentNode, PortNode } from "./models";
+import { ComponentDecl, PortDecl, PortInstance, PortInstanceDecl } from "../parser/ast";
+import { MemberTraverser } from "../traverser";
 import { v4 as uuid } from 'uuid';
 
 export class FppWebviewPanelManager extends WebviewPanelManager {
@@ -187,15 +187,13 @@ export class SGraphGenerator {
      */
     static modelComponent(comp: ComponentDecl, uid: string): SNode {
         // Instantiate an SNode for the component.
-        var node = <SNode & ComponentNode>{
+        var node = <ComponentNode>{
             type: 'component',
             id: uid,
-            name: comp.name.value,
             position: { x: 0, y: 0 },
+            layout: 'vbox',
             children: [],
-            isActive: false,
-            isQueued: false,
-            isPassive: false
+            astNode: comp
         };
 
         // Add an SPort to children for each port of the component.
@@ -211,18 +209,19 @@ export class SGraphGenerator {
         });
 
         // Adjust node height based on the number of children.
-        node.size = { width: 81, height: node.children!.length * 20};
+        node.size = { width: 81, height: Math.max(50, node.children!.length * 20)};
 
         return node;
     }
 
-    static modelPort(port: PortInstanceDecl, uid: string): SPort {
-        return <SPort>{
+    static modelPort(port: PortInstanceDecl, uid: string): PortNode {
+        const portNode: PortNode = {
             type: 'port',
             id: uid,
-            name: port.name.value,
-            size: { width: 20, height: 20 }
+            size: { width: 20, height: 20 },
+            astNode: port
         };
+        return portNode;
     }
 
     /**

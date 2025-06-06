@@ -4,16 +4,16 @@ import { injectable } from 'inversify';
 import { VNode } from 'snabbdom';
 import { IView, RenderingContext, SNodeImpl, SPortImpl } from 'sprotty';
 import { Selectable } from 'sprotty-protocol';
-import { ComponentNode } from './models';
+import { ComponentNode, PortNode } from '../../extension/src/diagram/models';
 
 @injectable()
 export class ComponentNodeView implements IView {
     render(node: Readonly<SNodeImpl & ComponentNode & Selectable>, context: RenderingContext): VNode {
         return <g>
             <rect class-sprotty-node={true} class-task={true}
-                class-active={node.isActive}
-                class-queued={node.isQueued}
-                class-passive={node.isPassive}
+                class-active={node.astNode.kind.value === 'active'}
+                class-queued={node.astNode.kind.value === 'queued'}
+                class-passive={node.astNode.kind.value === 'passive'}
                 class-selected={node.selected}
                 width={node.size.width}
                 height={node.size.height}
@@ -26,7 +26,7 @@ export class ComponentNodeView implements IView {
                 alignment-baseline="hanging"
                 class-comp-label={true}
             >
-                {node.name}
+                {node.astNode.name.value}
             </text>
             {context.renderChildren(node)}
         </g>;
@@ -34,15 +34,22 @@ export class ComponentNodeView implements IView {
 }
 
 @injectable()
-export class SPortView implements IView {
-    render(node: Readonly<SPortImpl>, context: RenderingContext): VNode {
-        // Triangle points to the right, centered at (0,0), size 10x10
-        // Adjust x/y as needed for your layout
+export class PortView implements IView {
+    render(node: Readonly<SNodeImpl & PortNode>, context: RenderingContext): VNode {
         return <g>
             <polygon
                 points="0,0 10,5 0,10"
                 class-sprotty-port={true}
             />
+            <text
+                x={0}
+                y={node.size.height / 2}
+                text-anchor="left"
+                alignment-baseline="hanging"
+                class-comp-label={true}
+            >
+                {node.astNode.name.value}
+            </text>
         </g>;
     }
 }

@@ -20,7 +20,7 @@ import { generateSignature, signaturesDefinitions } from './signature';
 import { locs, LocsQuickPickFile, LocsQuickPickItem, LocsQuickPickType } from './locs';
 
 import { registerDefaultCommands } from 'sprotty-vscode';
-import { FppWebviewPanelManager, SGraphGenerator } from './webview';
+import { FppWebviewPanelManager } from './diagram/webview';
 import { CodelensProvider } from './codelens';
 import { SetModelAction } from 'sprotty-protocol';
 

@@ -2,15 +2,20 @@ import 'sprotty/css/sprotty.css';
 import '../css/diagram.css';
 
 import { Container, ContainerModule } from 'inversify';
-import { CircularNodeView, configureModelElement, configureViewerOptions, loadDefaultModules, LocalModelSource, overrideViewerOptions, PolylineEdgeView, RectangularNodeView, SEdgeImpl, SGraphImpl, SGraphView, SNodeImpl, SPortImpl, TYPES } from 'sprotty';
-import { ComponentNodeView, SPortView } from './views';
+import { CircularNodeView, configureModelElement, configureViewerOptions, layoutableChildFeature, loadDefaultModules, LocalModelSource, overrideViewerOptions, PolylineEdgeView, RectangularNodeView, SEdgeImpl, SGraphImpl, SGraphView, SNodeImpl, SPortImpl, TYPES } from 'sprotty';
+import { ComponentNodeView, PortView } from './views';
 
 const myModule = new ContainerModule((bind, unbind, isBound, rebind) => {
     const context = { bind, unbind, isBound, rebind };
-    configureModelElement(context, 'graph', SGraphImpl, SGraphView);
-    configureModelElement(context, 'component', SNodeImpl, ComponentNodeView);
-    configureModelElement(context, 'port', SPortImpl, SPortView);
+    configureModelElement(context, 'graph', SGraphImpl, SGraphView, {enable: [layoutableChildFeature]});
+    // FIXME: When ELK is integrated, disable layoutableChildFeature.
+    configureModelElement(context, 'component', SNodeImpl, ComponentNodeView, {enable: [layoutableChildFeature]});
+    configureModelElement(context, 'port', SNodeImpl, PortView, {enable: [layoutableChildFeature]});
     configureModelElement(context, 'edge', SEdgeImpl, PolylineEdgeView);
+    configureViewerOptions(context, {
+        needsClientLayout: true, // Turn on micro-layout
+        needsServerLayout: false,
+    });
 });
 
 export const createFppContainer = (containerId: string) => {
@@ -19,11 +24,8 @@ export const createFppContainer = (containerId: string) => {
     loadDefaultModules(container);
     container.load(myModule);
     overrideViewerOptions(container, {
-        needsClientLayout: false,
-        needsServerLayout: false,
         baseDiv: containerId,
     });
-    
 
     return container;
 };
