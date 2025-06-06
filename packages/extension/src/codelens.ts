@@ -23,7 +23,11 @@ export class CodelensProvider implements vscode.CodeLensProvider {
 		if (vscode.workspace.getConfiguration("fpp").get("enableCodeLens", true)) {
 			const lenses: vscode.CodeLens[] = [];
 
-            const regex = /\bconnections\s+(\w+)/g;
+            // This regex matches the word "connections" as a whole word, followed by one or more spaces,
+            // then captures the next word (the group name) in a capture group.
+            // Example match: "connections Downlink" will capture "Downlink" as match[1].
+            // It does NOT require a "{" after the group name, so it works even if "{" is on the next line.
+            const regex = /^\s*connections\s+(\w+)\s*(?:\{)?/gm;
             const text = document.getText();
             let match;
 
@@ -33,7 +37,7 @@ export class CodelensProvider implements vscode.CodeLensProvider {
                 const range = new vscode.Range(position, position);
                 const elemName = match[1];
                 const lens = new vscode.CodeLens(range, {
-                    title: `Visualize: ${elemName}`,
+                    title: `Open in Diagram: ${elemName}`,
                     tooltip: 'Click to visualize this connection group',
                     command: 'fpp.visualizeConnectionGroup',
                     arguments: [elemName]

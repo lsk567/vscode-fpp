@@ -10,13 +10,16 @@
  * from the CodeLens buttons (buttons floating above definitions).
  */
 import { createFileUri, createWebviewPanel, SprottyDiagramIdentifier, WebviewEndpoint, WebviewPanelManager, WebviewPanelManagerOptions } from "sprotty-vscode";
-import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction } from 'sprotty-protocol';
+import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction, SPort } from 'sprotty-protocol';
 import * as vscode from "vscode";
 import { FppProject } from "./project";
-import { DeclCollector } from "./decl";
+import { DeclCollector, SymbolType } from "./decl";
 import { ComponentNode } from "../../webview/src/models";
+import { ComponentDecl, PortDecl, PortInstance, PortInstanceDecl } from "./parser/ast";
+import { MemberTraverser } from "./traverser";
 
 export class FppWebviewPanelManager extends WebviewPanelManager {
+
     constructor(readonly options: WebviewPanelManagerOptions, readonly fppProject: FppProject) {
         super(options);
     }
@@ -46,9 +49,9 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         return activeWebview;
     }
 
-    /************************************************************/
-    /***** Handlers for responding to messages from webview *****/
-    /************************************************************/
+    /****************************************************/
+    /* Handlers for responding to messages from webview */
+    /****************************************************/
 
     /**
      * This function registers a handler for RequestModelAction from the frontend webview.
@@ -62,7 +65,7 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         const handler = async (action: RequestModelAction) => {
             console.log("Received RequestModelAction: ", action);
             console.log("Generate SGraph...");
-            const graph = SGraphGenerator.allComponents(this.fppProject.decl);
+            const graph = SGraphGenerator.topology(this.fppProject.decl);
             const msg = SetModelAction.create(graph);
             await endpoint.sendAction(msg);
             console.log("Send back msg: ", msg);
@@ -70,16 +73,15 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         endpoint.addActionHandler(RequestModelAction.KIND, handler);
     }
 
-    /*********************************************************************************/
-    /***** Handlers for sending messages to webview upon user's CodeLens actions *****/
-    /*********************************************************************************/
+    /*************************************************************************/
+    /* Handlers for sending messages to webview upon user's CodeLens actions */
+    /*************************************************************************/
 
-    public codeLensVisualizeConnectionGroup(args: any[]) {
-        const connectionGroupName = args[0];
-        vscode.window.setStatusBarMessage(`Visualizing ${connectionGroupName}...`, 5000);
+    public codeLensVisualizeConnectionGroup(elemName: string) {
+        vscode.window.setStatusBarMessage(`Visualizing ${elemName}...`, 5000);
         console.log("this.fppProject = ", this.fppProject);
         // Generate an SGraph for the connection group.
-        const graph = SGraphGenerator.connectionGroup(this.fppProject.decl, connectionGroupName);
+        const graph = SGraphGenerator.connectionGroup(this.fppProject.decl, elemName);
         const msg = SetModelAction.create(graph);
         var activeEndpoint = undefined;
         if (this.endpoints.length > 0) {
@@ -92,6 +94,8 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             console.log("Active endpoint not found!");
         }
     }
+
+    
 }
 
 export class SGraphGenerator {
@@ -109,23 +113,39 @@ export class SGraphGenerator {
     }
 
     /**
-     * Generate an SGraph that shows all components.
+     * Generate an SGraph that renders an entire topology.
      * @param decl The DeclCollector with all info about the FPP files
      * @returns An SGraph to be sent to webview
      */
-    static allComponents(decl: DeclCollector): SGraph {
+    static topology(decl: DeclCollector): SGraph {
         const graph: SGraph = this.initGraph();
-        Array.from(decl.componentInstances.entries()).forEach(([key, comp], index) => {
-            // console.log(comp);
-            const node = <SNode & ComponentNode>{
-                type: 'component',
-                id: key,
-                name: comp.name.value,
-                position: { x: 0, y: index * 100 },
-                size: { width: 81, height: 50 }   // Golden ratio = 1.618
-            };
+        Array.from(decl.componentInstances.entries()).forEach(([key, componentInstanceDecl], index) => {
+            // For each instance, loop up the ComponentDecl.
+            const resolved = decl.resolve(
+                componentInstanceDecl.fppType.type,
+                componentInstanceDecl.scope,
+                SymbolType.component
+            );
+            if (!resolved) {
+                throw new Error(`${componentInstanceDecl} is not resolved.`);
+            }
+            const componentName = MemberTraverser.flat(resolved);
+            const componentDecl = decl.get(componentName, SymbolType.component) as ComponentDecl;
+
+            // Instantiate a component SNode for the component type.
+            const node = SGraphGenerator.modelComponent(componentDecl, key);
+            
+            // Push SNode into graph.
             graph.children.push(node);
         });
+        graph.children.push(<SPort>{
+            type: 'port',
+            id: 'port.test',
+            name: 'test port',
+            position: { x: 50, y: 50 },
+            size: { width: 20, height: 20 },   // Golden ratio = 1.618
+        });
+        console.log();
         return graph;
     }
 
@@ -136,13 +156,91 @@ export class SGraphGenerator {
      * @returns An SGraph to be sent to webview
      */
     static connectionGroup(decl: DeclCollector, connectionGroupName: string): SGraph {
-        const graph: SGraph = {
-            type: 'graph',
-            id: 'graph',
-            children: []
-        };
-        // const graph: SGraph = this.initGraph();
+        const graph: SGraph = this.initGraph();
+        console.log(decl.graphGroups);
+        
+        // FIXME: Need a better way to look for the right key.
+        // A faster way is to get the topology name and concatenate,
+        // since keys follow the "topologyName.connectionGroupName" pattern.
+        var graphGroupName = undefined;
+        decl.graphGroups.forEach((val, key) => {
+            if (key.includes(connectionGroupName)) {
+                graphGroupName = key;
+            }
+        });
+        if (!graphGroupName) {
+            throw new Error(`Graph group key not found for: ${connectionGroupName}`);
+        }
+
+        console.log("graph group: ", graphGroupName);
+        const graphGroup = decl.graphGroups.get(graphGroupName)!;
+        if (!graphGroup) {
+            throw new Error(`Graph group not found: ${graphGroupName}`);
+        }
+
+        // TODO: Generate a view for connection groups by reusing SGraph components.
 
         return graph;
+    }
+
+    /*************************************************/
+    /* Private helper functions for generating SNode */
+    /*************************************************/
+
+    /**
+     * A helper method for building an Sprotty model for an FPP component
+     * @param comp ComponentDecl from decl collector
+     * @param uid Component instance name, which is supposed to be unique.
+     */
+    static modelComponent(comp: ComponentDecl, uid: string): SNode {
+        // Instantiate an SNode for the component.
+        var node = <SNode & ComponentNode>{
+            type: 'component',
+            id: uid,
+            name: comp.name.value,
+            position: { x: 0, y: 0 },
+            size: { width: 81, height: 50 },   // Golden ratio = 1.618
+            children: [
+                <SPort>{
+                    type: 'port',
+                    id: uid + '.test',
+                    name: 'test port',
+                    position: { x: 50, y: 50 },
+                    size: { width: 20, height: 20 },   // Golden ratio = 1.618
+                }
+            ],
+            isActive: false,
+            isQueued: false,
+            isPassive: false
+        };
+        // Add an SPort to children for each port of the component.
+        // comp.members.forEach((val, i) => {
+        //     if (this.isPortInstanceDecl(val)) {
+        //         console.log(`${val.name.value} is a port!`);
+        //         // FIXME: Is there a better way to get a fully qualified name?
+        //         const uid = val.scope.map(i => i.value).join('.') + val.name.value;
+        //         node.children!.push(this.modelPort(val, uid));
+        //     }
+        // });
+        return node;
+    }
+
+    static modelPort(port: PortInstanceDecl, uid: string): SPort {
+        return <SPort>{
+            type: 'port',
+            id: uid
+        };
+    }
+
+    /**
+     * A type guard function for checking whether an object can be
+     * safely treated as a certain type.
+     * Caution: This needs to update when `ast.ts` is changed.
+     */
+    static isPortInstanceDecl(obj: any): obj is PortInstanceDecl {
+        console.log("isPortInstanceDecl: ", obj);
+        return obj && (obj.type === 'GeneralPortInstanceDecl'
+            || obj.type === 'SpecialPortInstanceDecl'
+        );
     }
 }

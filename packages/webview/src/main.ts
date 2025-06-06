@@ -67,18 +67,14 @@ export class FppSprottyStarter extends SprottyStarter {
         });
         container.bind(SprottyDiagramIdentifier).toConstantValue(diagramIdentifier);
         container.bind(VscodeDiagramServer).toSelf().inSingletonScope();
+        container.bind(DiagramServerProxy).toService(VscodeDiagramServer);
         
         //// Select model source. Use remote for production.
         container.bind(TYPES.ModelSource).to(FppWorkerDiagramProxy).inSingletonScope();
-        const modelSource = container.get<FppWorkerDiagramProxy>(TYPES.ModelSource);
-
         //// Or use local to test rendering.
         // container.bind(TYPES.ModelSource).to(LocalModelSource).inSingletonScope();
         // const modelSource = container.get<LocalModelSource>(TYPES.ModelSource);
         // modelSource.setModel(graph);
-        
-        container.bind(DiagramServerProxy).toService(VscodeDiagramServer);
-        // container.rebind(KeyTool).to(DisabledKeyTool);                       // FIXME: DisabledKeyTool cannot be found for some reason.
     }
 }
 

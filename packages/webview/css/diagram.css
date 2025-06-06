@@ -10,3 +10,9 @@
 .comp-label {
     fill: var(--vscode-foreground);
 }
+
+.sprotty-port {
+    fill: white;
+    stroke: purple;
+    stroke-width: 3;
+}

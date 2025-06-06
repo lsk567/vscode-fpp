@@ -2,7 +2,7 @@
 import { svg } from 'sprotty/lib/lib/jsx';
 import { injectable } from 'inversify';
 import { VNode } from 'snabbdom';
-import { IView, RenderingContext, SNodeImpl } from 'sprotty';
+import { IView, RenderingContext, SNodeImpl, SPortImpl } from 'sprotty';
 import { Selectable } from 'sprotty-protocol';
 import { ComponentNode } from './models';
 
@@ -28,6 +28,20 @@ export class ComponentNodeView implements IView {
             >
                 {node.name}
             </text>
+        </g>;
+    }
+}
+
+@injectable()
+export class SPortView implements IView {
+    render(node: Readonly<SPortImpl>, context: RenderingContext): VNode {
+        // Triangle points to the right, centered at (0,0), size 10x10
+        // Adjust x/y as needed for your layout
+        return <g>
+            <polygon
+                points="0,0 10,5 0,10"
+                class-sprotty-port={true}
+            />
         </g>;
     }
 }
