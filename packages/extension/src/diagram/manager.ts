@@ -14,7 +14,7 @@ import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction, SPort, SLabel
 import * as vscode from "vscode";
 import { FppProject } from "../project";
 import { DeclCollector, SymbolType } from "../decl";
-import { ComponentNode, PortNode } from "./models";
+import { ComponentNode, PortNode } from "../../../webview/src/models";
 import { ComponentDecl, PortDecl, PortInstance, PortInstanceDecl } from "../parser/ast";
 import { GraphGenerator } from "./generator";
 import { ElkNode } from "elkjs/lib/elk-api";

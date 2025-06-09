@@ -4,7 +4,7 @@ import { injectable } from 'inversify';
 import { VNode } from 'snabbdom';
 import { IView, RenderingContext, SNodeImpl, SPortImpl } from 'sprotty';
 import { Selectable } from 'sprotty-protocol';
-import { ComponentNode, PortNode } from '../../extension/src/diagram/models';
+import { ComponentNode, PortNode } from './models';
 
 @injectable()
 export class ComponentNodeView implements IView {
@@ -26,7 +26,7 @@ export class ComponentNodeView implements IView {
                 alignment-baseline="hanging"
                 class-comp-label={true}
             >
-                {/* {node.astNode.name.value} */}
+                {node.name}
             </text>
             {context.renderChildren(node)}
         </g>;
@@ -48,7 +48,7 @@ export class PortView implements IView {
                 alignment-baseline="hanging"
                 class-comp-label={true}
             >
-                {/* {node.astNode.name.value} */}
+                {node.name}
             </text>
         </g>;
     }

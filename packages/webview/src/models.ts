@@ -3,12 +3,11 @@
  * the SGraph interfaces embed the AST interfaces to retrieve the info.
  */
 import { SLabel, SNode, SPort } from "sprotty-protocol";
-import { ComponentDecl, PortInstanceDecl } from "../parser/ast";
 
 export interface ComponentNode extends SNode {
-    astNode: ComponentDecl
+    name: string
 }
 
 export interface PortNode extends SPort {
-    astNode: PortInstanceDecl
+    name: string
 }

@@ -10,8 +10,13 @@ import { MemberTraverser } from "../traverser";
 
 const elk = new ELK();
 
+/** 
+ * The additional FPP information attached to ELK nodes
+ * when creating ELK nodes from decl collector
+ */
 interface FppData {
-    type: string
+    type: string,
+    name?: string,
 }
 
 /** An FPP ELK node is a regular ElkNode with an extra data field containing FPP info. */
@@ -133,6 +138,7 @@ export class GraphGenerator {
             children: [],
             data: {
                 type: 'component',
+                name: comp.name.value,
             }
         };
 
@@ -147,11 +153,6 @@ export class GraphGenerator {
             }
         });
 
-        // Adjust node height based on the number of children.
-        // node.size = { width: 81, height: Math.max(50, node.children!.length * 20)};
-
-        // Use ELK for layout
-
         return node;
     }
 
@@ -159,7 +160,8 @@ export class GraphGenerator {
         const portNode: FppElkPort = {
             id: uid,
             data: {
-                type: 'port'
+                type: 'port',
+                name: port.name.value,
             }
         };
         return portNode;
@@ -201,7 +203,12 @@ export class GraphGenerator {
         // At the current layer of the tree, instantiate a component SNode for each elk child.
         eNode.children?.forEach(eChild => {
             const sChild = <SNode>{
+                // Fields defined in webview/models
+                // Here we grab data from the extended ELK nodes
+                // and put them in the generated SNode.
                 type: (eChild as FppElkNode | FppElkPort).data!.type,
+                name: (eChild as FppElkNode | FppElkPort).data!.name,
+                // Regular SNode fields
                 id: eChild.id,
                 size: {
                     width: eChild.width,
