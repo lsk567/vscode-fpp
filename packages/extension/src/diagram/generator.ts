@@ -65,7 +65,7 @@ export class GraphGenerator {
             const componentDecl = decl.get(componentName, SymbolType.component) as ComponentDecl;
 
             // Instantiate a component FppElkNode for the component type.
-            const node = this.modelComponent(componentDecl, key);
+            const node = this.createElkNodeComponent(componentDecl, key);
             
             // Push SNode into graph.
             elkGraph.children!.push(node);
@@ -131,11 +131,14 @@ export class GraphGenerator {
      * @param comp ComponentDecl from decl collector
      * @param uid Component instance name, which is supposed to be unique.
      */
-    static modelComponent(comp: ComponentDecl, uid: string): FppElkNode {
+    static createElkNodeComponent(comp: ComponentDecl, uid: string): FppElkNode {
         // Instantiate an SNode for the component.
         var node: FppElkNode = {
             id: uid,
+            height: 200,
+            width: 100,
             children: [],
+            ports: [],
             data: {
                 type: 'component',
                 name: comp.name.value,
@@ -149,16 +152,18 @@ export class GraphGenerator {
                 // FIXME: Is there a better way to get unique ID?
                 // FIXME: Is there a better way to get a fully qualified name?
                 const uid = val.scope.map(i => i.value).join('.') + val.name.value + '.' + uuid();
-                node.children!.push(this.modelPort(val, uid));
+                node.ports!.push(this.createElkNodePort(val, uid));
             }
         });
 
         return node;
     }
 
-    static modelPort(port: PortInstanceDecl, uid: string): FppElkPort {
+    static createElkNodePort(port: PortInstanceDecl, uid: string): FppElkPort {
         const portNode: FppElkPort = {
             id: uid,
+            height: 10,
+            width: 10,
             data: {
                 type: 'port',
                 name: port.name.value,
@@ -206,8 +211,8 @@ export class GraphGenerator {
                 // Fields defined in webview/models
                 // Here we grab data from the extended ELK nodes
                 // and put them in the generated SNode.
-                type: (eChild as FppElkNode | FppElkPort).data!.type,
-                name: (eChild as FppElkNode | FppElkPort).data!.name,
+                type: (eChild as FppElkNode).data!.type,
+                name: (eChild as FppElkNode).data!.name,
                 // Regular SNode fields
                 id: eChild.id,
                 size: {
@@ -226,6 +231,31 @@ export class GraphGenerator {
 
             // Push the built child into the children array.
             sNode.children?.push(sChild);
+        });
+
+        // Convert each ELK port into an SNode
+        eNode.ports?.forEach(ePort => {
+            const sPort = <SPort>{
+                // Fields defined in webview/models
+                // Here we grab data from the extended ELK nodes
+                // and put them in the generated SNode.
+                type: (ePort as FppElkPort).data!.type,
+                name: (ePort as FppElkPort).data!.name,
+                // Regular SNode fields
+                id: ePort.id,
+                size: {
+                    width: ePort.width,
+                    height: ePort.height
+                },
+                position: {
+                    x: ePort.x,
+                    y: ePort.y
+                },
+                children: [],
+            };
+
+            // Push the built child into the children array.
+            sNode.children?.push(sPort);
         });
     }
 }

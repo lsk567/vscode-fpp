@@ -36,9 +36,10 @@ export class ComponentNodeView implements IView {
 @injectable()
 export class PortView implements IView {
     render(node: Readonly<SNodeImpl & PortNode>, context: RenderingContext): VNode {
+        const triangle = `0,0 ${node.size.width},${node.size.height / 2} 0,${node.size.height}`;
         return <g>
             <polygon
-                points="0,0 10,5 0,10"
+                points={triangle}
                 class-sprotty-port={true}
             />
             <text
