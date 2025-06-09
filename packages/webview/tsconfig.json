@@ -13,6 +13,7 @@
     "types": [] // Disables automatic inclusion of global @types/* packages. In this case, the hoisted @types/node package and the DOM package have type conflicts.
   },
   "include": [
-    "src"
-, "../extension/src/diagram/models.ts"  ],
+    "src",
+    "../extension/src/diagram/models.ts"
+  ],
 }

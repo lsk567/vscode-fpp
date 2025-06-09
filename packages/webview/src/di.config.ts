@@ -13,8 +13,8 @@ const myModule = new ContainerModule((bind, unbind, isBound, rebind) => {
     configureModelElement(context, 'port', SPortImpl, PortView);
     configureModelElement(context, 'edge', SEdgeImpl, PolylineEdgeView);
     configureViewerOptions(context, {
-        needsClientLayout: true, // Turn on micro-layout
-        needsServerLayout: true, // If true, webview sends back ComputedBoundsAction upon RequestBoundsAction.
+        needsClientLayout: false, // Whether client-side micro-layout is needed.
+        needsServerLayout: true,  // If true, webview sends back ComputedBoundsAction upon RequestBoundsAction.
     });
 });
 

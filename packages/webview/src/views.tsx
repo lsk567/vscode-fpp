@@ -11,9 +11,9 @@ export class ComponentNodeView implements IView {
     render(node: Readonly<SNodeImpl & ComponentNode & Selectable>, context: RenderingContext): VNode {
         return <g>
             <rect class-sprotty-node={true} class-task={true}
-                class-active={node.astNode.kind.value === 'active'}
-                class-queued={node.astNode.kind.value === 'queued'}
-                class-passive={node.astNode.kind.value === 'passive'}
+                // class-active={node.astNode.kind.value === 'active'}
+                // class-queued={node.astNode.kind.value === 'queued'}
+                // class-passive={node.astNode.kind.value === 'passive'}
                 class-selected={node.selected}
                 width={node.size.width}
                 height={node.size.height}
@@ -26,7 +26,7 @@ export class ComponentNodeView implements IView {
                 alignment-baseline="hanging"
                 class-comp-label={true}
             >
-                {node.astNode.name.value}
+                {/* {node.astNode.name.value} */}
             </text>
             {context.renderChildren(node)}
         </g>;
@@ -48,7 +48,7 @@ export class PortView implements IView {
                 alignment-baseline="hanging"
                 class-comp-label={true}
             >
-                {node.astNode.name.value}
+                {/* {node.astNode.name.value} */}
             </text>
         </g>;
     }

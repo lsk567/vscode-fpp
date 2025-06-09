@@ -159,7 +159,6 @@
         "@types/antlr4": "^4.11.2",
         "@types/glob": "^8.0.0",
         "@types/mocha": "^10.0.0",
-        "@types/node": "16.x",
         "@types/uuid": "^10.0.0",
         "@types/vscode": "^1.78.0",
         "@typescript-eslint/eslint-plugin": "^5.42.0",
@@ -176,6 +175,7 @@
         "typescript": "^5.4.5"
     },
     "dependencies": {
+        "elkjs": "^0.10.0",
         "uuid": "^11.1.0"
     }
 }

@@ -240,7 +240,7 @@
   resolved "https://registry.npmjs.org/@types/mocha/-/mocha-10.0.1.tgz"
   integrity sha512-/fvYntiO1GeICvqbQ3doGDIP97vWmvFt83GKguJ6prmQM2iXZfFcq6YE8KteFyRtX2/h5Hf91BYvPodJKFYv5Q==
 
-"@types/node@*", "@types/node@16.x":
+"@types/node@*":
   version "16.18.30"
   resolved "https://registry.npmjs.org/@types/node/-/node-16.18.30.tgz"
   integrity sha512-Kmp/wBZk19Dn7uRiol8kF8agnf8m0+TU9qIwyfPmXglVxMlmiIz0VQSMw5oFgwhmD2aKTlfBIO5FtsVj3y7hKQ==
@@ -623,6 +623,11 @@ doctrine@^3.0.0:
   integrity sha512-yS+Q5i3hBf7GBkd4KG8a7eBNNWNGLTaEwwYWUijIYM7zrlYDM0BFXHjjPWlWZ1Rg7UaddZeIDmi9jF3HmqiQ2w==
   dependencies:
     esutils "^2.0.2"
+
+elkjs@^0.10.0:
+  version "0.10.0"
+  resolved "https://registry.npmjs.org/elkjs/-/elkjs-0.10.0.tgz"
+  integrity sha512-v/3r+3Bl2NMrWmVoRTMBtHtWvRISTix/s9EfnsfEWApNrsmNjqgqJOispCGg46BPwIFdkag3N/HYSxJczvCm6w==
 
 emoji-regex@^8.0.0:
   version "8.0.0"
