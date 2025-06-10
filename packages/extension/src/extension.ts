@@ -931,7 +931,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Set up CodeLens provider to have neat buttons float above definitions.
-    const codelensProvider = new CodelensProvider();
+    const codelensProvider = new CodelensProvider(extension.project);
     context.subscriptions.push(
         vscode.languages.registerCodeLensProvider("*", codelensProvider),
         vscode.commands.registerCommand("fpp.enableCodeLens", () => {
@@ -941,7 +941,7 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.workspace.getConfiguration("fpp").update("enableCodeLens", false, true);
         }),
         vscode.commands.registerCommand("fpp.visualizeConnectionGroup",
-            (elemName: string) => webviewPanelManager.codeLensVisualizeConnectionGroup(elemName))
+            (elemName: string) => webviewPanelManager.handleCodeLensDisplayConnectionGroup(elemName))
     );
 }
 

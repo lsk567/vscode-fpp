@@ -1,8 +1,7 @@
-import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction, SPort, SLabel, RequestBoundsAction, ComputedBoundsAction, UpdateModelAction, Point } from 'sprotty-protocol';
-import ELK, { ElkEdge, ElkExtendedEdge, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
-import { v4 as uuid } from 'uuid';
+import { SGraph, SEdge, SNode, SPort, Point } from 'sprotty-protocol';
+import ELK, { ElkExtendedEdge, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { DeclCollector, SymbolType } from "../decl";
-import { ComponentDecl, Connection, DirectGraphDecl, IncludeStmt, PortDecl, PortInstance, PortInstanceDecl } from "../parser/ast";
+import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, IncludeStmt, PortInstanceDecl } from "../parser/ast";
 import { MemberTraverser } from "../traverser";
 
 const elk = new ELK();
@@ -55,26 +54,10 @@ export class GraphGenerator {
      */
     static async topology(decl: DeclCollector): Promise<SGraph> {
         const elkGraph: FppElkNode = this.initElkGraph();
-        decl.componentInstances.forEach((componentInstanceDecl, key) => {
-            // For each instance, look up the ComponentDecl.
-            const resolved = decl.resolve(
-                componentInstanceDecl.fppType.type,
-                componentInstanceDecl.scope,
-                SymbolType.component
-            );
-            if (!resolved) {
-                throw new Error(`${componentInstanceDecl} is not resolved.`);
-            }
-            const componentName = MemberTraverser.flat(resolved);
-            const componentDecl = decl.get(componentName, SymbolType.component) as ComponentDecl;
-
-            // Instantiate a component FppElkNode for the component type.
-            const scope = componentInstanceDecl.scope.map(e => e.value).join('.');
-            const compId = `${scope}.${componentInstanceDecl.name.value}`;
-            const node = this.createElkNodeComponent(componentDecl, compId);
-            
-            // Push SNode into graph.
-            elkGraph.children!.push(node);
+        
+        // Create an ELK node for each component instance.
+        decl.componentInstances.forEach(e => {
+            elkGraph.children?.push(this.createElkNodeFromComponentInstance(decl, e));
         });
 
         // Iterate over all connections and draw an ELK edge for each.
@@ -104,31 +87,45 @@ export class GraphGenerator {
      * @param connectionGroupName Name of the connection group to generate the graph for
      * @returns An SGraph to be sent to webview
      */
-    static connectionGroup(decl: DeclCollector, connectionGroupName: string): SGraph {
+    static async connectionGroup(decl: DeclCollector, graphGroupName: string): Promise<SGraph> {
         const elkGraph: FppElkNode = this.initElkGraph();
-        console.log(decl.graphGroups);
-        
-        // FIXME: Need a better way to look for the right key.
-        // A faster way is to get the topology name and concatenate,
-        // since keys follow the "topologyName.connectionGroupName" pattern.
-        var graphGroupName = undefined;
-        decl.graphGroups.forEach((val, key) => {
-            if (key.includes(connectionGroupName)) {
-                graphGroupName = key;
-            }
-        });
-        if (!graphGroupName) {
-            throw new Error(`Graph group key not found for: ${connectionGroupName}`);
-        }
-
-        console.log("graph group: ", graphGroupName);
         const graphGroup = decl.graphGroups.get(graphGroupName)!;
         if (!graphGroup) {
             throw new Error(`Graph group not found: ${graphGroupName}`);
         }
 
+        // Collect a unique set of instance IDs from connections.
+        const compSet = new Set<string | undefined>();
+        graphGroup.connections.forEach(conn => {
+            const source = conn.source.node.at(0)?.value;
+            const destination = conn.destination.node.at(0)?.value;
+            compSet.add(source);
+            compSet.add(destination);
+        });
+
+        // Convert component IDs into component instances.
+        const scope = graphGroup.scope.map(e => e.value).join('.');
+        const compInstances: ComponentInstanceDecl[] = [];
+        compSet.forEach(e => {
+            const instance = decl.componentInstances.get(`${scope}.${e}`);
+            if (instance) {
+                compInstances.push(instance);
+            }
+        });
+
+        // Generate a component ELK node for each component instance.
+        compInstances.forEach(e => {
+            elkGraph.children?.push(this.createElkNodeFromComponentInstance(decl, e))
+        });
+
+        // Draw all connections in this connection group.
+        graphGroup.connections.forEach((conn, idx) => {
+            const edge: FppElkEdge = this.createElkEdge(graphGroup, conn, idx);
+            elkGraph.edges?.push(edge);
+        });
+
         // Perform layout
-        elk.layout(elkGraph)
+        await elk.layout(elkGraph)
             .then(console.log)
             .catch(console.error);
 
@@ -138,9 +135,29 @@ export class GraphGenerator {
         return sGraph;
     }
 
-    /*****************************************/
-    /* Helper functions for generating SNode */
-    /*****************************************/
+    /************************************************************/
+    /* Helper functions for generating ELK / Sprotty components */
+    /************************************************************/
+
+    static createElkNodeFromComponentInstance(decl: DeclCollector, componentInstanceDecl: ComponentInstanceDecl): FppElkNode {
+        // For each instance, look up the ComponentDecl.
+        const resolved = decl.resolve(
+            componentInstanceDecl.fppType.type,
+            componentInstanceDecl.scope,
+            SymbolType.component
+        );
+        if (!resolved) {
+            throw new Error(`${componentInstanceDecl} is not resolved.`);
+        }
+        const componentName = MemberTraverser.flat(resolved);
+        const componentDecl = decl.get(componentName, SymbolType.component) as ComponentDecl;
+
+        // Instantiate a component FppElkNode for the component type.
+        const scope = componentInstanceDecl.scope.map(e => e.value).join('.');
+        const compId = `${scope}.${componentInstanceDecl.name.value}`;
+        const node = this.createElkNodeComponent(componentDecl, compId);
+        return node;
+    }
 
     /**
      * A helper method for building an Sprotty model for an FPP component
@@ -164,14 +181,14 @@ export class GraphGenerator {
 
         // Add an Elk port to the ports array for each port of the component.
         comp.members.forEach((val, i) => {
-            if (this.isPortInstanceDecl(val)) {
+            if (GraphGenerator.isPortInstanceDecl(val)) {
                 const portId = `${compId}.${val.name.value}`;
-                node.ports!.push(this.createElkNodePort(val, portId));
-            } else if (this.isIncludeStmt(val)) {
+                node.ports!.push(GraphGenerator.createElkNodePort(val, portId));
+            } else if (GraphGenerator.isIncludeStmt(val)) {
                 val.resolved?.members.forEach(member => {
-                    if (this.isPortInstanceDecl(member)) {
+                    if (GraphGenerator.isPortInstanceDecl(member)) {
                         const portId = `${compId}.${member.name.value}`;
-                        node.ports!.push(this.createElkNodePort(member, portId));
+                        node.ports!.push(GraphGenerator.createElkNodePort(member, portId));
                     }
                 });
             }

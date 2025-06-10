@@ -92,12 +92,12 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     /* Handlers for sending messages to webview upon user's actions in editor */
     /**************************************************************************/
 
-    public codeLensVisualizeConnectionGroup(elemName: string) {
-        vscode.window.setStatusBarMessage(`Visualizing ${elemName}...`, 5000);
+    public async handleCodeLensDisplayConnectionGroup(elemName: string) {
+        vscode.window.setStatusBarMessage(`Displaying ${elemName}...`, 5000);
         console.log("this.fppProject = ", this.fppProject);
         // Generate an SGraph for the connection group.
-        const graph = GraphGenerator.connectionGroup(this.fppProject.decl, elemName);
-        const msg = SetModelAction.create(graph);
+        const graph = await GraphGenerator.connectionGroup(this.fppProject.decl, elemName);
+        const msg = UpdateModelAction.create(graph);
         const activeEndpoint = this.findOpenedWebview();
         if (activeEndpoint) {
             activeEndpoint.sendAction(msg);
