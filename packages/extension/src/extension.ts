@@ -914,8 +914,8 @@ export function activate(context: vscode.ExtensionContext) {
         supportedFileExtensions: ['.fpp'],
         singleton: true
     }, extension.project);
-    console.log("Instantiated WebviewPanelManager");
     registerDefaultCommands(webviewPanelManager, context, { extensionPrefix: 'fpp' });
+    console.log("Instantiated FPP webview panel manager.");
 
     // Set up CodeLens provider to have neat buttons float above definitions.
     const codelensProvider = new CodelensProvider();

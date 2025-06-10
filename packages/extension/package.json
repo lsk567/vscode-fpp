@@ -50,6 +50,24 @@
                 "category": "FPP Diagram"
             },
             {
+                "command": "fpp.diagram.fit",
+                "title": "Fit FPP Diagram",
+                "icon": "$(arrow-both)",
+                "category": "FPP Diagram"
+            },
+            {
+                "command": "fpp.diagram.center",
+                "title": "Center FPP Diagram",
+                "icon": "$(layout-centered)",
+                "category": "FPP Diagram"
+            },
+            {
+                "command": "fpp.diagram.export",
+                "title": "Export FPP Diagram",
+                "icon": "$(desktop-download)",
+                "category": "FPP Diagram"
+            },
+            {
                 "command": "fpp.enableCodeLens",
                 "title": "Enable FPP CodeLens",
                 "category": "FPP CodeLens"
@@ -107,6 +125,21 @@
                 {
                     "command": "fpp.diagram.open",
                     "when": "editorLangId == 'fpp'",
+                    "group": "navigation"
+                },
+                {
+                    "command": "fpp.diagram.fit",
+                    "when": "fppDiagrams-focused == true",
+                    "group": "navigation"
+                },
+                {
+                    "command": "fpp.diagram.center",
+                    "when": "fppDiagrams-focused == true",
+                    "group": "navigation"
+                },
+                {
+                    "command": "fpp.diagram.export",
+                    "when": "fppDiagrams-focused == true",
                     "group": "navigation"
                 }
             ],

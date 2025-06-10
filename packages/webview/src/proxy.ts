@@ -44,24 +44,4 @@ export class FppWorkerDiagramProxy extends VscodeDiagramServer {
             this.logger.error(this, 'received data is not an action message', object);
         }
     }
-
-    /**
-     * If the server requires to compute a layout, the computed bounds are forwarded. Otherwise they
-     * are applied to the current model locally and a model update is triggered.
-     */
-    override handleComputedBounds(action: ComputedBoundsAction): boolean {
-        if (this.viewerOptions.needsServerLayout) {
-            return true;
-        } else {
-            const root = this.currentRoot;
-            this.computedBoundsApplicator.apply(root, action);
-            if (root.type === this.lastSubmittedModelType) {
-                this.actionDispatcher.dispatch(UpdateModelAction.create(root));
-            } else {
-                this.actionDispatcher.dispatch(SetModelAction.create(root));
-            }
-            this.lastSubmittedModelType = root.type;
-            return false;
-        }
-    }
 }
