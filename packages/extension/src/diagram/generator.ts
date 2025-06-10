@@ -1,11 +1,8 @@
-import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction, SPort, SLabel, RequestBoundsAction, ComputedBoundsAction, UpdateModelAction } from 'sprotty-protocol';
-import {
-    ElkNode, ElkLabel, ElkPort, ElkShape, ElkExtendedEdge, LayoutOptions, ElkPrimitiveEdge
-} from 'elkjs/lib/elk-api';
-import ELK from 'elkjs/lib/elk.bundled.js';
+import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction, SPort, SLabel, RequestBoundsAction, ComputedBoundsAction, UpdateModelAction, Point } from 'sprotty-protocol';
+import ELK, { ElkEdge, ElkExtendedEdge, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { v4 as uuid } from 'uuid';
 import { DeclCollector, SymbolType } from "../decl";
-import { ComponentDecl, PortDecl, PortInstance, PortInstanceDecl } from "../parser/ast";
+import { ComponentDecl, Connection, DirectGraphDecl, IncludeStmt, PortDecl, PortInstance, PortInstanceDecl } from "../parser/ast";
 import { MemberTraverser } from "../traverser";
 
 const elk = new ELK();
@@ -28,6 +25,10 @@ interface FppElkPort extends ElkPort {
     data?: FppData
 }
 
+interface FppElkEdge extends ElkExtendedEdge {
+    data?: FppData
+}
+
 export class GraphGenerator {
     
     /**
@@ -38,7 +39,10 @@ export class GraphGenerator {
         return {
             // type: 'graph',
             id: 'root',
-            layoutOptions: { 'elk.algorithm': 'layered' },
+            layoutOptions: {
+                'elk.algorithm': 'layered',
+                'elk.portConstraints': 'FIXED_SIDE'
+            },
             children: [],
             edges: [],
         };
@@ -51,8 +55,8 @@ export class GraphGenerator {
      */
     static async topology(decl: DeclCollector): Promise<SGraph> {
         const elkGraph: FppElkNode = this.initElkGraph();
-        Array.from(decl.componentInstances.entries()).forEach(([key, componentInstanceDecl], index) => {
-            // For each instance, loop up the ComponentDecl.
+        decl.componentInstances.forEach((componentInstanceDecl, key) => {
+            // For each instance, look up the ComponentDecl.
             const resolved = decl.resolve(
                 componentInstanceDecl.fppType.type,
                 componentInstanceDecl.scope,
@@ -65,11 +69,23 @@ export class GraphGenerator {
             const componentDecl = decl.get(componentName, SymbolType.component) as ComponentDecl;
 
             // Instantiate a component FppElkNode for the component type.
-            const node = this.createElkNodeComponent(componentDecl, key);
+            const scope = componentInstanceDecl.scope.map(e => e.value).join('.');
+            const compId = `${scope}.${componentInstanceDecl.name.value}`;
+            const node = this.createElkNodeComponent(componentDecl, compId);
             
             // Push SNode into graph.
             elkGraph.children!.push(node);
         });
+
+        // Iterate over all connections and draw an ELK edge for each.
+        decl.graphGroups.forEach((directGraphDecl, key) => {
+            directGraphDecl.connections.forEach((conn, idx) => {
+                const edge: FppElkEdge = this.createElkEdge(directGraphDecl, conn, idx);
+                elkGraph.edges?.push(edge);
+            });
+        });
+
+        console.log("ElkGraph constructed: ", elkGraph);
 
         // Perform layout
         await elk.layout(elkGraph)
@@ -133,8 +149,9 @@ export class GraphGenerator {
      */
     static createElkNodeComponent(comp: ComponentDecl, uid: string): FppElkNode {
         // Instantiate an SNode for the component.
+        const compId = `${uid}`; // DeploymentName.componentInstanceName
         var node: FppElkNode = {
-            id: uid,
+            id: compId,
             height: 200,
             width: 100,
             children: [],
@@ -145,14 +162,18 @@ export class GraphGenerator {
             }
         };
 
-        // Add an SPort to children for each port of the component.
+        // Add an Elk port to the ports array for each port of the component.
         comp.members.forEach((val, i) => {
             if (this.isPortInstanceDecl(val)) {
-                // Currently, UUID ensures the uniqueness of the port instance ID.
-                // FIXME: Is there a better way to get unique ID?
-                // FIXME: Is there a better way to get a fully qualified name?
-                const uid = val.scope.map(i => i.value).join('.') + val.name.value + '.' + uuid();
-                node.ports!.push(this.createElkNodePort(val, uid));
+                const portId = `${compId}.${val.name.value}`;
+                node.ports!.push(this.createElkNodePort(val, portId));
+            } else if (this.isIncludeStmt(val)) {
+                val.resolved?.members.forEach(member => {
+                    if (this.isPortInstanceDecl(member)) {
+                        const portId = `${compId}.${member.name.value}`;
+                        node.ports!.push(this.createElkNodePort(member, portId));
+                    }
+                });
             }
         });
 
@@ -164,12 +185,36 @@ export class GraphGenerator {
             id: uid,
             height: 10,
             width: 10,
+            layoutOptions: {
+                'elk.port.side': 'EAST',
+            },
             data: {
                 type: 'port',
                 name: port.name.value,
             }
         };
         return portNode;
+    }
+
+    static createElkEdge(directGraphDecl: DirectGraphDecl, conn: Connection, idx: number): FppElkEdge {
+        const scope = directGraphDecl.scope.map(e => e.value).join('.');
+        const source = conn.source.node.map(e => e.value).join('.');
+        const destination = conn.destination.node.map(e => e.value).join('.');
+        // console.log(`${scope}: ${source} -> ${destination}`);
+        const connId = `${scope}.${directGraphDecl.name.value}.connection.${idx}`;
+        const edge: FppElkEdge = {
+            id: connId,
+            sources: [
+                `${scope}.${source}`
+            ],
+            targets: [
+                `${scope}.${destination}`
+            ],
+            data: {
+                type: 'edge',
+            }
+        };
+        return edge;
     }
 
     /**
@@ -181,6 +226,15 @@ export class GraphGenerator {
         return obj && (obj.type === 'GeneralPortInstanceDecl'
             || obj.type === 'SpecialPortInstanceDecl'
         );
+    }
+
+    /**
+     * A type guard function for checking whether an object can be
+     * safely treated as an IncludeStmt type.
+     * Caution: This needs to update when `ast.ts` is changed.
+     */
+    static isIncludeStmt(obj: any): obj is IncludeStmt<undefined> {
+        return obj && (obj.type === 'IncludeStmt');
     }
 
     /**
@@ -256,6 +310,48 @@ export class GraphGenerator {
 
             // Push the built child into the children array.
             sNode.children?.push(sPort);
+        });
+
+        // Convert each ELK edge into an SNode
+        eNode.edges?.forEach(eEdge => {
+            const sEdge = <SEdge>{
+                // Fields defined in webview/models
+                type: (eEdge as FppElkEdge).data!.type,
+
+                // Regular SEdge fields
+                id: eEdge.id,
+                sourceId: eEdge.sources[0],
+                targetId: eEdge.targets[0],
+            };
+
+            // Referenced from sprotty-elk/src/elk-layout.ts.
+            const points: Point[] = [];
+            if (eEdge.sections && eEdge.sections.length > 0) {
+                const section = eEdge.sections[0];
+                if (section.startPoint) {
+                    points.push(section.startPoint);
+                }
+                if (section.bendPoints) {
+                    points.push(...section.bendPoints);
+                }
+                if (section.endPoint) {
+                    points.push(section.endPoint);
+                }
+            }
+
+            sEdge.routingPoints = points;
+
+            // if (elkEdge.labels) {
+            //     elkEdge.labels.forEach((elkLabel) => {
+            //         const sLabel = elkLabel.id && index.getById(elkLabel.id);
+            //         if (sLabel) {
+            //             this.applyShape(sLabel, elkLabel, index);
+            //         }
+            //     });
+            // }
+
+            // Push the built child into the children array.
+            sNode.children?.push(sEdge);
         });
     }
 }
