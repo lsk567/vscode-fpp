@@ -88,9 +88,9 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         endpoint.addActionHandler(ComputedBoundsAction.KIND, handler);
     }
 
-    /*************************************************************************/
-    /* Handlers for sending messages to webview upon user's CodeLens actions */
-    /*************************************************************************/
+    /**************************************************************************/
+    /* Handlers for sending messages to webview upon user's actions in editor */
+    /**************************************************************************/
 
     public codeLensVisualizeConnectionGroup(elemName: string) {
         vscode.window.setStatusBarMessage(`Visualizing ${elemName}...`, 5000);
@@ -98,10 +98,7 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         // Generate an SGraph for the connection group.
         const graph = GraphGenerator.connectionGroup(this.fppProject.decl, elemName);
         const msg = SetModelAction.create(graph);
-        var activeEndpoint = undefined;
-        if (this.endpoints.length > 0) {
-            activeEndpoint = this.endpoints[0];
-        }
+        const activeEndpoint = this.findOpenedWebview();
         if (activeEndpoint) {
             activeEndpoint.sendAction(msg);
             console.log("Sending back msg: ", msg);
@@ -110,5 +107,22 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         }
     }
 
-    
+    public async handleOnSaveUpdateDiagram() {
+        const graph = await GraphGenerator.topology(this.fppProject.decl);
+        const msg = UpdateModelAction.create(graph);
+        const activeEndpoint = this.findOpenedWebview();
+        if (!activeEndpoint) {
+            console.error("No active webview!");
+        }
+        activeEndpoint?.sendAction(msg);
+        console.info("Sending back updated diagram.")
+    }
+
+    private findOpenedWebview(): WebviewEndpoint | undefined {
+        var openedEndpoint = undefined;
+        if (this.endpoints.length > 0) {
+            openedEndpoint = this.endpoints[0];
+        }
+        return openedEndpoint;
+    }
 }

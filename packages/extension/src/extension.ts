@@ -904,6 +904,12 @@ export function activate(context: vscode.ExtensionContext) {
             if (!locs(context)) {
                 extension.searchForLocs().then((f) => extension.setProjectLocs(f));
             }
+        }),
+        vscode.workspace.onDidSaveTextDocument((document) => {
+            // Re-render diagram on save.
+            if (document.languageId === 'fpp') {
+                vscode.commands.executeCommand('fpp.updateDiagram');
+            }
         })
     );
 
@@ -916,6 +922,13 @@ export function activate(context: vscode.ExtensionContext) {
     }, extension.project);
     registerDefaultCommands(webviewPanelManager, context, { extensionPrefix: 'fpp' });
     console.log("Instantiated FPP webview panel manager.");
+
+    // Register command to update diagram on save.
+    context.subscriptions.push(
+        vscode.commands.registerCommand('fpp.updateDiagram', () => {
+            webviewPanelManager.handleOnSaveUpdateDiagram();
+        })
+    );
 
     // Set up CodeLens provider to have neat buttons float above definitions.
     const codelensProvider = new CodelensProvider();
