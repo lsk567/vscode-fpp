@@ -2,7 +2,7 @@
 import { svg } from 'sprotty/lib/lib/jsx';
 import { injectable } from 'inversify';
 import { VNode } from 'snabbdom';
-import { IView, RenderingContext, SNodeImpl, SPortImpl } from 'sprotty';
+import { IView, RenderingContext, SLabelImpl, SLabelView, SNodeImpl, SPortImpl } from 'sprotty';
 import { Selectable } from 'sprotty-protocol';
 import { ComponentNode, PortNode } from './models';
 
@@ -35,5 +35,17 @@ export class PortView implements IView {
             />
             {context.renderChildren(node)}
         </g>;
+    }
+}
+
+@injectable()
+export class RightAlignedLabelView extends SLabelView {
+    override render(label: Readonly<SLabelImpl>, context: RenderingContext): VNode | undefined {
+        const text = super.render(label, context);
+        if (text instanceof SVGTextElement) {
+            text.setAttribute('text-anchor', 'end');
+            text.setAttribute('x', `${label.bounds.width}`); // Align to right edge
+        }
+        return text;
     }
 }

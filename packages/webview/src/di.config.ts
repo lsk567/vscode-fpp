@@ -3,7 +3,7 @@ import '../css/diagram.css';
 
 import { Container, ContainerModule } from 'inversify';
 import { configureModelElement, configureViewerOptions, layoutableChildFeature, loadDefaultModules, overrideViewerOptions, PolylineEdgeView, SEdgeImpl, SGraphImpl, SGraphView, SLabelImpl, SLabelView, SNodeImpl, SPortImpl, SRoutingHandleImpl, SRoutingHandleView } from 'sprotty';
-import { ComponentNodeView, PortView } from './views';
+import { ComponentNodeView, PortView, RightAlignedLabelView } from './views';
 
 const myModule = new ContainerModule((bind, unbind, isBound, rebind) => {
     const context = { bind, unbind, isBound, rebind };

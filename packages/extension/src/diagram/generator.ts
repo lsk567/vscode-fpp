@@ -1,4 +1,4 @@
-import { SGraph, SEdge, SNode, SPort, Point, SLabel } from 'sprotty-protocol';
+import { SGraph, SEdge, SNode, SPort, Point, SLabel, Dimension } from 'sprotty-protocol';
 import ELK, { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { DeclCollector, SymbolType } from "../decl";
 import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, IncludeStmt, PortInstanceDecl } from "../parser/ast";
@@ -40,7 +40,6 @@ export class GraphGenerator {
             id: 'root',
             layoutOptions: {
                 'elk.algorithm': 'layered',
-                'elk.portConstraints': 'FIXED_SIDE'
             },
             children: [],
             edges: [],
@@ -167,23 +166,29 @@ export class GraphGenerator {
     static createElkNodeComponent(comp: ComponentDecl, uid: string): FppElkNode {
         // Instantiate an SNode for the component.
         const compId = `${uid}`; // DeploymentName.componentInstanceName
+        const compName = comp.name.value;
         var node: FppElkNode = {
             id: compId,
-            height: 200,
-            width: 100,
+            layoutOptions: {
+                "elk.nodeLabels.placement": "INSIDE, H_CENTER, V_CENTER",
+                "elk.portLabels.placement": "NEXT_TO_PORT_OF_POSSIBLE",
+                "elk.portLabels.nextToPortIfPossible": 'true',
+                'elk.portConstraints': 'FIXED_SIDE', // So that elk.port.side can take effect.
+                "elk.nodeSize.constraints": "PORTS, NODE_LABELS, MINIMUM_SIZE",
+                "elk.spacing.labelPortHorizontal": "5",
+            },
             children: [],
             ports: [],
             labels: [
                 <ElkLabel>{
-                    text: comp.name.value
+                    text: compName,
+                    width: 100,
+                    height: 10,
                 },
             ],
-            layoutOptions: {
-                "org.eclipse.elk.nodeLabels.placement": "INSIDE"
-            },
             data: {
                 type: 'component',
-                name: comp.name.value,
+                name: compName,
             }
         };
 
@@ -206,21 +211,26 @@ export class GraphGenerator {
     }
 
     static createElkNodePort(port: PortInstanceDecl, uid: string): FppElkPort {
+        const portName = port.name.value;
         const portNode: FppElkPort = {
             id: uid,
             height: 10,
             width: 10,
             layoutOptions: {
-                'elk.port.side': 'EAST',
+                'elk.port.side': port.kind.isOutput ? 'EAST' : 'WEST',
             },
             labels: [
+                // For now, each port label has fix width and height.
+                // If size is not set, ELK sets it to 0, 0, not ideal.
                 <ElkLabel>{
-                    text: port.name.value
+                    text: portName,
+                    width: 50,
+                    height: 10,
                 }
             ],
             data: {
                 type: 'port',
-                name: port.name.value,
+                name: portName,
             }
         };
         return portNode;
@@ -395,6 +405,14 @@ export class GraphGenerator {
                 id: `${elkElement.id}.label.${i}`,
                 type: `${typePrefix}-label`,
                 text: e.text,
+                position: <Point>{
+                    x: e.x || 0,
+                    y: e.y || 0,
+                },
+                size: <Dimension>{
+                    width: e.width || 0,
+                    height: e.height || 0,
+                },
             };
             labels.push(label);
         });

@@ -1,6 +1,5 @@
 /**
- * Since the information needed to render nodes is fully contained in the AST nodes,
- * the SGraph interfaces embed the AST interfaces to retrieve the info.
+ * These models store minimal FPP information pertinent to rendering components.
  */
 import { SLabel, SNode, SPort } from "sprotty-protocol";
 
