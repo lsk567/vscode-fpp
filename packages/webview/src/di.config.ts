@@ -3,14 +3,14 @@ import '../css/diagram.css';
 
 import { Container, ContainerModule } from 'inversify';
 import { configureModelElement, configureViewerOptions, layoutableChildFeature, loadDefaultModules, overrideViewerOptions, PolylineEdgeView, SEdgeImpl, SGraphImpl, SGraphView, SLabelImpl, SLabelView, SNodeImpl, SPortImpl, SRoutingHandleImpl, SRoutingHandleView } from 'sprotty';
-import { ComponentNodeView, PortView, RightAlignedLabelView } from './views';
+import { ComponentNodeView, RectanglePortView } from './views';
 
 const myModule = new ContainerModule((bind, unbind, isBound, rebind) => {
     const context = { bind, unbind, isBound, rebind };
     configureModelElement(context, 'graph', SGraphImpl, SGraphView);
     configureModelElement(context, 'component', SNodeImpl, ComponentNodeView, {enable: [layoutableChildFeature]});
     configureModelElement(context, 'component-label', SLabelImpl, SLabelView);
-    configureModelElement(context, 'port', SPortImpl, PortView);
+    configureModelElement(context, 'port', SPortImpl, RectanglePortView);
     configureModelElement(context, 'port-label', SLabelImpl, SLabelView);
     configureModelElement(context, 'edge', SEdgeImpl, PolylineEdgeView);
     configureModelElement(context, 'routing-point', SRoutingHandleImpl, SRoutingHandleView);

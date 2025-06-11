@@ -25,12 +25,26 @@ export class ComponentNodeView implements IView {
 }
 
 @injectable()
-export class PortView implements IView {
+export class TrianglePortView implements IView {
     render(node: Readonly<SNodeImpl & PortNode>, context: RenderingContext): VNode {
         const triangle = `0,0 ${node.size.width},${node.size.height / 2} 0,${node.size.height}`;
         return <g>
             <polygon
                 points={triangle}
+                class-sprotty-port={true}
+            />
+            {context.renderChildren(node)}
+        </g>;
+    }
+}
+
+@injectable()
+export class RectanglePortView implements IView {
+    render(node: Readonly<SNodeImpl & PortNode>, context: RenderingContext): VNode {
+        return <g>
+            <rect 
+                width={node.size.width} 
+                height={node.size.height} 
                 class-sprotty-port={true}
             />
             {context.renderChildren(node)}
