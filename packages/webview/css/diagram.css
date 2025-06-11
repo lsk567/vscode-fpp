@@ -7,7 +7,7 @@
     stroke: var(--vscode-button-secondaryForeground);
 }
 
-.comp-label {
+.sprotty-label {
     fill: var(--vscode-foreground);
 }
 

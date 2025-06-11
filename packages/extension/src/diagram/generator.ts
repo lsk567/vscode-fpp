@@ -1,5 +1,5 @@
-import { SGraph, SEdge, SNode, SPort, Point } from 'sprotty-protocol';
-import ELK, { ElkExtendedEdge, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
+import { SGraph, SEdge, SNode, SPort, Point, SLabel } from 'sprotty-protocol';
+import ELK, { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { DeclCollector, SymbolType } from "../decl";
 import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, IncludeStmt, PortInstanceDecl } from "../parser/ast";
 import { MemberTraverser } from "../traverser";
@@ -173,6 +173,14 @@ export class GraphGenerator {
             width: 100,
             children: [],
             ports: [],
+            labels: [
+                <ElkLabel>{
+                    text: comp.name.value
+                },
+            ],
+            layoutOptions: {
+                "org.eclipse.elk.nodeLabels.placement": "INSIDE"
+            },
             data: {
                 type: 'component',
                 name: comp.name.value,
@@ -205,6 +213,11 @@ export class GraphGenerator {
             layoutOptions: {
                 'elk.port.side': 'EAST',
             },
+            labels: [
+                <ElkLabel>{
+                    text: port.name.value
+                }
+            ],
             data: {
                 type: 'port',
                 name: port.name.value,
@@ -297,6 +310,10 @@ export class GraphGenerator {
                 children: [],
             };
 
+            // Convert all node labels into SLabel.
+            const labels = this.convertElkElementLabelsToSGraphLabels(eChild, 'component');
+            sChild.children?.push(...labels);
+
             // Recursive on this child.
             this.convertElkGraphToSGraphRecursive(sChild, eChild);
 
@@ -324,6 +341,10 @@ export class GraphGenerator {
                 },
                 children: [],
             };
+
+            // Convert all port labels into SLabel.
+            const labels = this.convertElkElementLabelsToSGraphLabels(ePort, 'port');
+            sPort.children?.push(...labels);
 
             // Push the built child into the children array.
             sNode.children?.push(sPort);
@@ -358,17 +379,25 @@ export class GraphGenerator {
 
             sEdge.routingPoints = points;
 
-            // if (elkEdge.labels) {
-            //     elkEdge.labels.forEach((elkLabel) => {
-            //         const sLabel = elkLabel.id && index.getById(elkLabel.id);
-            //         if (sLabel) {
-            //             this.applyShape(sLabel, elkLabel, index);
-            //         }
-            //     });
-            // }
+            // Convert all edge labels into SLabel.
+            const labels = this.convertElkElementLabelsToSGraphLabels(eEdge, 'edge');
+            sEdge.children?.push(...labels);
 
             // Push the built child into the children array.
             sNode.children?.push(sEdge);
         });
+    }
+
+    static convertElkElementLabelsToSGraphLabels(elkElement: ElkGraphElement, typePrefix: string) {
+        const labels: SLabel[] = [];
+        elkElement.labels?.forEach((e, i) => {
+            const label = <SLabel>{
+                id: `${elkElement.id}.label.${i}`,
+                type: `${typePrefix}-label`,
+                text: e.text,
+            };
+            labels.push(label);
+        });
+        return labels;
     }
 }

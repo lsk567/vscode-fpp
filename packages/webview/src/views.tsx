@@ -19,15 +19,6 @@ export class ComponentNodeView implements IView {
                 height={node.size.height}
             >
             </rect>
-            <text
-                x={node.size.width / 2}
-                y={node.size.height + 10}
-                text-anchor="middle"
-                alignment-baseline="hanging"
-                class-comp-label={true}
-            >
-                {node.name}
-            </text>
             {context.renderChildren(node)}
         </g>;
     }
@@ -42,15 +33,7 @@ export class PortView implements IView {
                 points={triangle}
                 class-sprotty-port={true}
             />
-            <text
-                x={0}
-                y={node.size.height / 2}
-                text-anchor="left"
-                alignment-baseline="hanging"
-                class-comp-label={true}
-            >
-                {node.name}
-            </text>
+            {context.renderChildren(node)}
         </g>;
     }
 }
