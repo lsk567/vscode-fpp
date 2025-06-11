@@ -12,9 +12,9 @@
 }
 
 .sprotty-port {
-    fill: white;
-    stroke: purple;
-    stroke-width: 3;
+    fill: var(--vscode-foreground);
+    stroke: #7b337d;
+    stroke-width: 1;
 }
 
 .sprotty-edge .sprotty-label {
