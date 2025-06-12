@@ -85,7 +85,12 @@ to launch an development VSCode environment.
 
 To package the extension into a VSIX file you can use:
 ```
-$ vsce package
+$ yarn package
 ```
 
 This will generate a `.vsix` file, from which an extension can be installed in VSCode following instructions: [Install from a VSIX](https://code.visualstudio.com/docs/editor/extension-marketplace#_install-from-a-vsix)
+
+To clean the build artifacts, you can use:
+```
+$ yarn clean
+```

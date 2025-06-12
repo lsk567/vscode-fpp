@@ -10,7 +10,8 @@
     "lint": "yarn workspaces run lint",
     "typecheck": "yarn workspaces run typecheck",
     "watch": "yarn workspaces run watch",
-    "prepublishOnly": "yarn build"
+    "prepublishOnly": "yarn build",
+    "package": "yarn build && yarn workspace fpp package"
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",
