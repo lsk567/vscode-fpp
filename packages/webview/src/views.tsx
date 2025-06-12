@@ -1,10 +1,41 @@
 /** @jsx svg */
 import { svg } from 'sprotty/lib/lib/jsx';
-import { injectable } from 'inversify';
+import { inject, injectable } from 'inversify';
 import { VNode } from 'snabbdom';
-import { IView, RenderingContext, SLabelImpl, SLabelView, SNodeImpl, SPortImpl } from 'sprotty';
-import { Selectable } from 'sprotty-protocol';
+import { EdgeRouterRegistry, IView, PolylineEdgeView, RenderingContext, SEdgeImpl, SGraphImpl, SGraphView, SLabelImpl, SLabelView, SNodeImpl, SPortImpl } from 'sprotty';
+import { Point, SEdge, Selectable } from 'sprotty-protocol';
 import { ComponentNode, PortNode } from './models';
+
+@injectable()
+export class FppGraphView implements IView {
+    @inject(EdgeRouterRegistry) edgeRouterRegistry!: EdgeRouterRegistry;
+
+    render(model: Readonly<SGraphImpl>, context: RenderingContext): VNode {
+        const edgeRouting = this.edgeRouterRegistry.routeAllChildren(model);
+        const transform = `scale(${model.zoom}) translate(${-model.scroll.x},${-model.scroll.y})`;
+        return <svg class-sprotty-graph={true}>
+            <defs>
+                {/* A marker to be used as an arrowhead */}
+                <marker
+                id="arrow"
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+                class-sprotty-edge-arrow={true}
+                >
+                <path d="M 0 0 L 10 5 L 0 10 z" />
+                </marker>
+            </defs>
+
+            <g transform={transform}>
+                {context.renderChildren(model, { edgeRouting })}
+            </g>
+        </svg>;
+    }
+}
 
 @injectable()
 export class ComponentNodeView implements IView {
@@ -63,3 +94,21 @@ export class RightAlignedLabelView extends SLabelView {
         return text;
     }
 }
+
+@injectable()
+export class ArrowEdgeView extends PolylineEdgeView {
+    override renderLine(edge: SEdgeImpl, segments: Point[], context: RenderingContext): VNode {
+        const firstPoint = segments[0];
+        let path = `M ${firstPoint.x},${firstPoint.y}`;
+        for (let i = 1; i < segments.length; i++) {
+            const p = segments[i];
+            path += ` L ${p.x},${p.y}`;
+        }
+        return <path
+            d={path}
+            marker-end="url(#arrow)"
+        />;
+    }
+}
+
+
