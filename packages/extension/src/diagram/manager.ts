@@ -10,14 +10,10 @@
  * from the CodeLens buttons (buttons floating above definitions).
  */
 import { createFileUri, createWebviewPanel, SprottyDiagramIdentifier, WebviewEndpoint, WebviewPanelManager, WebviewPanelManagerOptions } from "sprotty-vscode";
-import { RequestModelAction, SGraph, SEdge, SNode, SetModelAction, SPort, SLabel, RequestBoundsAction, ComputedBoundsAction, UpdateModelAction } from 'sprotty-protocol';
+import { RequestModelAction, ComputedBoundsAction, UpdateModelAction, FitToScreenAction, SGraph } from 'sprotty-protocol';
 import * as vscode from "vscode";
 import { FppProject } from "../project";
-import { DeclCollector, SymbolType } from "../decl";
-import { ComponentNode, PortNode } from "../../../webview/src/models";
-import { ComponentDecl, PortDecl, PortInstance, PortInstanceDecl } from "../parser/ast";
 import { GraphGenerator } from "./generator";
-import { ElkNode } from "elkjs/lib/elk-api";
 
 export class FppWebviewPanelManager extends WebviewPanelManager {
 
@@ -68,9 +64,8 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             console.log("Received RequestModelAction: ", action);
             console.log("Generate SGraph...");
             const graph = await GraphGenerator.topology(this.fppProject.decl);
-            const msg = UpdateModelAction.create(graph);
-            await endpoint.sendAction(msg);
-            console.log("Send back RequestBoundsAction msg: ", msg);
+            // FIXME: Implement sending RequestBoundsAction.
+            this.sendUpdateAndFitActions(endpoint, graph);
         };
         endpoint.addActionHandler(RequestModelAction.KIND, handler);
     }
@@ -80,10 +75,8 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             console.log("Received ComputedBoundsAction: ", action);
             console.log("Generate SGraph...");
             const graph = await GraphGenerator.topology(this.fppProject.decl);
-            
-            const msg = UpdateModelAction.create(graph);
-            await endpoint.sendAction(msg);
-            console.log("Send back UpdateModelAction msg: ", msg);
+            this.sendUpdateAndFitActions(endpoint, graph);
+            console.log("Send back UpdateModelAction msg");
         };
         endpoint.addActionHandler(ComputedBoundsAction.KIND, handler);
     }
@@ -94,28 +87,24 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
 
     public async handleCodeLensDisplayConnectionGroup(elemName: string) {
         vscode.window.setStatusBarMessage(`Displaying ${elemName}...`, 5000);
-        console.log("this.fppProject = ", this.fppProject);
+        const activeEndpoint = this.findOpenedWebview();
+        if (!activeEndpoint) {
+            console.error("Active webview endpoint not found!");
+            return;
+        }
         // Generate an SGraph for the connection group.
         const graph = await GraphGenerator.connectionGroup(this.fppProject.decl, elemName);
-        const msg = UpdateModelAction.create(graph);
-        const activeEndpoint = this.findOpenedWebview();
-        if (activeEndpoint) {
-            activeEndpoint.sendAction(msg);
-            console.log("Sending back msg: ", msg);
-        } else {
-            console.log("Active endpoint not found!");
-        }
+        this.sendUpdateAndFitActions(activeEndpoint!, graph);
     }
 
     public async handleOnSaveUpdateDiagram() {
-        const graph = await GraphGenerator.topology(this.fppProject.decl);
-        const msg = UpdateModelAction.create(graph);
         const activeEndpoint = this.findOpenedWebview();
         if (!activeEndpoint) {
-            console.error("No active webview!");
+            console.error("Active webview endpoint not found!");
+            return;
         }
-        activeEndpoint?.sendAction(msg);
-        console.info("Sending back updated diagram.")
+        const graph = await GraphGenerator.topology(this.fppProject.decl);
+        this.sendUpdateAndFitActions(activeEndpoint!, graph);
     }
 
     private findOpenedWebview(): WebviewEndpoint | undefined {
@@ -124,5 +113,12 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             openedEndpoint = this.endpoints[0];
         }
         return openedEndpoint;
+    }
+
+    private async sendUpdateAndFitActions(endpoint: WebviewEndpoint, graph: SGraph) {
+        const msgUpdate = UpdateModelAction.create(graph);
+        await endpoint.sendAction(msgUpdate);
+        const msgFit = FitToScreenAction.create([]);
+        await endpoint.sendAction(msgFit);
     }
 }
