@@ -1,7 +1,7 @@
 import { SGraph, SEdge, SNode, SPort, Point, SLabel, Dimension } from 'sprotty-protocol';
 import ELK, { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { DeclCollector, SymbolType } from "../decl";
-import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, IncludeStmt, PortInstanceDecl } from "../parser/ast";
+import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, IncludeStmt, PortInstanceDecl, QualifiedIdentifier } from "../parser/ast";
 import { MemberTraverser } from "../traverser";
 
 const elk = new ELK();
@@ -62,7 +62,7 @@ export class GraphGenerator {
         // Iterate over all connections and draw an ELK edge for each.
         decl.graphGroups.forEach((directGraphDecl, key) => {
             directGraphDecl.connections.forEach((conn, idx) => {
-                const edge: FppElkEdge = this.createElkEdge(directGraphDecl, conn, idx);
+                const edge: FppElkEdge = this.createElkEdge(decl, directGraphDecl, conn, idx);
                 elkGraph.edges?.push(edge);
             });
         });
@@ -71,7 +71,9 @@ export class GraphGenerator {
 
         // Perform layout
         await elk.layout(elkGraph)
-            .then(console.log)
+            .then(g => {
+                console.log("ElkGraph after layout: ", g);
+            })
             .catch(console.error);
 
         // Convert to SGraph
@@ -96,8 +98,9 @@ export class GraphGenerator {
         // Collect a unique set of instance IDs from connections.
         const compSet = new Set<string | undefined>();
         graphGroup.connections.forEach(conn => {
-            const source = conn.source.node.at(0)?.value;
-            const destination = conn.destination.node.at(0)?.value;
+            // Remove the trailing port name.
+            const source = MemberTraverser.flat(conn.source.node.slice(0, -1));
+            const destination = MemberTraverser.flat(conn.destination.node.slice(0, -1));
             compSet.add(source);
             compSet.add(destination);
         });
@@ -106,7 +109,14 @@ export class GraphGenerator {
         const scope = graphGroup.scope.map(e => e.value).join('.');
         const compInstances: ComponentInstanceDecl[] = [];
         compSet.forEach(e => {
-            const instance = decl.componentInstances.get(`${scope}.${e}`);
+            // See if this component is defined under the current scope.
+            let instance = decl.componentInstances.get(`${scope}.${e}`);
+            if (instance) {
+                compInstances.push(instance);
+                return;
+            }
+            // If not, see if this component is imported.
+            instance = decl.componentInstances.get(`${e}`);
             if (instance) {
                 compInstances.push(instance);
             }
@@ -114,12 +124,12 @@ export class GraphGenerator {
 
         // Generate a component ELK node for each component instance.
         compInstances.forEach(e => {
-            elkGraph.children?.push(this.createElkNodeFromComponentInstance(decl, e))
+            elkGraph.children?.push(this.createElkNodeFromComponentInstance(decl, e));
         });
 
         // Draw all connections in this connection group.
         graphGroup.connections.forEach((conn, idx) => {
-            const edge: FppElkEdge = this.createElkEdge(graphGroup, conn, idx);
+            const edge: FppElkEdge = this.createElkEdge(decl, graphGroup, conn, idx);
             elkGraph.edges?.push(edge);
         });
 
@@ -236,19 +246,34 @@ export class GraphGenerator {
         return portNode;
     }
 
-    static createElkEdge(directGraphDecl: DirectGraphDecl, conn: Connection, idx: number): FppElkEdge {
-        const scope = directGraphDecl.scope.map(e => e.value).join('.');
-        const source = conn.source.node.map(e => e.value).join('.');
-        const destination = conn.destination.node.map(e => e.value).join('.');
-        // console.log(`${scope}: ${source} -> ${destination}`);
+    static createElkEdge(decl: DeclCollector, directGraphDecl: DirectGraphDecl, conn: Connection, idx: number): FppElkEdge {
+        const scope = directGraphDecl.scope;
+        // Check if the scope contains the first identifier included in the port QualifiedIdentifier.
+        // If so, the component (also the port) is defined under the scope.
+        // Otherwise, the component (also the port) is external (e.g., imported by subtopologies).
+        // In that case, do not prepend the scope.
+        const sourceId = conn.source.node;
+        const sourceFirstId: QualifiedIdentifier = [sourceId[0]];
+        const sourceResolve = decl.resolve(sourceFirstId, scope, SymbolType.componentInstance);
+        let sourceFullyQualifiedName = sourceResolve
+            ? `${MemberTraverser.flat(scope)}.${MemberTraverser.flat(sourceId)}`
+            : MemberTraverser.flat(sourceId);
+
+        const destId = conn.destination.node;
+        const destFirstId: QualifiedIdentifier = [destId[0]];
+        const destResolve = decl.resolve(destFirstId, scope, SymbolType.componentInstance);
+        let destFullyQualifiedName = destResolve
+            ? `${MemberTraverser.flat(scope)}.${MemberTraverser.flat(destId)}`
+            : MemberTraverser.flat(destId);
+        
         const connId = `${scope}.${directGraphDecl.name.value}.connection.${idx}`;
         const edge: FppElkEdge = {
             id: connId,
             sources: [
-                `${scope}.${source}`
+                sourceFullyQualifiedName
             ],
             targets: [
-                `${scope}.${destination}`
+                destFullyQualifiedName
             ],
             data: {
                 type: 'edge',
