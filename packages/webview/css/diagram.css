@@ -59,3 +59,29 @@
     width: 0px;
     height: 0px;
 }
+
+.component-active {
+    stroke: #3FB984; /* Green expresses the notion of "go". */
+    stroke-width: 2px;
+}
+
+.component-queued {
+    /* Queued components do not have special borders. */
+}
+
+.component-passive {
+    stroke: #fe92a8; /* Red expresses the notion of "caution", because the component is synchronous. */
+    stroke-width: 2px;
+}
+
+.port-sync {
+    fill: #fe92a8; /* Red expresses the notion of "caution", because the component is synchronous. */
+}
+
+.port-async {
+    /* Async ports do not have special borders. */
+}
+
+.port-guarded {
+    fill: #FDD35C; /* Yellow expresses the notion of "wait", because the port is guarded. */
+}

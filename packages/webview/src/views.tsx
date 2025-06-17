@@ -4,7 +4,7 @@ import { inject, injectable } from 'inversify';
 import { VNode } from 'snabbdom';
 import { EdgeRouterRegistry, IView, IViewArgs, PolylineEdgeView, RenderingContext, SEdgeImpl, SGraphImpl, SGraphView, SLabelImpl, SLabelView, SNodeImpl, SPortImpl } from 'sprotty';
 import { Point, SEdge, Selectable } from 'sprotty-protocol';
-import { ComponentNode, PortNode } from './models';
+import { ComponentSNode, PortSNode } from './models';
 
 @injectable()
 export class FppGraphView implements IView {
@@ -39,10 +39,13 @@ export class FppGraphView implements IView {
 
 @injectable()
 export class ComponentNodeView implements IView {
-    render(node: Readonly<SNodeImpl & ComponentNode & Selectable>, context: RenderingContext): VNode {
+    render(node: Readonly<SNodeImpl & ComponentSNode & Selectable>, context: RenderingContext): VNode {
         return <g>
             <rect class-sprotty-node={true} class-task={true}
                 class-selected={node.selected}
+                class-component-active={node.kind === 'active'}
+                class-component-queued={node.kind === 'queued'}
+                class-component-passive={node.kind === 'passive'}
                 width={node.size.width}
                 height={node.size.height}
                 rx={10} // Rounded corner
@@ -55,12 +58,15 @@ export class ComponentNodeView implements IView {
 
 @injectable()
 export class TrianglePortView implements IView {
-    render(node: Readonly<SNodeImpl & PortNode>, context: RenderingContext): VNode {
+    render(node: Readonly<SNodeImpl & PortSNode>, context: RenderingContext): VNode {
         const triangle = `0,0 ${node.size.width},${node.size.height / 2} 0,${node.size.height}`;
         return <g>
             <polygon
                 points={triangle}
                 class-sprotty-port={true}
+                class-port-sync={node.kind === 'sync'}
+                class-port-async={node.kind === 'async'}
+                class-port-guarded={node.kind === 'guarded'}
             />
             {context.renderChildren(node)}
         </g>;
@@ -69,12 +75,15 @@ export class TrianglePortView implements IView {
 
 @injectable()
 export class RectanglePortView implements IView {
-    render(node: Readonly<SNodeImpl & PortNode>, context: RenderingContext): VNode {
+    render(node: Readonly<SNodeImpl & PortSNode>, context: RenderingContext): VNode {
         return <g>
             <rect 
                 width={node.size.width} 
                 height={node.size.height} 
                 class-sprotty-port={true}
+                class-port-sync={node.kind === 'sync'}
+                class-port-async={node.kind === 'async'}
+                class-port-guarded={node.kind === 'guarded'}
             />
             {context.renderChildren(node)}
         </g>;

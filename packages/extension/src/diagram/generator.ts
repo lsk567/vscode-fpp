@@ -1,8 +1,9 @@
 import { SGraph, SEdge, SNode, SPort, Point, SLabel, Dimension } from 'sprotty-protocol';
 import ELK, { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { DeclCollector, SymbolType } from "../decl";
-import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, IncludeStmt, PortInstanceDecl, QualifiedIdentifier } from "../parser/ast";
+import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, PortInstanceDecl, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind } from "../parser/ast";
 import { MemberTraverser } from "../traverser";
+import { ComponentSNode, PortSNode } from '../../../webview/src/models';
 
 const elk = new ELK();
 
@@ -11,8 +12,9 @@ const elk = new ELK();
  * when creating ELK nodes from decl collector
  */
 interface FppData {
-    type: string,
-    name?: string,
+    SNodeType:      string,
+    componentKind?: string, // active, queued, passive
+    portKind?:      string, // Tracking kind of GeneralInputPortInstance and GeneralInputPortInstance
 }
 
 /** An FPP ELK node is a regular ElkNode with an extra data field containing FPP info. */
@@ -201,8 +203,8 @@ export class GraphGenerator {
                 },
             ],
             data: {
-                type: 'component',
-                name: compClassName,
+                SNodeType: 'component',
+                componentKind: comp.kind.value,
             }
         };
 
@@ -226,6 +228,14 @@ export class GraphGenerator {
 
     static createElkNodePort(port: PortInstanceDecl, uid: string): FppElkPort {
         const portName = port.name.value;
+        let portKind = "";
+        if (port.kind.isSpecial && port.kind.isOutput) {
+            portKind = (port.kind as SpecialOutputPortInstance).kind.value;
+        }
+        else if (!port.kind.isSpecial && !port.kind.isOutput) {
+            portKind = (port.kind as GeneralInputPortInstance).kind.value;
+        }
+        
         const portNode: FppElkPort = {
             id: uid,
             height: 10,
@@ -243,8 +253,8 @@ export class GraphGenerator {
                 }
             ],
             data: {
-                type: 'port',
-                name: portName,
+                SNodeType: 'port',
+                portKind: portKind,
             }
         };
         return portNode;
@@ -280,7 +290,7 @@ export class GraphGenerator {
                 destFullyQualifiedName
             ],
             data: {
-                type: 'edge',
+                SNodeType: 'edge',
             }
         };
         return edge;
@@ -330,31 +340,32 @@ export class GraphGenerator {
     static convertElkGraphToSGraphRecursive(sNode: SNode, eNode: FppElkNode): void {
         // At the current layer of the tree, instantiate a component SNode for each elk child.
         eNode.children?.forEach(eChild => {
-            const sChild = <SNode>{
+            const elkComp = eChild as FppElkNode
+            const sChild = <ComponentSNode>{
+                // Regular SNode fields
+                type: elkComp.data!.SNodeType,
+                id: elkComp.id,
+                size: {
+                    width: elkComp.width,
+                    height: elkComp.height
+                },
+                position: {
+                    x: elkComp.x,
+                    y: elkComp.y
+                },
+                children: [],
                 // Fields defined in webview/models
                 // Here we grab data from the extended ELK nodes
                 // and put them in the generated SNode.
-                type: (eChild as FppElkNode).data!.type,
-                name: (eChild as FppElkNode).data!.name,
-                // Regular SNode fields
-                id: eChild.id,
-                size: {
-                    width: eChild.width,
-                    height: eChild.height
-                },
-                position: {
-                    x: eChild.x,
-                    y: eChild.y
-                },
-                children: [],
+                kind: elkComp.data?.componentKind,
             };
 
             // Convert all node labels into SLabel.
-            const labels = this.convertElkElementLabelsToSGraphLabels(eChild, 'component');
+            const labels = this.convertElkElementLabelsToSGraphLabels(elkComp, 'component');
             sChild.children?.push(...labels);
 
             // Recursive on this child.
-            this.convertElkGraphToSGraphRecursive(sChild, eChild);
+            this.convertElkGraphToSGraphRecursive(sChild, elkComp);
 
             // Push the built child into the children array.
             sNode.children?.push(sChild);
@@ -362,23 +373,24 @@ export class GraphGenerator {
 
         // Convert each ELK port into an SNode
         eNode.ports?.forEach(ePort => {
-            const sPort = <SPort>{
+            const elkPort = ePort as FppElkPort;
+            const sPort = <PortSNode>{
+                // Regular SNode fields
+                type: elkPort.data!.SNodeType,
+                id: elkPort.id,
+                size: {
+                    width: elkPort.width,
+                    height: elkPort.height
+                },
+                position: {
+                    x: elkPort.x,
+                    y: elkPort.y
+                },
+                children: [],
                 // Fields defined in webview/models
                 // Here we grab data from the extended ELK nodes
                 // and put them in the generated SNode.
-                type: (ePort as FppElkPort).data!.type,
-                name: (ePort as FppElkPort).data!.name,
-                // Regular SNode fields
-                id: ePort.id,
-                size: {
-                    width: ePort.width,
-                    height: ePort.height
-                },
-                position: {
-                    x: ePort.x,
-                    y: ePort.y
-                },
-                children: [],
+                kind: elkPort.data?.portKind,
             };
 
             // Convert all port labels into SLabel.
@@ -393,7 +405,7 @@ export class GraphGenerator {
         eNode.edges?.forEach(eEdge => {
             const sEdge = <SEdge>{
                 // Fields defined in webview/models
-                type: (eEdge as FppElkEdge).data!.type,
+                type: (eEdge as FppElkEdge).data!.SNodeType,
 
                 // Regular SEdge fields
                 id: eEdge.id,
