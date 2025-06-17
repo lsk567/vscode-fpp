@@ -162,9 +162,7 @@ export class GraphGenerator {
         const componentDecl = decl.get(componentName, SymbolType.component) as ComponentDecl;
 
         // Instantiate a component FppElkNode for the component type.
-        const scope = componentInstanceDecl.scope.map(e => e.value).join('.');
-        const compId = `${scope}.${componentInstanceDecl.name.value}`;
-        const node = this.createElkNodeComponent(componentDecl, compId);
+        const node = this.createElkNodeComponent(componentInstanceDecl, componentDecl);
         return node;
     }
 
@@ -173,10 +171,11 @@ export class GraphGenerator {
      * @param comp ComponentDecl from decl collector
      * @param uid Component instance name, which is supposed to be unique.
      */
-    static createElkNodeComponent(comp: ComponentDecl, uid: string): FppElkNode {
+    static createElkNodeComponent(instance: ComponentInstanceDecl, comp: ComponentDecl): FppElkNode {
         // Instantiate an SNode for the component.
-        const compId = `${uid}`; // DeploymentName.componentInstanceName
-        const compName = comp.name.value;
+        const compId = `${instance.scope.map(e => e.value).join('.')}.${instance.name.value}`; // DeploymentName.componentInstanceName
+        const compClassName = comp.name.value;
+        const compInstanceName = instance.name.value;
         var node: FppElkNode = {
             id: compId,
             layoutOptions: {
@@ -191,14 +190,19 @@ export class GraphGenerator {
             ports: [],
             labels: [
                 <ElkLabel>{
-                    text: compName,
+                    text: compInstanceName,
                     width: 100,
-                    height: 10,
+                    height: 15,
+                },
+                <ElkLabel>{
+                    text: compClassName,
+                    width: 100,
+                    height: 15,
                 },
             ],
             data: {
                 type: 'component',
-                name: compName,
+                name: compClassName,
             }
         };
 

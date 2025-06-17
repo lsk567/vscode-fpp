@@ -42,9 +42,6 @@ export class ComponentNodeView implements IView {
     render(node: Readonly<SNodeImpl & ComponentNode & Selectable>, context: RenderingContext): VNode {
         return <g>
             <rect class-sprotty-node={true} class-task={true}
-                // class-active={node.astNode.kind.value === 'active'}
-                // class-queued={node.astNode.kind.value === 'queued'}
-                // class-passive={node.astNode.kind.value === 'passive'}
                 class-selected={node.selected}
                 width={node.size.width}
                 height={node.size.height}
