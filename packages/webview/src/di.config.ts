@@ -2,7 +2,7 @@ import 'sprotty/css/sprotty.css';
 import '../css/diagram.css';
 
 import { Container, ContainerModule } from 'inversify';
-import { configureModelElement, configureViewerOptions, layoutableChildFeature, loadDefaultModules, moveFeature, overrideViewerOptions, PolylineEdgeView, SEdgeImpl, SGraphImpl, SGraphView, SLabelImpl, SLabelView, SNodeImpl, SPortImpl, SRoutingHandleImpl, SRoutingHandleView } from 'sprotty';
+import { configureModelElement, configureViewerOptions, editFeature, layoutableChildFeature, loadDefaultModules, moveFeature, overrideViewerOptions, PolylineEdgeView, SEdgeImpl, SGraphImpl, SGraphView, SLabelImpl, SLabelView, SNodeImpl, SPortImpl, SRoutingHandleImpl, SRoutingHandleView } from 'sprotty';
 import { ArrowEdgeView, ComponentNodeView, FppGraphView, RectanglePortView } from './views';
 
 const myModule = new ContainerModule((bind, unbind, isBound, rebind) => {
@@ -12,7 +12,7 @@ const myModule = new ContainerModule((bind, unbind, isBound, rebind) => {
     configureModelElement(context, 'component-label', SLabelImpl, SLabelView);
     configureModelElement(context, 'port', SPortImpl, RectanglePortView);
     configureModelElement(context, 'port-label', SLabelImpl, SLabelView);
-    configureModelElement(context, 'edge', SEdgeImpl, ArrowEdgeView);
+    configureModelElement(context, 'edge', SEdgeImpl, ArrowEdgeView, { disable: [editFeature] });
     configureModelElement(context, 'routing-point', SRoutingHandleImpl, SRoutingHandleView);
     configureModelElement(context, 'volatile-routing-point', SRoutingHandleImpl, SRoutingHandleView);
     configureViewerOptions(context, {

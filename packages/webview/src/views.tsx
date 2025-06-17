@@ -2,7 +2,7 @@
 import { svg } from 'sprotty/lib/lib/jsx';
 import { inject, injectable } from 'inversify';
 import { VNode } from 'snabbdom';
-import { EdgeRouterRegistry, IView, PolylineEdgeView, RenderingContext, SEdgeImpl, SGraphImpl, SGraphView, SLabelImpl, SLabelView, SNodeImpl, SPortImpl } from 'sprotty';
+import { EdgeRouterRegistry, IView, IViewArgs, PolylineEdgeView, RenderingContext, SEdgeImpl, SGraphImpl, SGraphView, SLabelImpl, SLabelView, SNodeImpl, SPortImpl } from 'sprotty';
 import { Point, SEdge, Selectable } from 'sprotty-protocol';
 import { ComponentNode, PortNode } from './models';
 
@@ -48,6 +48,7 @@ export class ComponentNodeView implements IView {
                 class-selected={node.selected}
                 width={node.size.width}
                 height={node.size.height}
+                rx={10} // Rounded corner
             >
             </rect>
             {context.renderChildren(node)}
@@ -97,7 +98,7 @@ export class RightAlignedLabelView extends SLabelView {
 
 @injectable()
 export class ArrowEdgeView extends PolylineEdgeView {
-    override renderLine(edge: SEdgeImpl, segments: Point[], context: RenderingContext): VNode {
+    override renderLine(edge: SEdgeImpl, segments: Point[], context: RenderingContext, args?: IViewArgs): VNode {
         const firstPoint = segments[0];
         let path = `M ${firstPoint.x},${firstPoint.y}`;
         for (let i = 1; i < segments.length; i++) {

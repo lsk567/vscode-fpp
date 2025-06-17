@@ -41,13 +41,14 @@
     opacity: 0.35;
 }
 
-.sprotty-edge > .sprotty-routing-handle.selected {
-    fill: var(--vscode-editor-selectionHighlightBackground);
+.sprotty-edge.selected {
+    stroke: orange;
+    stroke-width: 3px;
 }
 
-.sprotty-edge > .sprotty-routing-handle.mouseover {
-    stroke: var(--vscode-editor-symbolHighlightBackground);
-    stroke-width: 1;
+.sprotty-edge.mouseover {
+    stroke: orange;
+    stroke-width: 3px;
 }
 
 .sprotty-edge.mouseover:not(.selected) {
