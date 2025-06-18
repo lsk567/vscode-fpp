@@ -4,6 +4,7 @@ import { DeclCollector, SymbolType } from "../decl";
 import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, PortInstanceDecl, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind } from "../parser/ast";
 import { MemberTraverser } from "../traverser";
 import { ComponentSNode, PortSNode } from '../../../webview/src/models';
+import fs from 'fs';
 
 const elk = new ELK();
 
@@ -42,6 +43,7 @@ export class GraphGenerator {
             id: 'root',
             layoutOptions: {
                 'elk.algorithm': 'layered',
+                "elk.hierarchyHandling": "INCLUDE_CHILDREN",
             },
             children: [],
             edges: [],
@@ -55,10 +57,38 @@ export class GraphGenerator {
      */
     static async topology(decl: DeclCollector): Promise<SGraph> {
         const elkGraph: FppElkNode = this.initElkGraph();
+        const topologyToElkNodeMap = new Map<string, FppElkNode>();
+
+        // Push topology ELK nodes into a map (each key is the topology's fully qualified name),
+        // so that we can later find the right topology to push components into.
+        // NOTE: This assumes that there is a unique topology under a scope/module!
+        decl.topologies.forEach(topology => {
+            const topologyScope: string
+                = `${MemberTraverser.flat(topology.scope)}`;
+            topologyToElkNodeMap.set(
+                topologyScope,
+                <FppElkNode>{
+                    id: topologyScope,
+                    children: [],
+                    data: {
+                        SNodeType: 'topology',
+                    }
+                }
+            );
+        });
         
-        // Create an ELK node for each component instance.
-        decl.componentInstances.forEach(e => {
-            elkGraph.children?.push(this.createElkNodeFromComponentInstance(decl, e));
+        // Create an ELK node for each component instance,
+        // and add it to one of the topologies.
+        decl.componentInstances.forEach(compInstance => {
+            const elkCompNode = this.createElkNodeFromComponentInstance(decl, compInstance);
+            const compInstanceScope = `${MemberTraverser.flat(compInstance.scope)}`;
+            console.log(`compInstance ${compInstance.name.value} has scope ${compInstanceScope}`);
+            topologyToElkNodeMap.get(compInstanceScope)?.children?.push(elkCompNode);
+        });
+
+        // Push all topologies into the children.
+        topologyToElkNodeMap.forEach((topologyElkNode, key) => {
+            elkGraph.children?.push(topologyElkNode);
         });
 
         // Iterate over all connections and draw an ELK edge for each.
@@ -71,10 +101,21 @@ export class GraphGenerator {
 
         console.log("ElkGraph constructed: ", elkGraph);
 
+        const jsonString = JSON.stringify(elkGraph, null, 4);
+
+        const outputFilePath: string = 'output.json';
+
+        try {
+            fs.writeFileSync(outputFilePath, jsonString, 'utf8');
+            console.log(`Data written to ${outputFilePath} as JSON.`);
+        } catch (err) {
+            console.error(err);
+        }
+
         // Perform layout
         await elk.layout(elkGraph)
             .then(g => {
-                console.log("ElkGraph after layout: ", g);
+                console.log("ElkGraph after layout: ", elkGraph);
             })
             .catch(console.error);
 
@@ -235,7 +276,7 @@ export class GraphGenerator {
         else if (!port.kind.isSpecial && !port.kind.isOutput) {
             portKind = (port.kind as GeneralInputPortInstance).kind.value;
         }
-        
+
         const portNode: FppElkPort = {
             id: uid,
             height: 10,

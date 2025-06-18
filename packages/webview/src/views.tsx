@@ -38,6 +38,21 @@ export class FppGraphView implements IView {
 }
 
 @injectable()
+export class TopologyView implements IView {
+    render(node: Readonly<SNodeImpl & ComponentSNode & Selectable>, context: RenderingContext): VNode {
+        return <g>
+            <rect
+                class-topology={true}
+                width={node.size.width}
+                height={node.size.height}
+            >
+            </rect>
+            {context.renderChildren(node)}
+        </g>;
+    }
+}
+
+@injectable()
 export class ComponentNodeView implements IView {
     render(node: Readonly<SNodeImpl & ComponentSNode & Selectable>, context: RenderingContext): VNode {
         return <g>
