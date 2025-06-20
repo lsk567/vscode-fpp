@@ -2,7 +2,8 @@
   "name": "vscode-fpp-monorepo",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "extension/",
+    "webview/"
   ],
   "scripts": {
     "build": "yarn workspaces run build",
@@ -11,6 +12,7 @@
     "typecheck": "yarn workspaces run typecheck",
     "watch": "yarn workspaces run watch",
     "prepublishOnly": "yarn build",
+    "antlr": "yarn workspace fpp antlr",
     "package": "yarn build && yarn workspace fpp package"
   },
   "devDependencies": {
