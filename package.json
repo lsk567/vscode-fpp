@@ -5,6 +5,7 @@
     "packages/*"
   ],
   "scripts": {
+    "antlr": "yarn workspace fpp antlr",
     "build": "yarn workspaces run build",
     "clean": "yarn workspaces run clean",
     "lint": "yarn workspaces run lint",

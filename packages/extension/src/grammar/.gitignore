@@ -1,2 +1,4 @@
 .antlr/
-
+*.interp
+*.tokens
+*.ts
