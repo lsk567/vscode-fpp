@@ -10,12 +10,28 @@
  * from the CodeLens buttons (buttons floating above definitions).
  */
 import { createFileUri, createWebviewPanel, SprottyDiagramIdentifier, WebviewEndpoint, WebviewPanelManager, WebviewPanelManagerOptions } from "sprotty-vscode";
-import { RequestModelAction, ComputedBoundsAction, UpdateModelAction, FitToScreenAction, SGraph } from 'sprotty-protocol';
+import { RequestModelAction, ComputedBoundsAction, UpdateModelAction, FitToScreenAction, SGraph, RequestBoundsAction, applyBounds } from 'sprotty-protocol';
 import * as vscode from "vscode";
 import { FppProject } from "../project";
 import { GraphGenerator } from "./generator";
+import { ElkLayoutEngine } from "sprotty-elk/lib/elk-layout";
+import ELK from 'elkjs/lib/elk-api.js';
+import { FppLayoutEngine } from "./layout";
+import { FppDiagramLayoutConfigurator } from "./layout-config";
 
 export class FppWebviewPanelManager extends WebviewPanelManager {
+
+    private sGraph: SGraph | undefined;
+    private diagramConfig: FppDiagramLayoutConfigurator = new FppDiagramLayoutConfigurator();
+    private elkEngine: ElkLayoutEngine = new FppLayoutEngine(
+        () => new ELK({
+            workerFactory: function(url) { // the value of 'url' is irrelevant here
+                const { Worker } = require('elkjs/lib/elk-worker.min.js'); // Use elk-worker.js for debugging
+                return new Worker(url);
+            }
+        }),
+        undefined,
+        this.diagramConfig);
 
     constructor(readonly options: WebviewPanelManagerOptions, readonly fppProject: FppProject) {
         super(options);
@@ -62,10 +78,11 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     protected addRequestModelHandler(endpoint: WebviewEndpoint) {
         const handler = async (action: RequestModelAction) => {
             console.log("Received RequestModelAction: ", action);
-            console.log("Generate SGraph...");
             const graph = await GraphGenerator.topology(this.fppProject.decl);
-            // FIXME: Implement sending RequestBoundsAction.
-            this.sendUpdateAndFitActions(endpoint, graph);
+            this.sGraph = graph;
+            console.log("Generated SGraph: ", this.sGraph);
+            const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
+            await endpoint.sendAction(msgRequestBounds);
         };
         endpoint.addActionHandler(RequestModelAction.KIND, handler);
     }
@@ -73,9 +90,17 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     protected addComputedBoundsHandler(endpoint: WebviewEndpoint) {
         const handler = async (action: ComputedBoundsAction) => {
             console.log("Received ComputedBoundsAction: ", action);
-            console.log("Generate SGraph...");
-            const graph = await GraphGenerator.topology(this.fppProject.decl);
-            this.sendUpdateAndFitActions(endpoint, graph);
+            // Apply bounds to SGraph.
+            if (!this.sGraph) {
+                console.error("SGraph is not set but computed bounds received!");
+                return;
+            }
+            applyBounds(this.sGraph, action);
+            console.log("Bounds applied on SGraph: ", this.sGraph);
+            // Layout the SGraph (transforming to ElkGraph and calls ELK under the hood).
+            this.sGraph = await this.elkEngine.layout(this.sGraph);
+            console.log("SGraph layout done: ", this.sGraph);
+            this.sendUpdateAndFitActions(endpoint, this.sGraph);
             console.log("Send back UpdateModelAction msg");
         };
         endpoint.addActionHandler(ComputedBoundsAction.KIND, handler);

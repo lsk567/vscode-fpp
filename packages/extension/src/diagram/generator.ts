@@ -12,9 +12,15 @@ const elk = new ELK();
  * when creating ELK nodes from decl collector
  */
 interface FppData {
+    // SGraph data
     SNodeType:      string,
+
+    // Component data
     componentKind?: string, // active, queued, passive
+
+    // Port data
     portKind?:      string, // Tracking kind of GeneralInputPortInstance and GeneralInputPortInstance
+    isOutput?:      boolean,
 }
 
 /** An FPP ELK node is a regular ElkNode with an extra data field containing FPP info. */
@@ -70,13 +76,6 @@ export class GraphGenerator {
         });
 
         console.log("ElkGraph constructed: ", elkGraph);
-
-        // Perform layout
-        await elk.layout(elkGraph)
-            .then(g => {
-                console.log("ElkGraph after layout: ", g);
-            })
-            .catch(console.error);
 
         // Convert to SGraph
         const sGraph: SGraph = this.convertElkGraphToSGraph(elkGraph);
@@ -188,6 +187,11 @@ export class GraphGenerator {
                 "elk.nodeSize.constraints": "PORTS, NODE_LABELS, MINIMUM_SIZE",
                 "elk.spacing.labelPortHorizontal": "5",
             },
+            // IMPORTANT: x, y must be set, otherwise mysterious runtime errors could occur during ELK layout.
+            // Set x, y both to 0, since layout will set them later.
+            // But we do need to explicitly set them for the Sprotty front-end
+            // to correctly perform measurement.
+            x: 0, y: 0,
             children: [],
             ports: [],
             labels: [
@@ -203,7 +207,7 @@ export class GraphGenerator {
                 },
             ],
             data: {
-                SNodeType: 'component',
+                SNodeType: 'node:component',
                 componentKind: comp.kind.value,
             }
         };
@@ -238,6 +242,11 @@ export class GraphGenerator {
         
         const portNode: FppElkPort = {
             id: uid,
+            // IMPORTANT: x, y must be set, otherwise mysterious runtime errors could occur during ELK layout.
+            // Set x, y both to 0, since layout will set them later.
+            // But we do need to explicitly set them for the Sprotty front-end
+            // to correctly perform measurement.
+            x: 0, y: 0,
             height: 10,
             width: 10,
             layoutOptions: {
@@ -255,6 +264,7 @@ export class GraphGenerator {
             data: {
                 SNodeType: 'port',
                 portKind: portKind,
+                isOutput: port.kind.isOutput,
             }
         };
         return portNode;
@@ -280,7 +290,7 @@ export class GraphGenerator {
             ? `${MemberTraverser.flat(scope)}.${MemberTraverser.flat(destId)}`
             : MemberTraverser.flat(destId);
         
-        const connId = `${scope}.${directGraphDecl.name.value}.connection.${idx}`;
+        const connId = `${MemberTraverser.flat(scope)}.${directGraphDecl.name.value}.connection.${idx}`;
         const edge: FppElkEdge = {
             id: connId,
             sources: [
@@ -340,7 +350,7 @@ export class GraphGenerator {
     static convertElkGraphToSGraphRecursive(sNode: SNode, eNode: FppElkNode): void {
         // At the current layer of the tree, instantiate a component SNode for each elk child.
         eNode.children?.forEach(eChild => {
-            const elkComp = eChild as FppElkNode
+            const elkComp = eChild as FppElkNode;
             const sChild = <ComponentSNode>{
                 // Regular SNode fields
                 type: elkComp.data!.SNodeType,
@@ -361,7 +371,7 @@ export class GraphGenerator {
             };
 
             // Convert all node labels into SLabel.
-            const labels = this.convertElkElementLabelsToSGraphLabels(elkComp, 'component');
+            const labels = this.convertElkElementLabelsToSGraphLabels(elkComp, 'node:component');
             sChild.children?.push(...labels);
 
             // Recursive on this child.
@@ -391,6 +401,7 @@ export class GraphGenerator {
                 // Here we grab data from the extended ELK nodes
                 // and put them in the generated SNode.
                 kind: elkPort.data?.portKind,
+                isOutput: elkPort.data?.isOutput,
             };
 
             // Convert all port labels into SLabel.
@@ -444,7 +455,7 @@ export class GraphGenerator {
         elkElement.labels?.forEach((e, i) => {
             const label = <SLabel>{
                 id: `${elkElement.id}.label.${i}`,
-                type: `${typePrefix}-label`,
+                type: `label:${typePrefix}`,
                 text: e.text,
                 position: <Point>{
                     x: e.x || 0,

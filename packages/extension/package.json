@@ -210,6 +210,7 @@
     },
     "dependencies": {
         "elkjs": "^0.10.0",
+        "sprotty-elk": "^1.4.0",
         "uuid": "^11.1.0"
     }
 }

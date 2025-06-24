@@ -8,5 +8,6 @@ export interface ComponentSNode extends SNode {
 }
 
 export interface PortSNode extends SPort {
-    kind: string
+    kind: string,
+    isOutput: boolean, // Store output info here for ELK layout config. Input ports are positioned west, and output ports are positioned east.
 }
