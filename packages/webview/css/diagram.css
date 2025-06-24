@@ -29,6 +29,7 @@
 
 .sprotty-edge-arrow {
     fill:var(--vscode-editorActiveLineNumber-foreground);
+    stroke-width: 0;
 }
 
 .sprotty-edge > .sprotty-routing-handle {
