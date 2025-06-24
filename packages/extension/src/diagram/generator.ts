@@ -134,11 +134,6 @@ export class GraphGenerator {
             elkGraph.edges?.push(edge);
         });
 
-        // Perform layout
-        await elk.layout(elkGraph)
-            .then(console.log)
-            .catch(console.error);
-
         // Convert to SGraph
         const sGraph: SGraph = this.convertElkGraphToSGraph(elkGraph);
 

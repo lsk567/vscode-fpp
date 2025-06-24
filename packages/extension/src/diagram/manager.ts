@@ -77,31 +77,44 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
      */
     protected addRequestModelHandler(endpoint: WebviewEndpoint) {
         const handler = async (action: RequestModelAction) => {
-            console.log("Received RequestModelAction: ", action);
+            // console.log("Received RequestModelAction: ", action);
             const graph = await GraphGenerator.topology(this.fppProject.decl);
             this.sGraph = graph;
-            console.log("Generated SGraph: ", this.sGraph);
+            // console.log("Generated SGraph: ", this.sGraph);
             const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
             await endpoint.sendAction(msgRequestBounds);
         };
         endpoint.addActionHandler(RequestModelAction.KIND, handler);
     }
 
+    /**
+     * This handler is invoked when the front-end returns a ComputedBoundsAction.
+     * The handler applies the measured bounds of DOM elements
+     * (component boxes, text labels, etc.) to the unbounded SGraph,
+     * then sends the SGraph to the ELK layout engine. The SGraph after layout
+     * is then returned to the webview for display.
+     * 
+     * Note that since all graphs go through the two-step client-server layout process
+     * (more info here https://sprotty.org/docs/recipes/actions-and-protocols/#3-client-and-server-layout)
+     * this handler gets invoked for every render.
+     * 
+     * @param endpoint An active endpoint connecting to the webview
+     */
     protected addComputedBoundsHandler(endpoint: WebviewEndpoint) {
         const handler = async (action: ComputedBoundsAction) => {
-            console.log("Received ComputedBoundsAction: ", action);
+            // console.log("Received ComputedBoundsAction: ", action);
             // Apply bounds to SGraph.
             if (!this.sGraph) {
                 console.error("SGraph is not set but computed bounds received!");
                 return;
             }
             applyBounds(this.sGraph, action);
-            console.log("Bounds applied on SGraph: ", this.sGraph);
+            // console.log("Bounds applied on SGraph: ", this.sGraph);
             // Layout the SGraph (transforming to ElkGraph and calls ELK under the hood).
             this.sGraph = await this.elkEngine.layout(this.sGraph);
-            console.log("SGraph layout done: ", this.sGraph);
+            // console.log("SGraph layout done: ", this.sGraph);
             this.sendUpdateAndFitActions(endpoint, this.sGraph);
-            console.log("Send back UpdateModelAction msg");
+            // console.log("Send back UpdateModelAction msg");
         };
         endpoint.addActionHandler(ComputedBoundsAction.KIND, handler);
     }
@@ -118,8 +131,10 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             return;
         }
         // Generate an SGraph for the connection group.
-        const graph = await GraphGenerator.connectionGroup(this.fppProject.decl, elemName);
-        this.sendUpdateAndFitActions(activeEndpoint!, graph);
+        this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, elemName);
+        // console.log("Generated SGraph: ", this.sGraph);
+        const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
+        activeEndpoint.sendAction(msgRequestBounds);
     }
 
     public async handleOnSaveUpdateDiagram() {

@@ -1,6 +1,6 @@
 import { LayoutOptions } from "elkjs";
 import { DefaultLayoutConfigurator } from "sprotty-elk";
-import { SGraph, SEdge, SNode, SPort, Point, SLabel, Dimension } from 'sprotty-protocol';
+import { SGraph, SEdge, SNode, SLabel } from 'sprotty-protocol';
 import { SModelIndex } from "sprotty-protocol";
 import { PortSNode } from "../../../webview/src/models";
 
@@ -21,6 +21,7 @@ export class FppDiagramLayoutConfigurator extends DefaultLayoutConfigurator {
             'elk.portConstraints': 'FIXED_SIDE', // So that elk.port.side can take effect.
             "elk.nodeSize.constraints": "PORTS, NODE_LABELS, MINIMUM_SIZE",
             "elk.spacing.labelPortHorizontal": "5",
+            // "elk.spacing.portPort": "15", // Does not seem to take effect.
         };
     }
 

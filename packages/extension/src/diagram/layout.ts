@@ -22,18 +22,16 @@ export class FppLayoutEngine extends ElkLayoutEngine {
 
         // STEP 1: Transform the Sprotty graph into an ELK graph with optional pre-processing
         const elkGraph = this.transformGraph(sgraph, index);
-        console.log("Transformed elkGraph: ");
-        console.log(JSON.stringify(elkGraph));
+        // console.log("Transformed elkGraph: ");
+        // console.log(JSON.stringify(elkGraph));
         if (this.preprocessor) {
             this.preprocessor.preprocess(elkGraph, sgraph, index);
         }
 
         // STEP 2: Invoke the ELK layout engine
         return this.elk.layout(elkGraph).then(result => {
-
-            console.log("Got elkGraph result: ");
-            console.log(JSON.stringify(result));
-
+            // console.log("Got elkGraph result: ");
+            // console.log(JSON.stringify(result));
             // STEP 3: Apply the results with optional post-processing to the original graph
             if (this.postprocessor) {
                 this.postprocessor.postprocess(result, sgraph, index!);
