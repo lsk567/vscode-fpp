@@ -4,7 +4,8 @@
 
 .sprotty-node.selected {
     stroke-width: 2;
-    stroke: var(--vscode-button-secondaryForeground);
+    fill: var(--vscode-list-focusHighlightForeground);
+    /* fill: var(--vscode-editor-selectionHighlightBackground); A very nice muted color. */
 }
 
 .sprotty-label {

@@ -75,7 +75,7 @@ export class GraphGenerator {
             });
         });
 
-        console.log("ElkGraph constructed: ", elkGraph);
+        // console.log("ElkGraph constructed: ", elkGraph);
 
         // Convert to SGraph
         const sGraph: SGraph = this.convertElkGraphToSGraph(elkGraph);
