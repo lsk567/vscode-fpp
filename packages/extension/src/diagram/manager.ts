@@ -143,8 +143,10 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             console.error("Active webview endpoint not found!");
             return;
         }
-        const graph = await GraphGenerator.topology(this.fppProject.decl);
-        this.sendUpdateAndFitActions(activeEndpoint!, graph);
+        this.sGraph = await GraphGenerator.topology(this.fppProject.decl);
+        // console.log("Generated SGraph: ", this.sGraph);
+        const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
+        activeEndpoint.sendAction(msgRequestBounds);
     }
 
     private findOpenedWebview(): WebviewEndpoint | undefined {
