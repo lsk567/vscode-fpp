@@ -19,6 +19,12 @@ import ELK from 'elkjs/lib/elk-api.js';
 import { FppLayoutEngine } from "./layout";
 import { FppDiagramLayoutConfigurator } from "./layout-config";
 
+enum DiagramType {
+    Component,
+    ConnectionGroup,
+    Topology
+}
+
 export class FppWebviewPanelManager extends WebviewPanelManager {
 
     private sGraph: SGraph | undefined;
@@ -32,6 +38,12 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         }),
         undefined,
         this.diagramConfig);
+    
+    /* Private variables for remembering the current displayed diagram to handle diagram update on save */
+    private currentDiagramType: DiagramType = DiagramType.Topology;
+    private fullyQualifiedTopologyName          : string = "";
+    private fullyQualifiedComponentName         : string = "";
+    private fullyQualifiedConnectionGroupName   : string = "";
 
     constructor(readonly options: WebviewPanelManagerOptions, readonly fppProject: FppProject) {
         super(options);
@@ -77,6 +89,7 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
      */
     protected addRequestModelHandler(endpoint: WebviewEndpoint) {
         const handler = async (action: RequestModelAction) => {
+            this.currentDiagramType = DiagramType.Topology;
             // console.log("Received RequestModelAction: ", action);
             const graph = await GraphGenerator.topology(this.fppProject.decl);
             this.sGraph = graph;
@@ -123,15 +136,33 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     /* Handlers for sending messages to webview upon user's actions in editor */
     /**************************************************************************/
 
-    public async handleCodeLensDisplayConnectionGroup(elemName: string) {
-        vscode.window.setStatusBarMessage(`Displaying ${elemName}...`, 5000);
+    public async handleCodeLensDisplayComponent(fullyQualifiedComponentName: string) {
+        this.currentDiagramType = DiagramType.Component;
+        this.fullyQualifiedComponentName = fullyQualifiedComponentName;
+        vscode.window.setStatusBarMessage(`Displaying ${fullyQualifiedComponentName}`, 5000);
         const activeEndpoint = this.findOpenedWebview();
         if (!activeEndpoint) {
             console.error("Active webview endpoint not found!");
             return;
         }
         // Generate an SGraph for the connection group.
-        this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, elemName);
+        this.sGraph = await GraphGenerator.component(this.fppProject.decl, fullyQualifiedComponentName);
+        // console.log("Generated SGraph: ", this.sGraph);
+        const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
+        activeEndpoint.sendAction(msgRequestBounds);
+    }
+
+    public async handleCodeLensDisplayConnectionGroup(fullyQualifiedConnectionGroupName: string) {
+        this.currentDiagramType = DiagramType.ConnectionGroup;
+        this.fullyQualifiedConnectionGroupName = fullyQualifiedConnectionGroupName;
+        vscode.window.setStatusBarMessage(`Displaying ${fullyQualifiedConnectionGroupName}`, 5000);
+        const activeEndpoint = this.findOpenedWebview();
+        if (!activeEndpoint) {
+            console.error("Active webview endpoint not found!");
+            return;
+        }
+        // Generate an SGraph for the connection group.
+        this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, fullyQualifiedConnectionGroupName);
         // console.log("Generated SGraph: ", this.sGraph);
         const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
         activeEndpoint.sendAction(msgRequestBounds);
@@ -143,9 +174,23 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             console.error("Active webview endpoint not found!");
             return;
         }
-        this.sGraph = await GraphGenerator.topology(this.fppProject.decl);
+        switch(this.currentDiagramType) {
+            case DiagramType.Component:
+                this.sGraph = await GraphGenerator.component(this.fppProject.decl, this.fullyQualifiedComponentName);
+                break;
+            case DiagramType.ConnectionGroup:
+                this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, this.fullyQualifiedConnectionGroupName);
+                break;
+            case DiagramType.Topology:
+                this.sGraph = await GraphGenerator.topology(this.fppProject.decl);
+                break;
+            default:
+                console.error("Unsupported DiagramType: ", this.currentDiagramType);
+                return;
+        }
+        
         // console.log("Generated SGraph: ", this.sGraph);
-        const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
+        const msgRequestBounds = RequestBoundsAction.create(this.sGraph!);
         activeEndpoint.sendAction(msgRequestBounds);
     }
 

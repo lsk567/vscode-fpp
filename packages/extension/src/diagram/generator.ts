@@ -54,6 +54,21 @@ export class GraphGenerator {
         };
     }
 
+    static async component(decl: DeclCollector, fullyQualifiedComponentName: string): Promise<SGraph> {
+        const elkGraph: FppElkNode = this.initElkGraph();
+        const compDecl = decl.components.get(fullyQualifiedComponentName)!;
+        if (!compDecl) {
+            throw new Error(`Component decl not found: ${fullyQualifiedComponentName}`);
+        }
+
+        elkGraph.children?.push(this.createElkNodeComponent(undefined, compDecl));
+
+        // Convert to SGraph
+        const sGraph: SGraph = this.convertElkGraphToSGraph(elkGraph);
+
+        return sGraph;
+    }
+
     /**
      * Generate an SGraph that renders an entire topology.
      * @param decl The DeclCollector with all info about the FPP files
@@ -63,6 +78,7 @@ export class GraphGenerator {
         const elkGraph: FppElkNode = this.initElkGraph();
         
         // Create an ELK node for each component instance.
+        // FIXME: First find out which instances are used in a topology.
         decl.componentInstances.forEach(e => {
             elkGraph.children?.push(this.createElkNodeFromComponentInstance(decl, e));
         });
@@ -86,14 +102,14 @@ export class GraphGenerator {
     /**
      * Generate an SGraph that shows a specific connection group.
      * @param decl The DeclCollector with all info about the FPP files
-     * @param connectionGroupName Name of the connection group to generate the graph for
+     * @param fullyQualifiedGraphGroupName Fully qualified name of the connection group to generate the graph for
      * @returns An SGraph to be sent to webview
      */
-    static async connectionGroup(decl: DeclCollector, graphGroupName: string): Promise<SGraph> {
+    static async connectionGroup(decl: DeclCollector, fullyQualifiedGraphGroupName: string): Promise<SGraph> {
         const elkGraph: FppElkNode = this.initElkGraph();
-        const graphGroup = decl.graphGroups.get(graphGroupName)!;
+        const graphGroup = decl.graphGroups.get(fullyQualifiedGraphGroupName)!;
         if (!graphGroup) {
-            throw new Error(`Graph group not found: ${graphGroupName}`);
+            throw new Error(`Graph group not found: ${fullyQualifiedGraphGroupName}`);
         }
 
         // Collect a unique set of instance IDs from connections.
@@ -167,11 +183,11 @@ export class GraphGenerator {
      * @param comp ComponentDecl from decl collector
      * @param uid Component instance name, which is supposed to be unique.
      */
-    static createElkNodeComponent(instance: ComponentInstanceDecl, comp: ComponentDecl): FppElkNode {
+    static createElkNodeComponent(instance: ComponentInstanceDecl | undefined, comp: ComponentDecl): FppElkNode {
         // Instantiate an SNode for the component.
-        const compId = `${instance.scope.map(e => e.value).join('.')}.${instance.name.value}`; // DeploymentName.componentInstanceName
+        const compId = instance ? `${instance.scope.map(e => e.value).join('.')}.${instance.name.value}` : `uninstantiatedComponent`; // DeploymentName.componentInstanceName
         const compClassName = comp.name.value;
-        const compInstanceName = instance.name.value;
+        const compInstanceName = instance ? instance.name.value : "";
         var node: FppElkNode = {
             id: compId,
             layoutOptions: {

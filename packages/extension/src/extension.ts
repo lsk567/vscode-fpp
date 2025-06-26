@@ -940,8 +940,12 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand("fpp.disableCodeLens", () => {
             vscode.workspace.getConfiguration("fpp").update("enableCodeLens", false, true);
         }),
-        vscode.commands.registerCommand("fpp.visualizeConnectionGroup",
-            (elemName: string) => webviewPanelManager.handleCodeLensDisplayConnectionGroup(elemName))
+        vscode.commands.registerCommand("fpp.displayConnectionGroup",
+            (elemName: string) => webviewPanelManager.handleCodeLensDisplayConnectionGroup(elemName)
+        ),
+        vscode.commands.registerCommand("fpp.displayComponent",
+            (elemName: string) => webviewPanelManager.handleCodeLensDisplayComponent(elemName)
+        ),
     );
 }
 

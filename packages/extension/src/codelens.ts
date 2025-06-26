@@ -26,47 +26,77 @@ export class CodelensProvider implements vscode.CodeLensProvider {
 	public async provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): Promise<vscode.CodeLens[]> {
 
 		if (vscode.workspace.getConfiguration("fpp").get("enableCodeLens", true)) {
-			const lenses: vscode.CodeLens[] = [];
+			
+            const text = document.getText();
+            const lenses: vscode.CodeLens[] = [];
 
             // This regex matches the word "connections" as a whole word, followed by one or more spaces,
             // then captures the next word (the group name) in a capture group.
+            // - \bconnections: matches the word "connections" as a whole word
+            // - \s+: matches one or more whitespace characters after "connections"
+            // - (\w+): captures the group name (one or more word characters) after the whitespace
+            // - \s*: matches optional whitespace after the group name
+            // - (?:\{)?: optionally matches a "{" character (non-capturing, may be on the same or next line)
             // Example match: "connections Downlink" will capture "Downlink" as match[1].
-            // It does NOT require a "{" after the group name, so it works even if "{" is on the next line.
-            const regex = /\bconnections\s+(\w+)\s*(?:\{)?/gm;
-            const text = document.getText();
-            let match;
+            const regexConnGroups = /\bconnections\s+(\w+)\s*(?:\{)?/gm;
+            
+            // This regex matches component declarations like "active component", "passive component", or "queued component",
+            // followed by the component name, and optionally a "{" character.
+            // - \b: matches a word boundary to ensure matching at the start of a word
+            // - (?:active|passive|queued): non-capturing group that matches "active", "passive", or "queued"
+            // - \s+: matches one or more whitespace characters after the type
+            // - component: matches the literal word "component"
+            // - \s+: matches one or more whitespace characters after "component"
+            // - (\w+): captures the component name (one or more word characters) after the whitespace
+            // - \s*: matches optional whitespace after the component name
+            // - (?:\{)?: optionally matches a "{" character (non-capturing, may be on the same or next line)
+            // Example match: "active component MyComponent {" will capture "MyComponent" as match[1]
+            const regexComponent = /\b(?:active|passive|queued)\s+component\s+(\w+)\s*(?:\{)?/gm;
 
-            while ((match = regex.exec(text))) {                
-                const elemName = match[1];
-                const offsetInMatch = match[0].indexOf(elemName);
-                const offsetInDoc = match.index + offsetInMatch;
+            let matchConnGroups: RegExpExecArray | null;
+            let matchComponents: RegExpExecArray | null;
+
+            while ((matchConnGroups = regexConnGroups.exec(text))) {
+                const elemName = matchConnGroups[1];
+                const offsetInMatch = matchConnGroups[0].indexOf(elemName);
+                const offsetInDoc = matchConnGroups.index + offsetInMatch;
                 const position = document.positionAt(offsetInDoc);
                 const range = new vscode.Range(position, position);
 
-                // Try to resolve the module.
-                let association: RangeAssociation<Fpp.Decl> | undefined;
-                
-                // Check if this definition exists
-                const declAssociation = this.fppProject.decl.translationUnitDeclarations.get(document.uri.path)?.getAssociation(position);
-                if (declAssociation) {
-                    const { range, value } = declAssociation;
-                    const decl = this.fppProject.decl.get(value[1], value[0]);
-                    association = decl ? { range: range, value: decl } : undefined;
-                }
-                else {
-                    // Check if we are hovering over a variable reference
-                    association = (await this.fppProject.get(document)).definitions.get(document.uri.path)?.getAssociation(position);
-                }
+                // Try to resolve the matched name.
+                let association = await this.getAssociation(document, position);
                 if (!association) {
                     continue;
                 }
-
                 const definition = association!.value;
                 const fullName = FppAnnotator.flat(definition.scope, definition.name);
                 const lens = new vscode.CodeLens(range, {
                     title: `Open in Diagram: ${elemName}`,
                     tooltip: 'Click to visualize this connection group',
-                    command: 'fpp.visualizeConnectionGroup',
+                    command: 'fpp.displayConnectionGroup',
+                    arguments: [fullName]
+                });
+                lenses.push(lens);
+            }
+
+            while ((matchComponents = regexComponent.exec(text))) {
+                const elemName = matchComponents[1];
+                const offsetInMatch = matchComponents[0].indexOf(elemName);
+                const offsetInDoc = matchComponents.index + offsetInMatch;
+                const position = document.positionAt(offsetInDoc);
+                const range = new vscode.Range(position, position);
+
+                // Try to resolve the matched name.
+                let association = await this.getAssociation(document, position);
+                if (!association) {
+                    continue;
+                }
+                const definition = association!.value;
+                const fullName = FppAnnotator.flat(definition.scope, definition.name);
+                const lens = new vscode.CodeLens(range, {
+                    title: `Open in Diagram: ${elemName}`,
+                    tooltip: 'Click to visualize this component',
+                    command: 'fpp.displayComponent',
                     arguments: [fullName]
                 });
                 lenses.push(lens);
@@ -86,4 +116,21 @@ export class CodelensProvider implements vscode.CodeLensProvider {
 		}
 		return null;
 	}
+
+    private async getAssociation(document: vscode.TextDocument, position: vscode.Position): Promise<RangeAssociation<Fpp.Decl> | undefined> {
+        let association: RangeAssociation<Fpp.Decl> | undefined;
+        
+        // Check if this definition exists
+        const declAssociation = this.fppProject.decl.translationUnitDeclarations.get(document.uri.path)?.getAssociation(position);
+        if (declAssociation) {
+            const { range, value } = declAssociation;
+            const decl = this.fppProject.decl.get(value[1], value[0]);
+            association = decl ? { range: range, value: decl } : undefined;
+        }
+        else {
+            // Check if we are hovering over a variable reference
+            association = (await this.fppProject.get(document)).definitions.get(document.uri.path)?.getAssociation(position);
+        }
+        return association;
+    }
 }
