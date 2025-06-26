@@ -53,8 +53,19 @@ export class CodelensProvider implements vscode.CodeLensProvider {
             // Example match: "active component MyComponent {" will capture "MyComponent" as match[1]
             const regexComponent = /\b(?:active|passive|queued)\s+component\s+(\w+)\s*(?:\{)?/gm;
 
+            // This regex matches topology declarations like "topology MyTopology {", capturing the topology name.
+            // - \b: matches a word boundary to ensure matching at the start of a word
+            // - topology: matches the literal word "topology"
+            // - \s+: matches one or more whitespace characters after "topology"
+            // - (\w+): captures the topology name (one or more word characters) after the whitespace
+            // - \s*: matches optional whitespace after the topology name
+            // - (?:\{)?: optionally matches a "{" character (non-capturing, may be on the same or next line)
+            // Example match: "topology MyTopology {" will capture "MyTopology" as match[1]
+            const regexTopology  = /\btopology\s+(\w+)\s*(?:\{)?/gm;
+
             let matchConnGroups: RegExpExecArray | null;
             let matchComponents: RegExpExecArray | null;
+            let matchTopology  : RegExpExecArray | null;
 
             while ((matchConnGroups = regexConnGroups.exec(text))) {
                 const elemName = matchConnGroups[1];
@@ -97,6 +108,29 @@ export class CodelensProvider implements vscode.CodeLensProvider {
                     title: `Open in Diagram: ${elemName}`,
                     tooltip: 'Click to visualize this component',
                     command: 'fpp.displayComponent',
+                    arguments: [fullName]
+                });
+                lenses.push(lens);
+            }
+
+            while ((matchTopology = regexTopology.exec(text))) {
+                const elemName = matchTopology[1];
+                const offsetInMatch = matchTopology[0].indexOf(elemName);
+                const offsetInDoc = matchTopology.index + offsetInMatch;
+                const position = document.positionAt(offsetInDoc);
+                const range = new vscode.Range(position, position);
+
+                // Try to resolve the matched name.
+                let association = await this.getAssociation(document, position);
+                if (!association) {
+                    continue;
+                }
+                const definition = association!.value;
+                const fullName = FppAnnotator.flat(definition.scope, definition.name);
+                const lens = new vscode.CodeLens(range, {
+                    title: `Open in Diagram: ${elemName}`,
+                    tooltip: 'Click to visualize this topology',
+                    command: 'fpp.displayTopology',
                     arguments: [fullName]
                 });
                 lenses.push(lens);

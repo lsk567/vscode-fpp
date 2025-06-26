@@ -926,7 +926,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Register command to update diagram on save.
     context.subscriptions.push(
         vscode.commands.registerCommand('fpp.updateDiagram', () => {
-            webviewPanelManager.handleOnSaveUpdateDiagram();
+            webviewPanelManager.updateDiagram();
         })
     );
 
@@ -941,10 +941,13 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.workspace.getConfiguration("fpp").update("enableCodeLens", false, true);
         }),
         vscode.commands.registerCommand("fpp.displayConnectionGroup",
-            (elemName: string) => webviewPanelManager.handleCodeLensDisplayConnectionGroup(elemName)
+            (elemName: string) => webviewPanelManager.displayConnectionGroup(elemName)
         ),
         vscode.commands.registerCommand("fpp.displayComponent",
-            (elemName: string) => webviewPanelManager.handleCodeLensDisplayComponent(elemName)
+            (elemName: string) => webviewPanelManager.displayComponent(elemName)
+        ),
+        vscode.commands.registerCommand("fpp.displayTopology",
+            (elemName: string) => webviewPanelManager.displayTopology(elemName)
         ),
     );
 }
