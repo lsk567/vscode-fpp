@@ -1,6 +1,6 @@
 {
-	"extends": "./tsconfig.base.json",
-	"compilerOptions": {
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
     "jsx": "react",
     "rootDir": "./", // rootDir is packages/ because extension/ needs to access files from webview/, e.g., models.
     "outDir": "out/extension",

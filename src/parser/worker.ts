@@ -151,7 +151,6 @@ parentPort?.on("message", async (message: IFppWorkerRequest) => {
             msg: retMessage
         });
     } catch (e) {
-        console.log("Error from worker!");
         parentPort?.postMessage({
             code: "error",
             msg: `${e}`

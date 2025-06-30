@@ -194,7 +194,6 @@
         "@types/antlr4": "^4.11.2",
         "@types/glob": "^8.0.0",
         "@types/mocha": "^10.0.0",
-        "@types/uuid": "^10.0.0",
         "@types/vscode": "^1.78.0",
         "@typescript-eslint/eslint-plugin": "^5.42.0",
         "@typescript-eslint/parser": "^5.42.0",
@@ -215,11 +214,10 @@
         "ts-loader": "^9.5.1"
     },
     "dependencies": {
-        "elkjs": "^0.10.0",
-        "sprotty-elk": "^1.4.0",
         "reflect-metadata": "^0.2.2",
-        "shx": "^0.4.0",
+        "elkjs": "^0.10.0",
         "sprotty": "^1.2.0",
+        "sprotty-elk": "^1.4.0",
         "sprotty-vscode-webview": "^1.0.0"
     }
 }
