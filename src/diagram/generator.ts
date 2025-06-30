@@ -3,7 +3,7 @@ import ELK, { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } fro
 import { DeclCollector, SymbolType } from "../decl";
 import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, PortInstanceDecl, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind, TopologyDecl } from "../parser/ast";
 import { MemberTraverser } from "../traverser";
-import { ComponentSNode, PortSNode } from '../../../webview/src/models';
+import { ComponentSNode, PortSNode } from '../../webview/src/models';
 
 const elk = new ELK();
 

@@ -1,9 +1,9 @@
 {
-	"extends": "../../tsconfig.base.json",
+	"extends": "../tsconfig.base.json",
 	"compilerOptions": {
     "jsx": "react",
     "rootDir": "src",
-    "outDir": "out",
+    "outDir": "../out/webview",
     "lib": [
       "ES2022",
       "dom"
