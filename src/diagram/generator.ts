@@ -1,9 +1,10 @@
 import { SGraph, SEdge, SNode, SPort, Point, SLabel, Dimension } from 'sprotty-protocol';
 import ELK, { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { DeclCollector, SymbolType } from "../decl";
-import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, PortInstanceDecl, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind, TopologyDecl } from "../parser/ast";
+import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, InterfaceImportStmt, PortInstanceDecl, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind, TopologyDecl } from "../parser/ast";
 import { MemberTraverser } from "../traverser";
 import { ComponentSNode, PortSNode } from '../../webview/src/models';
+import { getInterfaceFullnameFromImport } from '../util';
 
 const elk = new ELK();
 
@@ -62,7 +63,7 @@ export class GraphGenerator {
             return;
         }
 
-        elkGraph.children?.push(this.createElkNodeComponent(undefined, compDecl));
+        elkGraph.children?.push(this.createElkNodeComponent(decl, undefined, compDecl));
 
         // Convert to SGraph
         const sGraph: SGraph = this.convertElkGraphToSGraph(elkGraph);
@@ -207,7 +208,7 @@ export class GraphGenerator {
         const componentDecl = decl.get(componentName, SymbolType.component) as ComponentDecl;
 
         // Instantiate a component FppElkNode for the component type.
-        const node = this.createElkNodeComponent(componentInstanceDecl, componentDecl);
+        const node = this.createElkNodeComponent(decl, componentInstanceDecl, componentDecl);
         return node;
     }
 
@@ -216,7 +217,7 @@ export class GraphGenerator {
      * @param comp ComponentDecl from decl collector
      * @param uid Component instance name, which is supposed to be unique.
      */
-    static createElkNodeComponent(instance: ComponentInstanceDecl | undefined, comp: ComponentDecl): FppElkNode {
+    static createElkNodeComponent(decl: DeclCollector, instance: ComponentInstanceDecl | undefined, comp: ComponentDecl): FppElkNode {
         // Instantiate an SNode for the component.
         const compId = instance ? `${instance.scope.map(e => e.value).join('.')}.${instance.name.value}` : `uninstantiatedComponent`; // DeploymentName.componentInstanceName
         const compClassName = comp.name.value;
@@ -257,12 +258,29 @@ export class GraphGenerator {
         };
 
         // Add an Elk port to the ports array for each port of the component.
-        comp.members.forEach((val, i) => {
-            if (GraphGenerator.isPortInstanceDecl(val)) {
-                const portId = `${compId}.${val.name.value}`;
-                node.ports!.push(GraphGenerator.createElkNodePort(val, portId));
-            } else if (GraphGenerator.isIncludeStmt(val)) {
-                val.resolved?.members.forEach(member => {
+        comp.members.forEach((m, i) => {
+            if (GraphGenerator.isPortInstanceDecl(m)) {
+                const portId = `${compId}.${m.name.value}`;
+                node.ports!.push(GraphGenerator.createElkNodePort(m, portId));
+            } 
+            // Handle ports imported from include statememts.
+            else if (GraphGenerator.isIncludeStmt(m)) {
+                m.resolved?.members.forEach(member => {
+                    if (GraphGenerator.isPortInstanceDecl(member)) {
+                        const portId = `${compId}.${member.name.value}`;
+                        node.ports!.push(GraphGenerator.createElkNodePort(member, portId));
+                    }
+                });
+            }
+            // Handle ports imported from interface imports.
+            else if (GraphGenerator.isInterfaceImportStmt(m)) {
+                const interfaceName = getInterfaceFullnameFromImport(m, comp);
+                if (!interfaceName) {
+                    console.error("Interface full name is undefined. Check if the interface import statement is valid.");
+                    return;
+                }
+                const interfaceDecl = decl.interfaces.get(interfaceName);
+                interfaceDecl?.members.forEach(member => {
                     if (GraphGenerator.isPortInstanceDecl(member)) {
                         const portId = `${compId}.${member.name.value}`;
                         node.ports!.push(GraphGenerator.createElkNodePort(member, portId));
@@ -368,6 +386,15 @@ export class GraphGenerator {
      */
     static isIncludeStmt(obj: any): obj is IncludeStmt<undefined> {
         return obj && (obj.type === 'IncludeStmt');
+    }
+
+    /**
+     * A type guard function for checking whether an object can be
+     * safely treated as an InterfaceImportStmt type.
+     * Caution: This needs to update when `ast.ts` is changed.
+     */
+    static isInterfaceImportStmt(obj: any): obj is InterfaceImportStmt {
+        return obj && (obj.type === 'InterfaceImportStmt');
     }
 
     /**
