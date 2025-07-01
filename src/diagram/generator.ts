@@ -75,15 +75,27 @@ export class GraphGenerator {
      * @param decl The DeclCollector with all info about the FPP files
      * @returns An SGraph to be sent to webview
      */
-    static async topology(decl: DeclCollector, fullyQualifiedTopologyName: string): Promise<SGraph | undefined> {
-        const elkGraph: FppElkNode = this.initElkGraph();
+    static async topology(decl: DeclCollector, fullyQualifiedTopologyName: string, elkGraph: FppElkNode | undefined = undefined): Promise<SGraph | undefined> {
+        if (!elkGraph) {
+            elkGraph = this.initElkGraph();
+        }
+
+        // Get the parent topology.
+        const topologyDecl = decl.topologies.get(fullyQualifiedTopologyName);
+
+        // Recursively build elkGraph for each subtopology.
+        topologyDecl?.members.map(member => {
+            if (member.type === 'TopologyImportStmt') {
+                const subtopologyName = MemberTraverser.flat(member.symbol);
+                this.topology(decl, subtopologyName, elkGraph);
+            }
+        });
 
         // Find a list of component instances used in the topology.
-        const topologyDecl = decl.topologies.get(fullyQualifiedTopologyName);
         const usedComponentInstances: ComponentInstanceDecl[] = [];
         topologyDecl?.members.map(member => {
-            if ("type" in member && member.type === 'ComponentInstanceSpec') {
-                const instanceName = `${MemberTraverser.flat(topologyDecl.scope)}.${MemberTraverser.flat(member.name)}`
+            if (member.type === 'ComponentInstanceSpec') {
+                const instanceName = `${MemberTraverser.flat(topologyDecl.scope)}.${MemberTraverser.flat(member.name)}`;
                 const instanceDecl = decl.componentInstances.get(instanceName);
                 if (instanceDecl) {
                     usedComponentInstances.push(instanceDecl);
@@ -99,17 +111,17 @@ export class GraphGenerator {
             }
         });
 
-        // Iterate over all connections and draw an ELK edge for each.
-        decl.graphGroups.forEach((directGraphDecl, key) => {
-            directGraphDecl.connections.forEach((conn, idx) => {
-                const edge: FppElkEdge = this.createElkEdge(decl, directGraphDecl, conn, idx);
+        // Iterate over all connection groups in the current topology and draw an ELK edge for each.
+        const topologyConnGroups = topologyDecl?.members.filter(m => m.type === 'DirectGraphDecl') ?? [];
+        topologyConnGroups.forEach(connGroup => {
+            connGroup.connections.forEach((conn, idx) => {
+                const edge: FppElkEdge = this.createElkEdge(decl, connGroup, conn, idx);
                 elkGraph.edges?.push(edge);
             });
         });
 
-        // console.log("ElkGraph constructed: ", elkGraph);
-
         // Convert to SGraph
+        // console.log("ElkGraph constructed: ", elkGraph);
         const sGraph: SGraph = this.convertElkGraphToSGraph(elkGraph);
         
         return sGraph;
