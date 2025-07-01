@@ -125,6 +125,8 @@ class FppExtension implements
                             if (vscode.languages.match(this.project.documentSelector, e.document)) {
                                 // Reparse the document to update the information
                                 this.project.parse(e.document);
+                                // Shaokai: Debug print of refreshed decl collector
+                                console.log(this.project.decl);
                             }
                         }),
                         // Refresh project dictionary listing

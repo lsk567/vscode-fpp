@@ -144,7 +144,7 @@ export class DeclCollector extends MemberTraverser {
     topologyPortsTrav = new class extends MemberTraverser {
         parent!: DeclCollector;
 
-        private update(ast: Fpp.ComponentInstanceDecl, member: Fpp.ComponentMember, componentScope: Fpp.QualifiedIdentifier) {
+        private update(ast: Fpp.ComponentInstanceDecl, componentDef: Fpp.ComponentDecl, member: Fpp.ComponentMember, componentScope: Fpp.QualifiedIdentifier) {
             switch (member.type) {
                 case 'GeneralPortInstanceDecl': {
                     const portName = MemberTraverser.flat(componentScope, member.name);
@@ -198,9 +198,47 @@ export class DeclCollector extends MemberTraverser {
                 case 'IncludeStmt':
                     if (member.resolved) {
                         for (const m of member.resolved.members) {
-                            this.update(ast, m, componentScope);
+                            this.update(ast, componentDef, m, componentScope);
                         }
                     }
+                    break;
+                // If this component imports port interfaces,
+                // add the imported ports to the port instance map.
+                case 'InterfaceImportStmt':
+                    console.log("Interface import detected!");
+                    console.log(ast);               // Comp. instance that import the interface 
+                    console.log(componentDef);
+                    console.log(member);            // Interface class
+                    console.log(componentScope);    // scope of the instance
+
+                    // Get the interface decl from combining the def scope and the interface name.
+                    // If member.symbol has more than one identifier (e.g., `import Drv.Tick`), that means
+                    // the interface is defined outside the current scope. In this case, do not prepend
+                    // the component def's scope. But if member.symbol has only one identifier (e.g., `import Framer`),
+                    // that means the interface is defined under the same scope as the component def.
+                    // In this case, prepend the component def's scope (e.g., Svc). Note that only
+                    // the first identifier is prepended.
+                    let interfaceFullName = undefined;
+                    if (member.symbol.length > 1) {
+                        interfaceFullName = MemberTraverser.flat(member.symbol);
+                    } else if (member.symbol.length === 1) {
+                        interfaceFullName = `${componentDef.scope[0].value}.${MemberTraverser.flat(member.symbol)}`;
+                    } else {
+                        console.error("Interface full name undefined.");
+                        return;
+                    }
+                    
+                    // Get the interface decl.
+                    const interfaceDecl = this.parent.interfaces.get(interfaceFullName);
+                    if (!interfaceDecl) {
+                        console.error(`interfaceDecl for ${interfaceFullName} not found`);
+                        return;
+                    }
+                    
+                    // Update all ports from the interface decl.
+                    interfaceDecl.members.map(m => {
+                        this.update(ast, componentDef, m, componentScope);
+                    });
                     break;
             }
         }
@@ -219,7 +257,7 @@ export class DeclCollector extends MemberTraverser {
             const componentAst = this.parent.components.get(MemberTraverser.flat(resolved));
             if (componentAst) {
                 for (const member of componentAst.members) {
-                    this.update(ast, member, componentScope);
+                    this.update(ast, componentAst, member, componentScope);
                 }
             }
         }
