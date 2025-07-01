@@ -205,12 +205,6 @@ export class DeclCollector extends MemberTraverser {
                 // If this component imports port interfaces,
                 // add the imported ports to the port instance map.
                 case 'InterfaceImportStmt':
-                    console.log("Interface import detected!");
-                    console.log(ast);               // Comp. instance that import the interface 
-                    console.log(componentDef);
-                    console.log(member);            // Interface class
-                    console.log(componentScope);    // scope of the instance
-
                     // Get the interface decl from combining the def scope and the interface name.
                     // If member.symbol has more than one identifier (e.g., `import Drv.Tick`), that means
                     // the interface is defined outside the current scope. In this case, do not prepend
@@ -234,7 +228,7 @@ export class DeclCollector extends MemberTraverser {
                         console.error(`interfaceDecl for ${interfaceFullName} not found`);
                         return;
                     }
-                    
+
                     // Update all ports from the interface decl.
                     interfaceDecl.members.map(m => {
                         this.update(ast, componentDef, m, componentScope);
