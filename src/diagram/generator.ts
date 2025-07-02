@@ -1,10 +1,12 @@
 import { SGraph, SEdge, SNode, SPort, Point, SLabel, Dimension } from 'sprotty-protocol';
 import ELK, { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { DeclCollector, SymbolType } from "../decl";
-import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, InterfaceImportStmt, PortInstanceDecl, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind, TopologyDecl } from "../parser/ast";
+import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, InterfaceImportStmt, IntExprValue, PortInstanceDecl, PrimExprType, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind, TopologyDecl } from "../parser/ast";
 import { MemberTraverser } from "../traverser";
 import { ComponentSNode, PortSNode } from '../../webview/src/models';
 import { getInterfaceFullnameFromImport } from '../util';
+import { FppAnnotator } from '../annotator';
+import { ExprTraverser } from '../evaluator';
 
 const elk = new ELK();
 
@@ -261,14 +263,14 @@ export class GraphGenerator {
         comp.members.forEach((m, i) => {
             if (GraphGenerator.isPortInstanceDecl(m)) {
                 const portId = `${compId}.${m.name.value}`;
-                node.ports!.push(GraphGenerator.createElkNodePort(m, portId));
+                node.ports!.push(...GraphGenerator.createElkNodePort(m, portId, decl));
             } 
             // Handle ports imported from include statememts.
             else if (GraphGenerator.isIncludeStmt(m)) {
                 m.resolved?.members.forEach(member => {
                     if (GraphGenerator.isPortInstanceDecl(member)) {
                         const portId = `${compId}.${member.name.value}`;
-                        node.ports!.push(GraphGenerator.createElkNodePort(member, portId));
+                        node.ports!.push(...GraphGenerator.createElkNodePort(member, portId, decl));
                     }
                 });
             }
@@ -283,7 +285,7 @@ export class GraphGenerator {
                 interfaceDecl?.members.forEach(member => {
                     if (GraphGenerator.isPortInstanceDecl(member)) {
                         const portId = `${compId}.${member.name.value}`;
-                        node.ports!.push(GraphGenerator.createElkNodePort(member, portId));
+                        node.ports!.push(...GraphGenerator.createElkNodePort(member, portId, decl));
                     }
                 });
             }
@@ -292,7 +294,9 @@ export class GraphGenerator {
         return node;
     }
 
-    static createElkNodePort(port: PortInstanceDecl, uid: string): FppElkPort {
+    static createElkNodePort(port: PortInstanceDecl, portIdPrefix: string, decl: DeclCollector): FppElkPort[] {
+        // Extract the name and the kind of the port.
+        // If portKind is empty, then special colors will not be applied.
         const portName = port.name.value;
         let portKind = "";
         if (port.kind.isSpecial && port.kind.isOutput) {
@@ -301,38 +305,53 @@ export class GraphGenerator {
         else if (!port.kind.isSpecial && !port.kind.isOutput) {
             portKind = (port.kind as GeneralInputPortInstance).kind.value;
         }
-        
-        const portNode: FppElkPort = {
-            id: uid,
-            // IMPORTANT: x, y must be set, otherwise mysterious runtime errors could occur during ELK layout.
-            // Set x, y both to 0, since layout will set them later.
-            // But we do need to explicitly set them for the Sprotty front-end
-            // to correctly perform measurement.
-            x: 0, y: 0,
-            height: 10,
-            width: 10,
-            layoutOptions: {
-                'elk.port.side': port.kind.isOutput ? 'EAST' : 'WEST',
-            },
-            labels: [
-                // For now, each port label has fix width and height.
-                // If size is not set, ELK sets it to 0, 0, not ideal.
-                <ElkLabel>{
-                    text: portName,
-                    width: 50,
-                    height: 10,
+
+        // Extract the width of the port. If the port width is an expression (e.g., a constant),
+        // use an annotator to evaluate the expression
+        const annotator = new FppAnnotator(decl);
+        const widthExpr = port.type === 'GeneralPortInstanceDecl' ? port.n : undefined;
+        let width: number = 1;
+        if (widthExpr) {
+            const exprValue = annotator.exprTrav.traverse(widthExpr, port.scope, ExprTraverser.intValidator);
+            width = (exprValue as IntExprValue).value;
+        }
+
+        const portNodes: FppElkPort[] = [];
+        for (let i = 0; i < width; i++) {
+            portNodes.push(<FppElkPort>{
+                id: `${portIdPrefix}.${i}`,
+                // IMPORTANT: x, y must be set, otherwise mysterious runtime errors could occur during ELK layout.
+                // Set x, y both to 0, since layout will set them later.
+                // But we do need to explicitly set them for the Sprotty front-end
+                // to correctly perform measurement.
+                x: 0, y: 0,
+                height: 10,
+                width: 10,
+                layoutOptions: {
+                    'elk.port.side': port.kind.isOutput ? 'EAST' : 'WEST',
+                },
+                labels: [
+                    // For now, each port label has fix width and height.
+                    // If size is not set, ELK sets it to 0, 0, not ideal.
+                    <ElkLabel>{
+                        text: width > 1 ? `${portName} [${i}]` : portName,
+                        width: 50,
+                        height: 10,
+                    }
+                ],
+                data: {
+                    SNodeType: 'port',
+                    portKind: portKind,
+                    isOutput: port.kind.isOutput,
                 }
-            ],
-            data: {
-                SNodeType: 'port',
-                portKind: portKind,
-                isOutput: port.kind.isOutput,
-            }
-        };
-        return portNode;
+            });
+        }
+
+        return portNodes;
     }
 
     static createElkEdge(decl: DeclCollector, directGraphDecl: DirectGraphDecl, conn: Connection, idx: number): FppElkEdge {
+        const annotator = new FppAnnotator(decl);
         const scope = directGraphDecl.scope;
         // Check if the scope contains the first identifier included in the port QualifiedIdentifier.
         // If so, the component (also the port) is defined under the scope.
@@ -344,6 +363,12 @@ export class GraphGenerator {
         let sourceFullyQualifiedName = sourceResolve
             ? `${MemberTraverser.flat(scope)}.${MemberTraverser.flat(sourceId)}`
             : MemberTraverser.flat(sourceId);
+        // Resolve source index from expression.
+        let sourceIndex = 0;
+        if (conn.source.index) {
+            const sourceIndexExpr = annotator.exprTrav.traverse(conn.source.index, directGraphDecl.scope, ExprTraverser.intValidator);
+            sourceIndex = (sourceIndexExpr as IntExprValue).value;
+        }
 
         const destId = conn.destination.node;
         const destFirstId: QualifiedIdentifier = [destId[0]];
@@ -351,15 +376,21 @@ export class GraphGenerator {
         let destFullyQualifiedName = destResolve
             ? `${MemberTraverser.flat(scope)}.${MemberTraverser.flat(destId)}`
             : MemberTraverser.flat(destId);
+        // Resolve dest index from expression.
+        let destIndex = 0;
+        if (conn.destination.index) {
+            const destIndexExpr = annotator.exprTrav.traverse(conn.destination.index, directGraphDecl.scope, ExprTraverser.intValidator);
+            destIndex = (destIndexExpr as IntExprValue).value;
+        }
         
         const connId = `${MemberTraverser.flat(scope)}.${directGraphDecl.name.value}.connection.${idx}`;
         const edge: FppElkEdge = {
             id: connId,
             sources: [
-                sourceFullyQualifiedName
+                `${sourceFullyQualifiedName}.${sourceIndex}`
             ],
             targets: [
-                destFullyQualifiedName
+                `${destFullyQualifiedName}.${destIndex}`
             ],
             data: {
                 SNodeType: 'edge',
