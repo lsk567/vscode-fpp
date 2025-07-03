@@ -181,7 +181,7 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         activeEndpoint.sendAction(msgRequestBounds);
     }
 
-     public async displayTopology(fullyQualifiedTopologyName: string) {
+    public async displayTopology(fullyQualifiedTopologyName: string) {
         this.currentDiagramType = DiagramType.Topology;
         this.fullyQualifiedTopologyName = fullyQualifiedTopologyName;
         vscode.window.setStatusBarMessage(`Displaying ${fullyQualifiedTopologyName}`, 5000);
@@ -203,6 +203,15 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         const activeEndpoint = this.findOpenedWebview();
         if (!activeEndpoint) {
             console.error("Active webview endpoint not found!");
+            return;
+        }
+        // Do not update diagram if there are FPP errors,
+        // since runtime exceptions could occur because of them.
+        // For example, if an instance is undeclared but is used
+        // in connection groups could lead to runtime exceptions
+        // that freeze the diagram webview.
+        const fppErrors = await this.getFppErrors();
+        if (fppErrors.length > 0) {
             return;
         }
         switch(this.currentDiagramType) {
@@ -238,5 +247,19 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         await endpoint.sendAction(msgUpdate);
         const msgFit = FitToScreenAction.create([]);
         await endpoint.sendAction(msgFit);
+    }
+
+    private async getFppErrors(): Promise<[vscode.Uri, vscode.Diagnostic[]][]> {
+        const allDiagnostics = vscode.languages.getDiagnostics();
+        const fppDiagnostics = allDiagnostics.filter(diagnostic => {
+            // Each element in allDiagnostics is a tuple [uri, diag]
+            const uri = diagnostic[0];
+            const diagArr = diagnostic[1];
+            // Check if the URI is a .fpp or .fppi file,
+            // and there are items in the diagnostic array.
+            return (uri.path.endsWith('.fpp') || uri.path.endsWith('.fppi'))
+                    && diagArr.length > 0;
+        });
+        return fppDiagnostics;
     }
 }
