@@ -934,12 +934,6 @@ export function activate(context: vscode.ExtensionContext) {
     const codelensProvider = new CodelensProvider(extension.project);
     context.subscriptions.push(
         vscode.languages.registerCodeLensProvider("*", codelensProvider),
-        vscode.commands.registerCommand("fpp.enableCodeLens", () => {
-            vscode.workspace.getConfiguration("fpp").update("enableCodeLens", true, true);
-        }),
-        vscode.commands.registerCommand("fpp.disableCodeLens", () => {
-            vscode.workspace.getConfiguration("fpp").update("enableCodeLens", false, true);
-        }),
         vscode.commands.registerCommand("fpp.displayConnectionGroup",
             (elemName: string) => webviewPanelManager.displayConnectionGroup(elemName)
         ),
