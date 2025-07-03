@@ -3,7 +3,7 @@
   "compilerOptions": {
     "jsx": "react",
     "rootDir": "src",
-    "outDir": "../out/webview",
+    "outDir": "../out/js/webview",
     "lib": [
       "ES2022",
       "dom"

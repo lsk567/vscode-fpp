@@ -79,7 +79,7 @@ To build the extension into bundled JavaScript:
 $ yarn build
 ```
 
-Once the extension is built, there should be a `pack/` directory at the project root.
+Once the extension is built, there should be an `out/` directory at the project root.
 You can then test the extension by clicking "Run and Debug" and then clicking the run button on "Run Extension"
 to launch an development VSCode environment.
 

@@ -20,7 +20,7 @@
         "Programming Languages"
     ],
     "activationEvents": [],
-    "main": "./pack/extension/extension.js",
+    "main": "./out/pack/extension/extension.js",
     "contributes": {
         "commands": [
             {
@@ -180,11 +180,11 @@
     "scripts": {
         "vscode:prepublish": "yarn clean && yarn run build",
         "build": "yarn run compile-extension && yarn run compile-worker && yarn run compile-webview",
-        "clean": "shx rm -rf out pack *.vsix",
+        "clean": "shx rm -rf out *.vsix",
         "esbuild-base": "esbuild --bundle --external:vscode --target=ES2021 --format=cjs --platform=node --minify",
-        "compile-extension": "yarn run esbuild-base src/extension.ts --outfile=./pack/extension/extension.js",
-        "compile-worker": "yarn run esbuild-base src/parser/worker.ts --outfile=./pack/extension/worker.js",
-        "compile-webview": "esbuild webview/src/main.ts --bundle --outfile=./pack/webview/webview.js --target=es2022 --platform=browser --loader:.ts=ts --loader:.css=css --sourcemap --minify",
+        "compile-extension": "yarn run esbuild-base src/extension.ts --outfile=./out/pack/extension/extension.js",
+        "compile-worker": "yarn run esbuild-base src/parser/worker.ts --outfile=./out/pack/extension/worker.js",
+        "compile-webview": "esbuild webview/src/main.ts --bundle --outfile=./out/pack/webview/webview.js --target=es2022 --platform=browser --loader:.ts=ts --loader:.css=css --sourcemap --minify",
         "typecheck": "tsc -p ./ && tsc -p webview/",
         "watch": "yarn run typecheck -watch",
         "antlr": "antlr4ts -visitor src/grammar/Fpp.g4 && node ./scripts/update-signatures.js src/signatures.json src/grammar/FppParser.ts",
