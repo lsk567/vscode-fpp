@@ -46,9 +46,9 @@ export class TrianglePortView implements IView {
 export class RectanglePortView implements IView {
     render(node: Readonly<SPortImpl & PortSNode>, context: RenderingContext): VNode {
         return <g>
-            <rect 
-                width={node.size.width} 
-                height={node.size.height} 
+            <rect
+                width={node.size.width}
+                height={node.size.height}
                 class-sprotty-port={true}
                 class-port-sync={node.kind === 'sync'}
                 class-port-async={node.kind === 'async'}
@@ -90,7 +90,7 @@ export class ArrowEdgeView extends PolylineEdgeView {
                 markerHeight="5"
                 orient="auto-start-reverse"
                 class-sprotty-edge-arrow={true}
-                >
+            >
                 <path d="M 0 0 L 10 5 L 0 10 z" />
             </marker>
             <path
@@ -98,7 +98,7 @@ export class ArrowEdgeView extends PolylineEdgeView {
                 marker-end="url(#arrow)"
             />
         </g>
-        ;
+            ;
     }
 }
 

@@ -31,19 +31,19 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     private diagramConfig: FppDiagramLayoutConfigurator = new FppDiagramLayoutConfigurator();
     private elkEngine: ElkLayoutEngine = new FppLayoutEngine(
         () => new ELK({
-            workerFactory: function(url) { // the value of 'url' is irrelevant here
+            workerFactory: function (url) { // the value of 'url' is irrelevant here
                 const { Worker } = require('elkjs/lib/elk-worker.min.js'); // Use elk-worker.js for debugging
                 return new Worker(url);
             }
         }),
         undefined,
         this.diagramConfig);
-    
+
     /* Private variables for remembering the current displayed diagram to handle diagram update on save */
     private currentDiagramType: DiagramType = DiagramType.Topology;
-    private fullyQualifiedTopologyName          : string = "";
-    private fullyQualifiedComponentName         : string = "";
-    private fullyQualifiedConnectionGroupName   : string = "";
+    private fullyQualifiedTopologyName: string = "";
+    private fullyQualifiedComponentName: string = "";
+    private fullyQualifiedConnectionGroupName: string = "";
 
     constructor(readonly options: WebviewPanelManagerOptions, readonly fppProject: FppProject) {
         super(options);
@@ -54,7 +54,7 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         // Let the extension look for webview JS and CSS under root/packages/extension/pack/webview/
         const webviewResources = createFileUri(extensionPath, 'pack', 'webview');
         return createWebviewPanel(identifier, {
-            localResourceRoots: [ webviewResources ],
+            localResourceRoots: [webviewResources],
             scriptUri: createFileUri(webviewResources.fsPath, 'webview.js'),
             cssUri: createFileUri(webviewResources.fsPath, 'webview.css'),
         });
@@ -214,7 +214,7 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         if (fppErrors.length > 0) {
             return;
         }
-        switch(this.currentDiagramType) {
+        switch (this.currentDiagramType) {
             case DiagramType.Component:
                 this.sGraph = await GraphGenerator.component(this.fppProject.decl, this.fullyQualifiedComponentName);
                 break;
@@ -228,7 +228,7 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
                 console.error("Unsupported DiagramType: ", this.currentDiagramType);
                 return;
         }
-        
+
         // console.log("Generated SGraph: ", this.sGraph);
         const msgRequestBounds = RequestBoundsAction.create(this.sGraph!);
         activeEndpoint.sendAction(msgRequestBounds);
@@ -258,7 +258,7 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             // Check if the URI is a .fpp or .fppi file,
             // and there are items in the diagnostic array.
             return (uri.path.endsWith('.fpp') || uri.path.endsWith('.fppi'))
-                    && diagArr.length > 0;
+                && diagArr.length > 0;
         });
         return fppDiagnostics;
     }

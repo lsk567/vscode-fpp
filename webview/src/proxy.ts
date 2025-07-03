@@ -27,7 +27,7 @@ export class FppWorkerDiagramProxy extends VscodeDiagramServer {
      * Called when a message is received from the remote diagram server.
      */
     override messageReceived(data: any): void {
-        const object = typeof(data) === 'string' ? JSON.parse(data) : data;
+        const object = typeof (data) === 'string' ? JSON.parse(data) : data;
         if (isActionMessage(object) && object.action) {
             if (!object.clientId || object.clientId === this.clientId) {
                 (object.action as any)[receivedFromServerProperty] = true;

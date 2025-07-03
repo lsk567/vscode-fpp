@@ -10,23 +10,23 @@ import { FppAnnotator } from './annotator';
  */
 export class CodelensProvider implements vscode.CodeLensProvider {
 
-	private codeLenses: vscode.CodeLens[] = [];
-	private regex: RegExp;
-	private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
-	public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
+    private codeLenses: vscode.CodeLens[] = [];
+    private regex: RegExp;
+    private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
+    public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
 
-	constructor(readonly fppProject: FppProject) {
-		this.regex = /(.+)/g;
+    constructor(readonly fppProject: FppProject) {
+        this.regex = /(.+)/g;
 
-		vscode.workspace.onDidChangeConfiguration((_) => {
-			this._onDidChangeCodeLenses.fire();
-		});
-	}
+        vscode.workspace.onDidChangeConfiguration((_) => {
+            this._onDidChangeCodeLenses.fire();
+        });
+    }
 
-	public async provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): Promise<vscode.CodeLens[]> {
+    public async provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): Promise<vscode.CodeLens[]> {
 
-		if (vscode.workspace.getConfiguration("fpp").get("enableCodeLens", true)) {
-			
+        if (vscode.workspace.getConfiguration("fpp").get("enableCodeLens", true)) {
+
             const text = document.getText();
             const lenses: vscode.CodeLens[] = [];
 
@@ -39,7 +39,7 @@ export class CodelensProvider implements vscode.CodeLensProvider {
             // - (?:\{)?: optionally matches a "{" character (non-capturing, may be on the same or next line)
             // Example match: "connections Downlink" will capture "Downlink" as match[1].
             const regexConnGroups = /\bconnections\s+(\w+)\s*(?:\{)?/gm;
-            
+
             // This regex matches component declarations like "active component", "passive component", or "queued component",
             // followed by the component name, and optionally a "{" character.
             // - \b: matches a word boundary to ensure matching at the start of a word
@@ -61,11 +61,11 @@ export class CodelensProvider implements vscode.CodeLensProvider {
             // - \s*: matches optional whitespace after the topology name
             // - (?:\{)?: optionally matches a "{" character (non-capturing, may be on the same or next line)
             // Example match: "topology MyTopology {" will capture "MyTopology" as match[1]
-            const regexTopology  = /\btopology\s+(\w+)\s*(?:\{)?/gm;
+            const regexTopology = /\btopology\s+(\w+)\s*(?:\{)?/gm;
 
             let matchConnGroups: RegExpExecArray | null;
             let matchComponents: RegExpExecArray | null;
-            let matchTopology  : RegExpExecArray | null;
+            let matchTopology: RegExpExecArray | null;
 
             while ((matchConnGroups = regexConnGroups.exec(text))) {
                 const elemName = matchConnGroups[1];
@@ -137,23 +137,23 @@ export class CodelensProvider implements vscode.CodeLensProvider {
             }
 
             return lenses;
-		}
-		return [];
-	}
+        }
+        return [];
+    }
 
     // Called right before CodeLens is rendered for the user.
-	public resolveCodeLens(codeLens: vscode.CodeLens, _token: vscode.CancellationToken) {
-		if (vscode.workspace.getConfiguration("fpp").get("enableCodeLens", true)) {
+    public resolveCodeLens(codeLens: vscode.CodeLens, _token: vscode.CancellationToken) {
+        if (vscode.workspace.getConfiguration("fpp").get("enableCodeLens", true)) {
             // Usually for registering commands, in our case,
             // commands have been registered.
-			return codeLens;
-		}
-		return null;
-	}
+            return codeLens;
+        }
+        return null;
+    }
 
     private async getAssociation(document: vscode.TextDocument, position: vscode.Position): Promise<RangeAssociation<Fpp.Decl> | undefined> {
         let association: RangeAssociation<Fpp.Decl> | undefined;
-        
+
         // Check if this definition exists
         const declAssociation = this.fppProject.decl.translationUnitDeclarations.get(document.uri.path)?.getAssociation(position);
         if (declAssociation) {

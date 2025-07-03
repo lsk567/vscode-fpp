@@ -8,7 +8,7 @@ import { ArrowEdgeView, ComponentNodeView, RectanglePortView } from './views';
 const myModule = new ContainerModule((bind, unbind, isBound, rebind) => {
     const context = { bind, unbind, isBound, rebind };
     configureModelElement(context, 'graph', SGraphImpl, SGraphView);
-    configureModelElement(context, 'node:component', SNodeImpl, ComponentNodeView, {enable: [layoutableChildFeature], disable: [moveFeature]});
+    configureModelElement(context, 'node:component', SNodeImpl, ComponentNodeView, { enable: [layoutableChildFeature], disable: [moveFeature] });
     configureModelElement(context, 'label:node:component', SLabelImpl, SLabelView);
     configureModelElement(context, 'port', SPortImpl, RectanglePortView, { disable: [boundsFeature] }); // By default, boundsFeature is enabled for SPort. We want fixed-size ports so this feature needs to be disabled.
     configureModelElement(context, 'label:port', SLabelImpl, SLabelView);

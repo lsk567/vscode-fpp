@@ -23,23 +23,23 @@
 }
 
 .sprotty-edge {
-    fill:none;
+    fill: none;
     stroke: var(--vscode-editorActiveLineNumber-foreground);
     stroke-width: 2px;
 }
 
 .sprotty-edge-arrow {
-    fill:var(--vscode-editorActiveLineNumber-foreground);
+    fill: var(--vscode-editorActiveLineNumber-foreground);
     stroke-width: 0;
 }
 
-.sprotty-edge > .sprotty-routing-handle {
+.sprotty-edge>.sprotty-routing-handle {
     fill: var(--vscode-editor-selectionBackground);
     stroke: none;
     z-index: 1000;
 }
 
-.sprotty-edge > .sprotty-routing-handle[data-kind='line'] {
+.sprotty-edge>.sprotty-routing-handle[data-kind='line'] {
     opacity: 0.35;
 }
 
@@ -63,7 +63,8 @@
 }
 
 .component-active {
-    stroke: #3FB984; /* Green expresses the notion of "go". */
+    stroke: #3FB984;
+    /* Green expresses the notion of "go". */
     stroke-width: 2px;
 }
 
@@ -72,12 +73,14 @@
 }
 
 .component-passive {
-    stroke: #fe92a8; /* Red expresses the notion of "caution", because the component is synchronous. */
+    stroke: #fe92a8;
+    /* Red expresses the notion of "caution", because the component is synchronous. */
     stroke-width: 2px;
 }
 
 .port-sync {
-    fill: #fe92a8; /* Red expresses the notion of "caution", because the component is synchronous. */
+    fill: #fe92a8;
+    /* Red expresses the notion of "caution", because the component is synchronous. */
 }
 
 .port-async {
@@ -85,5 +88,6 @@
 }
 
 .port-guarded {
-    fill: #FDD35C; /* Yellow expresses the notion of "wait", because the port is guarded. */
+    fill: #FDD35C;
+    /* Yellow expresses the notion of "wait", because the port is guarded. */
 }

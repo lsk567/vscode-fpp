@@ -8,22 +8,20 @@ import { getInterfaceFullnameFromImport } from '../util';
 import { FppAnnotator } from '../annotator';
 import { ExprTraverser } from '../evaluator';
 
-const elk = new ELK();
-
 /** 
  * The additional FPP information attached to ELK nodes
  * when creating ELK nodes from decl collector
  */
 interface FppData {
     // SGraph data
-    SNodeType:      string,
+    SNodeType: string,
 
     // Component data
     componentKind?: string, // active, queued, passive
 
     // Port data
-    portKind?:      string, // Tracking kind of GeneralInputPortInstance and GeneralInputPortInstance
-    isOutput?:      boolean,
+    portKind?: string, // Tracking kind of GeneralInputPortInstance and GeneralInputPortInstance
+    isOutput?: boolean,
 }
 
 /** An FPP ELK node is a regular ElkNode with an extra data field containing FPP info. */
@@ -40,7 +38,7 @@ interface FppElkEdge extends ElkExtendedEdge {
 }
 
 export class GraphGenerator {
-    
+
     /**
      * Initialize an SGraph to be modified.
      * @returns an empty graph
@@ -105,7 +103,7 @@ export class GraphGenerator {
                 }
             }
         });
-        
+
         // Create an ELK node for each component instance.
         usedComponentInstances.forEach(e => {
             const elkNode = this.createElkNodeFromComponentInstance(decl, e);
@@ -126,7 +124,7 @@ export class GraphGenerator {
         // Convert to SGraph
         // console.log("ElkGraph constructed: ", elkGraph);
         const sGraph: SGraph = this.convertElkGraphToSGraph(elkGraph);
-        
+
         return sGraph;
     }
 
@@ -264,7 +262,7 @@ export class GraphGenerator {
             if (GraphGenerator.isPortInstanceDecl(m)) {
                 const portId = `${compId}.${m.name.value}`;
                 node.ports!.push(...GraphGenerator.createElkNodePort(m, portId, decl));
-            } 
+            }
             // Handle ports imported from include statememts.
             else if (GraphGenerator.isIncludeStmt(m)) {
                 m.resolved?.members.forEach(member => {
@@ -382,7 +380,7 @@ export class GraphGenerator {
             const destIndexExpr = annotator.exprTrav.traverse(conn.destination.index, directGraphDecl.scope, ExprTraverser.intValidator);
             destIndex = (destIndexExpr as IntExprValue).value;
         }
-        
+
         const connId = `${MemberTraverser.flat(scope)}.${directGraphDecl.name.value}.connection.${idx}`;
         const edge: FppElkEdge = {
             id: connId,

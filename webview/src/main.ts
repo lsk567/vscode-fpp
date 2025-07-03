@@ -68,7 +68,7 @@ export class FppSprottyStarter extends SprottyStarter {
         container.bind(SprottyDiagramIdentifier).toConstantValue(diagramIdentifier);
         container.bind(VscodeDiagramServer).toSelf().inSingletonScope();
         container.bind(DiagramServerProxy).toService(VscodeDiagramServer);
-        
+
         //// Select model source. Use remote for production.
         container.bind(TYPES.ModelSource).to(FppWorkerDiagramProxy).inSingletonScope();
         //// Or use local to test rendering.

@@ -11,7 +11,7 @@ export class FppDiagramLayoutConfigurator extends DefaultLayoutConfigurator {
             'elk.algorithm': 'layered',
         };
     }
-    
+
     // options for node elements
     protected override nodeOptions(snode: SNode, index: SModelIndex): LayoutOptions | undefined {
         return {
