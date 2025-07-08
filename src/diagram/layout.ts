@@ -10,7 +10,6 @@ export class FppLayoutEngine extends ElkLayoutEngine {
      * _Note:_ The basic type of the root element must be `graph`.
      */
     override layout(sgraph: SGraph, index?: SModelIndex): SGraph | Promise<SGraph> {
-        console.log("Inside custom layout method");
         if (this.getBasicType(sgraph) !== 'graph') {
             return sgraph;
         }
@@ -18,20 +17,15 @@ export class FppLayoutEngine extends ElkLayoutEngine {
             index = new SModelIndex();
             index.add(sgraph);
         }
-        console.log("Finish generating SModelIndex");
 
         // STEP 1: Transform the Sprotty graph into an ELK graph with optional pre-processing
         const elkGraph = this.transformGraph(sgraph, index);
-        // console.log("Transformed elkGraph: ");
-        // console.log(JSON.stringify(elkGraph));
         if (this.preprocessor) {
             this.preprocessor.preprocess(elkGraph, sgraph, index);
         }
 
         // STEP 2: Invoke the ELK layout engine
         return this.elk.layout(elkGraph).then(result => {
-            // console.log("Got elkGraph result: ");
-            // console.log(JSON.stringify(result));
             // STEP 3: Apply the results with optional post-processing to the original graph
             if (this.postprocessor) {
                 this.postprocessor.postprocess(result, sgraph, index!);

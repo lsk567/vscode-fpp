@@ -12,13 +12,9 @@ const receivedFromServerProperty = '__receivedFromServer';
 export class FppWorkerDiagramProxy extends VscodeDiagramServer {
     // initialize() is called by the sprotty framework automatically.
     override initialize(registry: ActionHandlerRegistry) {
-        console.log("Inside FppWorkerDiagramProxy.initialize!!!");
         super.initialize(registry);
         registry.register(SelectCommand.KIND, this);
         this.messenger.onNotification(ActionNotification, message => {
-            if (isActionMessage(message) && message.action) {
-                console.log(`Webview received action: ${message.action.kind}`);
-            }
             this.messageReceived(message);
         });
     }
@@ -32,10 +28,8 @@ export class FppWorkerDiagramProxy extends VscodeDiagramServer {
             if (!object.clientId || object.clientId === this.clientId) {
                 (object.action as any)[receivedFromServerProperty] = true;
                 this.logger.log(this, 'receiving', object);
-                console.log(`this.actionDispatcher: ${this.actionDispatcher}`);
                 this.actionDispatcher.dispatch(object.action).then(() => {
-                    console.log("Mirco-layout should have finished.");
-                    console.log(`action: ${object.action.kind}`);
+                    console.log(`Webview executes action: ${object.action.kind}`);
                     const root: SModelRoot = (object.action as any).newRoot as SModelRoot;
                     this.storeNewModel(object.action);
                 });

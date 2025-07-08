@@ -22,7 +22,6 @@ import { locs, LocsQuickPickFile, LocsQuickPickItem, LocsQuickPickType } from '.
 import { registerDefaultCommands } from 'sprotty-vscode';
 import { FppWebviewPanelManager } from './diagram/manager';
 import { CodelensProvider } from './codelens';
-import { SetModelAction } from 'sprotty-protocol';
 
 function documentSymbolKind(type: SymbolType): vscode.SymbolKind | undefined {
     switch (type) {
