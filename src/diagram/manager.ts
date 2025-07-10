@@ -146,6 +146,8 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     /**************************************************************************/
 
     public async displayComponent(fullyQualifiedComponentName: string) {
+        // Do not render if errors are detected in the editor. Diagrams can be incorrect when there are errors.
+        if (await this.errorsDetectedInCurrentEditor()) return;
         this.currentDiagramType = DiagramType.Component;
         this.fullyQualifiedComponentName = fullyQualifiedComponentName;
         vscode.window.setStatusBarMessage(`Displaying ${fullyQualifiedComponentName}`, 5000);
@@ -166,6 +168,8 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     }
 
     public async displayConnectionGroup(fullyQualifiedConnectionGroupName: string) {
+        // Do not render if errors are detected in the editor. Diagrams can be incorrect when there are errors.
+        if (await this.errorsDetectedInCurrentEditor()) return;
         this.currentDiagramType = DiagramType.ConnectionGroup;
         this.fullyQualifiedConnectionGroupName = fullyQualifiedConnectionGroupName;
         vscode.window.setStatusBarMessage(`Displaying ${fullyQualifiedConnectionGroupName}`, 5000);
@@ -186,6 +190,8 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     }
 
     public async displayTopology(fullyQualifiedTopologyName: string) {
+        // Do not render if errors are detected in the editor. Diagrams can be incorrect when there are errors.
+        if (await this.errorsDetectedInCurrentEditor()) return;
         this.currentDiagramType = DiagramType.Topology;
         this.fullyQualifiedTopologyName = fullyQualifiedTopologyName;
         vscode.window.setStatusBarMessage(`Displaying ${fullyQualifiedTopologyName}`, 5000);
@@ -211,16 +217,8 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             console.error("Active webview endpoint not found!");
             return;
         }
-        // Do not update diagram if there are errors in the current editor,
-        // since runtime exceptions could occur because of them.
-        // For example, if an instance is undeclared but is used
-        // in connection groups could lead to runtime exceptions
-        // that freeze the diagram webview.
-        const errors = await this.getErrorsInCurrentEditor();
-        if (errors.length > 0) {
-            vscode.window.showWarningMessage("Cannot update diagram due to errors in the editor.");
-            return;
-        }
+        // Do not render if errors are detected in the editor. Diagrams can be incorrect when there are errors.
+        if (await this.errorsDetectedInCurrentEditor()) return;
         switch (this.currentDiagramType) {
             case DiagramType.Component:
                 this.sGraph = await GraphGenerator.component(this.fppProject.decl, this.fullyQualifiedComponentName);
@@ -254,7 +252,17 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         await endpoint.sendAction(msgFit);
     }
 
-    private async getErrorsInCurrentEditor(): Promise<[vscode.Uri, vscode.Diagnostic[]][]> {
+    /**
+     * Check if there are errors in the current editor.
+     * These errors can cause runtime exceptions downstream in rendering.
+     * For example, if an instance is undeclared but is used
+     * in connection groups could lead to runtime exceptions
+     * that freeze the diagram webview.
+     * Also, diagrams can be incorrect when there are errors.
+     * 
+     * @returns True if there are errors, false otherwise
+     */
+    private async errorsDetectedInCurrentEditor(): Promise<boolean> {
         const currentFileUri = vscode.window.activeTextEditor?.document.uri;
         const allDiagnostics = vscode.languages.getDiagnostics();
         const fppDiagnostics = allDiagnostics.filter(diagnostic => {
@@ -266,7 +274,11 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             return (uri.path === currentFileUri?.path)
                 && diagArr.length > 0;
         });
-        return fppDiagnostics;
+        if (fppDiagnostics.length > 0) {
+            vscode.window.showWarningMessage("Cannot render diagram due to errors in the editor. To resolve them, try clicking {} at the bottom-right corner and reload locs.fpp from a build cache.");
+            return true;
+        }
+        return false;
     }
 
     private async openDiagramFromCurrentEditor(): Promise<WebviewEndpoint | undefined> {
