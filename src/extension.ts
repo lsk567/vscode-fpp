@@ -20,7 +20,7 @@ import { generateSignature, signaturesDefinitions } from './signature';
 import { locs, LocsQuickPickFile, LocsQuickPickItem, LocsQuickPickType } from './locs';
 
 import { registerDefaultCommands } from 'sprotty-vscode';
-import { FppWebviewPanelManager } from './diagram/manager';
+import { DiagramType, FppWebviewPanelManager } from './diagram/manager';
 import { CodelensProvider } from './codelens';
 
 function documentSymbolKind(type: SymbolType): vscode.SymbolKind | undefined {
@@ -933,14 +933,8 @@ export function activate(context: vscode.ExtensionContext) {
     const codelensProvider = new CodelensProvider(extension.project);
     context.subscriptions.push(
         vscode.languages.registerCodeLensProvider("*", codelensProvider),
-        vscode.commands.registerCommand("fpp.displayConnectionGroup",
-            (elemName: string) => webviewPanelManager.displayConnectionGroup(elemName)
-        ),
-        vscode.commands.registerCommand("fpp.displayComponent",
-            (elemName: string) => webviewPanelManager.displayComponent(elemName)
-        ),
-        vscode.commands.registerCommand("fpp.displayTopology",
-            (elemName: string) => webviewPanelManager.displayTopology(elemName)
+        vscode.commands.registerCommand("fpp.displayDiagram",
+            (diagramType: DiagramType, elemName: string) => webviewPanelManager.displayDiagram(diagramType, elemName)
         ),
     );
 }

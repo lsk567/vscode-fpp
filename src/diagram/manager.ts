@@ -19,7 +19,7 @@ import ELK from 'elkjs/lib/elk-api.js';
 import { FppLayoutEngine } from "./layout";
 import { FppDiagramLayoutConfigurator } from "./layout-config";
 
-enum DiagramType {
+export enum DiagramType {
     Component,
     ConnectionGroup,
     Topology
@@ -41,6 +41,7 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
 
     /* Private variables for remembering the current displayed diagram to handle diagram update on save */
     private currentDiagramType: DiagramType | undefined;
+    private fullyQualifiedName: string = "";
     private fullyQualifiedTopologyName: string = "";
     private fullyQualifiedComponentName: string = "";
     private fullyQualifiedConnectionGroupName: string = "";
@@ -145,12 +146,17 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     /* Handlers for sending messages to webview upon user's actions in editor */
     /**************************************************************************/
 
-    public async displayComponent(fullyQualifiedComponentName: string) {
+    /**
+     * Display a diagram by generating an SGraph and sending a RequestBoundsAction to the webview.
+     * This function is invoked when codelens buttons are clicked.
+     * 
+     * @param diagramType The type of diagram to be rendered: component, connection group, or topology.
+     * @param fullyQualifiedName The full name of an entity to be rendered. The name must be a valid key of one of declCollector's maps.
+     */
+    public async displayDiagram(diagramType: DiagramType, fullyQualifiedName: string) {
         // Do not render if errors are detected in the editor. Diagrams can be incorrect when there are errors.
         if (await this.errorsDetectedInCurrentEditor()) return;
-        this.currentDiagramType = DiagramType.Component;
-        this.fullyQualifiedComponentName = fullyQualifiedComponentName;
-        vscode.window.setStatusBarMessage(`Displaying ${fullyQualifiedComponentName}`, 5000);
+        // Check if webview is active.
         let activeEndpoint = this.findOpenedWebview();
         if (!activeEndpoint) {
             this.openDiagramFromCurrentEditor();
@@ -160,57 +166,34 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             // action handler. So here we simply return.
             return;
         }
-        // Generate an SGraph for the connection group.
-        this.sGraph = await GraphGenerator.component(this.fppProject.decl, fullyQualifiedComponentName);
-        if (!this.sGraph) { return; }
-        const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
-        activeEndpoint.sendAction(msgRequestBounds);
-    }
-
-    public async displayConnectionGroup(fullyQualifiedConnectionGroupName: string) {
-        // Do not render if errors are detected in the editor. Diagrams can be incorrect when there are errors.
-        if (await this.errorsDetectedInCurrentEditor()) return;
-        this.currentDiagramType = DiagramType.ConnectionGroup;
-        this.fullyQualifiedConnectionGroupName = fullyQualifiedConnectionGroupName;
-        vscode.window.setStatusBarMessage(`Displaying ${fullyQualifiedConnectionGroupName}`, 5000);
-        let activeEndpoint = this.findOpenedWebview();
-        if (!activeEndpoint) {
-            this.openDiagramFromCurrentEditor();
-            // If it is the first time webview is opened,
-            // the webview sends a requestModel action to the extension,
-            // sending back the diagram is then handled in the requestModel
-            // action handler. So here we simply return.
-            return;
+        // Generate a corresponding SGraph.
+        switch (diagramType) {
+            case DiagramType.Component:
+                this.sGraph = await GraphGenerator.component(this.fppProject.decl, fullyQualifiedName);
+                break;
+            case DiagramType.ConnectionGroup:
+                this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, fullyQualifiedName);
+                break;
+            case DiagramType.Topology:
+                this.sGraph = await GraphGenerator.topology(this.fppProject.decl, fullyQualifiedName);
+                break;
+            default:
+                vscode.window.showErrorMessage('Unsupport diagram type: ', diagramType);
+                return;
         }
-        // Generate an SGraph for the connection group.
-        this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, fullyQualifiedConnectionGroupName);
+        vscode.window.setStatusBarMessage(`Displaying ${fullyQualifiedName}`, 5000);
         if (!this.sGraph) { return; }
         const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
         activeEndpoint.sendAction(msgRequestBounds);
+        // Store diagram type and fully qualified name for potential re-render on save.
+        this.currentDiagramType = diagramType;
+        this.fullyQualifiedName = fullyQualifiedName;
     }
 
-    public async displayTopology(fullyQualifiedTopologyName: string) {
-        // Do not render if errors are detected in the editor. Diagrams can be incorrect when there are errors.
-        if (await this.errorsDetectedInCurrentEditor()) return;
-        this.currentDiagramType = DiagramType.Topology;
-        this.fullyQualifiedTopologyName = fullyQualifiedTopologyName;
-        vscode.window.setStatusBarMessage(`Displaying ${fullyQualifiedTopologyName}`, 5000);
-        let activeEndpoint = this.findOpenedWebview();
-        if (!activeEndpoint) {
-            this.openDiagramFromCurrentEditor();
-            // If it is the first time webview is opened,
-            // the webview sends a requestModel action to the extension,
-            // sending back the diagram is then handled in the requestModel
-            // action handler. So here we simply return.
-            return;
-        }
-        // Generate an SGraph for the connection group.
-        this.sGraph = await GraphGenerator.topology(this.fppProject.decl, fullyQualifiedTopologyName);
-        if (!this.sGraph) { return; }
-        const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
-        activeEndpoint.sendAction(msgRequestBounds);
-    }
-
+    /**
+     * Update an existing diagram by generating an SGraph and sending a RequestBoundsAction to the webview.
+     * This function is invoked when the user saves an FPP file.
+     */
     public async updateDiagram() {
         const activeEndpoint = this.findOpenedWebview();
         if (!activeEndpoint) {

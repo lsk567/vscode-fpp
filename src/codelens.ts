@@ -4,6 +4,7 @@ import { RangeAssociation } from './associator';
 import * as Fpp from './parser/ast';
 import { FppProject } from './project';
 import { FppAnnotator } from './annotator';
+import { DiagramType } from './diagram/manager';
 
 /**
  * CodelensProvider
@@ -84,8 +85,8 @@ export class CodelensProvider implements vscode.CodeLensProvider {
                 const lens = new vscode.CodeLens(range, {
                     title: `Open in Diagram: ${elemName}`,
                     tooltip: 'Click to visualize this connection group',
-                    command: 'fpp.displayConnectionGroup',
-                    arguments: [fullName]
+                    command: 'fpp.displayDiagram',
+                    arguments: [DiagramType.ConnectionGroup, fullName]
                 });
                 lenses.push(lens);
             }
@@ -107,8 +108,8 @@ export class CodelensProvider implements vscode.CodeLensProvider {
                 const lens = new vscode.CodeLens(range, {
                     title: `Open in Diagram: ${elemName}`,
                     tooltip: 'Click to visualize this component',
-                    command: 'fpp.displayComponent',
-                    arguments: [fullName]
+                    command: 'fpp.displayDiagram',
+                    arguments: [DiagramType.Component, fullName]
                 });
                 lenses.push(lens);
             }
@@ -130,8 +131,8 @@ export class CodelensProvider implements vscode.CodeLensProvider {
                 const lens = new vscode.CodeLens(range, {
                     title: `Open in Diagram: ${elemName}`,
                     tooltip: 'Click to visualize this topology',
-                    command: 'fpp.displayTopology',
-                    arguments: [fullName]
+                    command: 'fpp.displayDiagram',
+                    arguments: [DiagramType.Topology, fullName]
                 });
                 lenses.push(lens);
             }
