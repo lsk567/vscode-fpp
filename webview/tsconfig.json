@@ -2,8 +2,11 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react",
-    "rootDir": "src",
-    "outDir": "../out/js/webview",
+    "rootDirs": [
+      "src",
+      "../common"
+    ],
+    "outDir": "../out/diagram-webview",
     "lib": [
       "ES2022",
       "dom"
@@ -13,6 +16,6 @@
     "types": [] // Disables automatic inclusion of global @types/* packages. In this case, the hoisted @types/node package and the DOM package have type conflicts.
   },
   "include": [
-    "src",
+    "src", "../common/models.ts",
   ],
 }

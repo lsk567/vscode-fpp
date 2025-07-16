@@ -1,3 +1,8 @@
+svg:focus {
+    outline: none;
+    border: none;
+}
+
 .sprotty-node {
     fill: var(--vscode-button-background)
 }

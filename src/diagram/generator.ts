@@ -1,9 +1,9 @@
 import { SGraph, SEdge, SNode, SPort, Point, SLabel, Dimension } from 'sprotty-protocol';
-import ELK, { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
+import { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { DeclCollector, SymbolType } from "../decl";
 import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, InterfaceImportStmt, IntExprValue, PortInstanceDecl, PrimExprType, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind, TopologyDecl } from "../parser/ast";
 import { MemberTraverser } from "../traverser";
-import { ComponentSNode, PortSNode } from '../../webview/src/models';
+import type { ComponentSNode, PortSNode } from '../../common/models';
 import { getInterfaceFullnameFromImport } from '../util';
 import { FppAnnotator } from '../annotator';
 import { ExprTraverser } from '../evaluator';

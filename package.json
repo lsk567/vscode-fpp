@@ -20,7 +20,7 @@
         "Programming Languages"
     ],
     "activationEvents": [],
-    "main": "./out/pack/extension/extension.js",
+    "main": "./dist/extension.js",
     "contributes": {
         "commands": [
             {
@@ -168,17 +168,11 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "yarn clean && yarn run build",
-        "build": "yarn run compile-extension && yarn run compile-worker && yarn run compile-webview",
-        "clean": "shx rm -rf out *.vsix",
-        "esbuild-base": "esbuild --bundle --external:vscode --target=ES2021 --format=cjs --platform=node --minify",
-        "compile-extension": "yarn run esbuild-base src/extension.ts --outfile=./out/pack/extension/extension.js",
-        "compile-worker": "yarn run esbuild-base src/parser/worker.ts --outfile=./out/pack/extension/worker.js",
-        "compile-webview": "esbuild webview/src/main.ts --bundle --outfile=./out/pack/webview/webview.js --target=es2022 --platform=browser --loader:.ts=ts --loader:.css=css --sourcemap --minify",
-        "typecheck": "tsc -p ./ && tsc -p webview/",
-        "watch": "yarn run typecheck -watch",
-        "antlr": "antlr4ts -visitor src/grammar/Fpp.g4 && node ./scripts/update-signatures.js src/signatures.json src/grammar/FppParser.ts",
-        "package": "vsce package"
+        "vscode:prepublish": "yarn package",
+        "package": "webpack --mode production --devtool hidden-source-map",
+        "compile": "webpack --mode development",
+        "watch": "webpack --mode development --watch",
+        "antlr": "antlr4ts -visitor src/grammar/Fpp.g4 && node ./scripts/update-signatures.js src/signatures.json src/grammar/FppParser.ts"
     },
     "devDependencies": {
         "@types/antlr4": "^4.11.2",
@@ -190,24 +184,23 @@
         "@vscode/test-electron": "^2.2.0",
         "antlr4ts": "^0.5.0-alpha.4",
         "antlr4ts-cli": "^0.5.0-alpha.4",
-        "esbuild": "^0.18.5",
+        "css-loader": "^7.1.2",
+        "elkjs": "^0.10.0",
         "eslint": "^8.26.0",
+        "file-loader": "^6.2.0",
         "glob": "^8.0.3",
         "mocha": "^10.1.0",
-        "shx": "^0.4.0",
-        "sprotty-vscode": "^1.0.0",
-        "typescript": "^5.4.5",
-        "css-loader": "^6.8.1",
-        "file-loader": "^6.2.0",
-        "source-map-loader": "^4.0.1",
-        "style-loader": "^3.3.3",
-        "ts-loader": "^9.5.1"
-    },
-    "dependencies": {
         "reflect-metadata": "^0.2.2",
-        "elkjs": "^0.10.0",
+        "shx": "^0.4.0",
+        "source-map-loader": "^4.0.1",
         "sprotty": "^1.2.0",
         "sprotty-elk": "^1.4.0",
-        "sprotty-vscode-webview": "^1.0.0"
+        "sprotty-vscode": "^1.0.0",
+        "sprotty-vscode-webview": "^1.0.0",
+        "style-loader": "^3.3.3",
+        "ts-loader": "^9.5.1",
+        "typescript": "^5.4.5",
+        "webpack": "^5.100.2",
+        "webpack-cli": "^6.0.1"
     }
 }

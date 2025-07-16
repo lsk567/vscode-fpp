@@ -51,13 +51,12 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     }
 
     protected override createWebview(identifier: SprottyDiagramIdentifier): vscode.WebviewPanel {
-        const extensionPath = this.options.extensionUri.fsPath;
+        const extensionPath = this.options.extensionUri;
         // Let the extension look for webview JS and CSS under root/out/pack/webview/
-        const webviewResources = createFileUri(extensionPath, 'out', 'pack', 'webview');
+        const webviewResources = vscode.Uri.joinPath(extensionPath, 'dist');
         return createWebviewPanel(identifier, {
             localResourceRoots: [webviewResources],
-            scriptUri: createFileUri(webviewResources.fsPath, 'webview.js'),
-            cssUri: createFileUri(webviewResources.fsPath, 'webview.css'),
+            scriptUri: vscode.Uri.joinPath(webviewResources, 'webview.js')
         });
     }
 
@@ -90,7 +89,6 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
      */
     protected addRequestModelHandler(endpoint: WebviewEndpoint) {
         const handler = async (action: RequestModelAction) => {
-            console.log("Received request model action");
             switch (this.currentDiagramType) {
                 case DiagramType.Component:
                     this.sGraph = await GraphGenerator.component(
@@ -104,8 +102,6 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
                     this.sGraph = await GraphGenerator.topology(
                         this.fppProject.decl, this.fullyQualifiedConnectionGroupName);
                     break;
-                default:
-                    vscode.window.showInformationMessage("Please click an 'Open in Diagram' button to render diagram.");
             }
             if (!this.sGraph) { return; }
             const msgRequestBounds = RequestBoundsAction.create(this.sGraph);

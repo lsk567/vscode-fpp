@@ -4,7 +4,7 @@ import { injectable } from 'inversify';
 import { VNode } from 'snabbdom';
 import { IView, IViewArgs, PolylineEdgeView, RenderingContext, SEdgeImpl, SGraphImpl, SGraphView, SLabelImpl, SLabelView, SNodeImpl, SPortImpl } from 'sprotty';
 import { Point, Selectable } from 'sprotty-protocol';
-import { ComponentSNode, PortSNode } from './models';
+import { ComponentSNode, PortSNode } from '../../common/models';
 
 @injectable()
 export class ComponentNodeView implements IView {

@@ -2,7 +2,7 @@ import { LayoutOptions } from "elkjs";
 import { DefaultLayoutConfigurator } from "sprotty-elk";
 import { SGraph, SEdge, SNode, SLabel } from 'sprotty-protocol';
 import { SModelIndex } from "sprotty-protocol";
-import { PortSNode } from "../../webview/src/models";
+import { PortSNode } from "../../common/models";
 
 export class FppDiagramLayoutConfigurator extends DefaultLayoutConfigurator {
     // options for the graph element

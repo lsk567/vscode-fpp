@@ -1,18 +1,22 @@
 {
-  "extends": "./tsconfig.base.json",
+  "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react",
-    "rootDir": "./",
-    "outDir": "out/js/extension",
+    "rootDirs": [
+      ".",
+      "../common"
+    ],
+    "outDir": "../out/",
     "lib": [
       "es2021",
       "dom"
     ],
     "declaration": false,
     "declarationMap": false,
+    "strict": true
   },
   "include": [
-    "src",
-    "./webview/src/models.ts"
+    "../webiew/src/models",
+    "."
   ]
 }

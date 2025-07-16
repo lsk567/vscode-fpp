@@ -17,7 +17,7 @@ import 'reflect-metadata';
 import 'sprotty-vscode-webview/css/sprotty-vscode.css';
 
 import { Container } from 'inversify';
-import { configureModelElement, ConsoleLogger, DiagramServerProxy, KeyTool, LocalModelSource, TYPES } from 'sprotty';
+import { ConsoleLogger, DiagramServerProxy, TYPES } from 'sprotty';
 import { DiagramIdentifierNotification, SprottyDiagramIdentifier, VscodeDiagramServer, VscodeDiagramWidget, VscodeDiagramWidgetFactory, WebviewReadyNotification } from 'sprotty-vscode-webview';
 import { SprottyStarter } from 'sprotty-vscode-webview/lib';
 import { createFppContainer } from './di.config';
@@ -33,12 +33,10 @@ export class FppSprottyStarter extends SprottyStarter {
     }
 
     protected override sendReadyMessage(): void {
-        console.log("Sprotty Webview ready!");
         this.messenger.sendNotification(WebviewReadyNotification, HOST_EXTENSION, { readyMessage: 'Sprotty Webview ready' });
     }
 
     protected override acceptDiagramIdentifier(): void {
-        console.log('Waiting for diagram identifier!');
         this.messenger.onNotification(DiagramIdentifierNotification, newIdentifier => {
             if (this.container) {
                 const oldIdentifier = this.container.get<SprottyDiagramIdentifier>(SprottyDiagramIdentifier);
@@ -48,12 +46,9 @@ export class FppSprottyStarter extends SprottyStarter {
                 const diagramWidget = this.container.get(VscodeDiagramWidget);
                 diagramWidget.requestModel(); // Send a RequestModelAction to extension.
             } else {
-                console.log('...received!', newIdentifier);
                 this.container = this.createContainer(newIdentifier);
                 this.addVscodeBindings(this.container, newIdentifier);
-                console.log('Binded added!');
                 this.container.get(VscodeDiagramWidget);
-                console.log('VscodeDiagramWidget received!');
             }
         });
     }
