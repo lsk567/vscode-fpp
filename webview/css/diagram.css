@@ -70,7 +70,7 @@ svg:focus {
 .component-active {
     stroke: #3FB984;
     /* Green expresses the notion of "go". */
-    stroke-width: 2px;
+    stroke-width: 3px;
 }
 
 .component-queued {
@@ -80,7 +80,7 @@ svg:focus {
 .component-passive {
     stroke: #fe92a8;
     /* Red expresses the notion of "caution", because the component is synchronous. */
-    stroke-width: 2px;
+    stroke-width: 3px;
 }
 
 .port-sync {
