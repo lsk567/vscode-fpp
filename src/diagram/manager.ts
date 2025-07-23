@@ -42,9 +42,6 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     /* Private variables for remembering the current displayed diagram to handle diagram update on save */
     private currentDiagramType: DiagramType | undefined;
     private fullyQualifiedName: string = "";
-    private fullyQualifiedTopologyName: string = "";
-    private fullyQualifiedComponentName: string = "";
-    private fullyQualifiedConnectionGroupName: string = "";
 
     constructor(readonly options: WebviewPanelManagerOptions, readonly fppProject: FppProject) {
         super(options);
@@ -92,18 +89,21 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             switch (this.currentDiagramType) {
                 case DiagramType.Component:
                     this.sGraph = await GraphGenerator.component(
-                        this.fppProject.decl, this.fullyQualifiedComponentName);
+                        this.fppProject.decl, this.fullyQualifiedName);
                     break;
                 case DiagramType.ConnectionGroup:
                     this.sGraph = await GraphGenerator.connectionGroup(
-                        this.fppProject.decl, this.fullyQualifiedConnectionGroupName);
+                        this.fppProject.decl, this.fullyQualifiedName);
                     break;
                 case DiagramType.Topology:
                     this.sGraph = await GraphGenerator.topology(
-                        this.fppProject.decl, this.fullyQualifiedConnectionGroupName);
+                        this.fppProject.decl, this.fullyQualifiedName);
                     break;
             }
-            if (!this.sGraph) { return; }
+            if (!this.sGraph) {
+                console.error("Empty sGraph!");
+                return;
+            }
             const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
             await endpoint.sendAction(msgRequestBounds);
         };
@@ -152,6 +152,9 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     public async displayDiagram(diagramType: DiagramType, fullyQualifiedName: string) {
         // Do not render if errors are detected in the editor. Diagrams can be incorrect when there are errors.
         if (await this.errorsDetectedInCurrentEditor()) return;
+        // Store diagram type and fully qualified name for potential re-render on save.
+        this.currentDiagramType = diagramType;
+        this.fullyQualifiedName = fullyQualifiedName;
         // Check if webview is active.
         let activeEndpoint = this.findOpenedWebview();
         if (!activeEndpoint) {
@@ -181,9 +184,6 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         if (!this.sGraph) { return; }
         const msgRequestBounds = RequestBoundsAction.create(this.sGraph);
         activeEndpoint.sendAction(msgRequestBounds);
-        // Store diagram type and fully qualified name for potential re-render on save.
-        this.currentDiagramType = diagramType;
-        this.fullyQualifiedName = fullyQualifiedName;
     }
 
     /**
@@ -200,13 +200,13 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         if (await this.errorsDetectedInCurrentEditor()) return;
         switch (this.currentDiagramType) {
             case DiagramType.Component:
-                this.sGraph = await GraphGenerator.component(this.fppProject.decl, this.fullyQualifiedComponentName);
+                this.sGraph = await GraphGenerator.component(this.fppProject.decl, this.fullyQualifiedName);
                 break;
             case DiagramType.ConnectionGroup:
-                this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, this.fullyQualifiedConnectionGroupName);
+                this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, this.fullyQualifiedName);
                 break;
             case DiagramType.Topology:
-                this.sGraph = await GraphGenerator.topology(this.fppProject.decl, this.fullyQualifiedTopologyName);
+                this.sGraph = await GraphGenerator.topology(this.fppProject.decl, this.fullyQualifiedName);
                 break;
             default:
                 console.error("Unsupported DiagramType: ", this.currentDiagramType);
@@ -217,7 +217,7 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
     }
 
     private findOpenedWebview(): WebviewEndpoint | undefined {
-        var openedEndpoint = undefined;
+        let openedEndpoint: WebviewEndpoint | undefined = undefined;
         if (this.endpoints.length > 0) {
             openedEndpoint = this.endpoints[0];
         }
