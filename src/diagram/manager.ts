@@ -25,6 +25,10 @@ export enum DiagramType {
     Topology
 }
 
+type DiagramOptions = {
+    hideUnconnectedPorts?: boolean;
+};
+
 export class FppWebviewPanelManager extends WebviewPanelManager {
 
     private sGraph: SGraph | undefined;
@@ -39,9 +43,15 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         undefined,
         this.diagramConfig);
 
-    /* Private variables for remembering the current displayed diagram to handle diagram update on save */
+    /**
+     * Private variables for remembering the current displayed diagram
+     * (for update on save) and diagram options 
+     */
     private currentDiagramType: DiagramType | undefined;
     private fullyQualifiedName: string = "";
+    private diagramOptions: DiagramOptions = {
+        hideUnconnectedPorts: true
+    };
 
     constructor(readonly options: WebviewPanelManagerOptions, readonly fppProject: FppProject) {
         super(options);
@@ -89,15 +99,15 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
             switch (this.currentDiagramType) {
                 case DiagramType.Component:
                     this.sGraph = await GraphGenerator.component(
-                        this.fppProject.decl, this.fullyQualifiedName);
+                        this.fppProject.decl, this.diagramOptions, this.fullyQualifiedName);
                     break;
                 case DiagramType.ConnectionGroup:
                     this.sGraph = await GraphGenerator.connectionGroup(
-                        this.fppProject.decl, this.fullyQualifiedName);
+                        this.fppProject.decl, this.diagramOptions, this.fullyQualifiedName);
                     break;
                 case DiagramType.Topology:
                     this.sGraph = await GraphGenerator.topology(
-                        this.fppProject.decl, this.fullyQualifiedName);
+                        this.fppProject.decl, this.diagramOptions, this.fullyQualifiedName);
                     break;
             }
             if (!this.sGraph) {
@@ -168,13 +178,13 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         // Generate a corresponding SGraph.
         switch (diagramType) {
             case DiagramType.Component:
-                this.sGraph = await GraphGenerator.component(this.fppProject.decl, fullyQualifiedName);
+                this.sGraph = await GraphGenerator.component(this.fppProject.decl, this.diagramOptions, fullyQualifiedName);
                 break;
             case DiagramType.ConnectionGroup:
-                this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, fullyQualifiedName);
+                this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, this.diagramOptions, fullyQualifiedName);
                 break;
             case DiagramType.Topology:
-                this.sGraph = await GraphGenerator.topology(this.fppProject.decl, fullyQualifiedName);
+                this.sGraph = await GraphGenerator.topology(this.fppProject.decl, this.diagramOptions, fullyQualifiedName);
                 break;
             default:
                 vscode.window.showErrorMessage('Unsupport diagram type: ', diagramType);
@@ -200,13 +210,13 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         if (await this.errorsDetectedInCurrentEditor()) return;
         switch (this.currentDiagramType) {
             case DiagramType.Component:
-                this.sGraph = await GraphGenerator.component(this.fppProject.decl, this.fullyQualifiedName);
+                this.sGraph = await GraphGenerator.component(this.fppProject.decl, this.diagramOptions, this.fullyQualifiedName);
                 break;
             case DiagramType.ConnectionGroup:
-                this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, this.fullyQualifiedName);
+                this.sGraph = await GraphGenerator.connectionGroup(this.fppProject.decl, this.diagramOptions, this.fullyQualifiedName);
                 break;
             case DiagramType.Topology:
-                this.sGraph = await GraphGenerator.topology(this.fppProject.decl, this.fullyQualifiedName);
+                this.sGraph = await GraphGenerator.topology(this.fppProject.decl, this.diagramOptions, this.fullyQualifiedName);
                 break;
             default:
                 console.error("Unsupported DiagramType: ", this.currentDiagramType);
@@ -214,6 +224,11 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
         }
         const msgRequestBounds = RequestBoundsAction.create(this.sGraph!);
         activeEndpoint.sendAction(msgRequestBounds);
+    }
+
+    public async toggleUnconnectedPorts() {
+        this.diagramOptions.hideUnconnectedPorts = !this.diagramOptions.hideUnconnectedPorts;
+        this.updateDiagram();
     }
 
     private findOpenedWebview(): WebviewEndpoint | undefined {

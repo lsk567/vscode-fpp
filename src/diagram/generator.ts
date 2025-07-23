@@ -1,4 +1,4 @@
-import { SGraph, SEdge, SNode, SPort, Point, SLabel, Dimension } from 'sprotty-protocol';
+import { SGraph, SEdge, SNode, SPort, Point, SLabel, Dimension, DiagramOptions } from 'sprotty-protocol';
 import { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { DeclCollector, SymbolType } from "../decl";
 import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, InterfaceImportStmt, IntExprValue, PortInstanceDecl, PrimExprType, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind, TopologyDecl } from "../parser/ast";
@@ -55,7 +55,7 @@ export class GraphGenerator {
         };
     }
 
-    static async component(decl: DeclCollector, fullyQualifiedComponentName: string): Promise<SGraph | undefined> {
+    static async component(decl: DeclCollector, options: DiagramOptions, fullyQualifiedComponentName: string): Promise<SGraph | undefined> {
         const elkGraph: FppElkNode = this.initElkGraph();
         const compDecl = decl.components.get(fullyQualifiedComponentName)!;
         if (!compDecl) {
@@ -63,7 +63,7 @@ export class GraphGenerator {
             return;
         }
 
-        elkGraph.children?.push(this.createElkNodeComponent(decl, undefined, compDecl));
+        elkGraph.children?.push(this.createElkNodeComponent(decl, options, undefined, compDecl));
 
         // Convert to SGraph
         const sGraph: SGraph = this.convertElkGraphToSGraph(elkGraph);
@@ -72,11 +72,9 @@ export class GraphGenerator {
     }
 
     /**
-     * Generate an SGraph that renders an entire topology.
-     * @param decl The DeclCollector with all info about the FPP files
-     * @returns An SGraph to be sent to webview
+     * Generate an SGraph that recursively renders a topology.
      */
-    static async topology(decl: DeclCollector, fullyQualifiedTopologyName: string, elkGraph: FppElkNode | undefined = undefined): Promise<SGraph | undefined> {
+    static async topology(decl: DeclCollector, options: DiagramOptions, fullyQualifiedTopologyName: string, elkGraph: FppElkNode | undefined = undefined): Promise<SGraph | undefined> {
         if (!elkGraph) {
             elkGraph = this.initElkGraph();
         }
@@ -88,7 +86,7 @@ export class GraphGenerator {
         topologyDecl?.members.map(member => {
             if (member.type === 'TopologyImportStmt') {
                 const subtopologyName = MemberTraverser.flat(member.symbol);
-                this.topology(decl, subtopologyName, elkGraph);
+                this.topology(decl, options, subtopologyName, elkGraph);
             }
         });
 
@@ -106,7 +104,7 @@ export class GraphGenerator {
 
         // Create an ELK node for each component instance.
         usedComponentInstances.forEach(e => {
-            const elkNode = this.createElkNodeFromComponentInstance(decl, e);
+            const elkNode = this.createElkNodeFromComponentInstance(decl, options, e);
             if (elkNode) {
                 elkGraph.children?.push(elkNode);
             }
@@ -134,7 +132,7 @@ export class GraphGenerator {
      * @param fullyQualifiedGraphGroupName Fully qualified name of the connection group to generate the graph for
      * @returns An SGraph to be sent to webview
      */
-    static async connectionGroup(decl: DeclCollector, fullyQualifiedGraphGroupName: string): Promise<SGraph | undefined> {
+    static async connectionGroup(decl: DeclCollector, options: DiagramOptions, fullyQualifiedGraphGroupName: string): Promise<SGraph | undefined> {
         const elkGraph: FppElkNode = this.initElkGraph();
         const graphGroup = decl.graphGroups.get(fullyQualifiedGraphGroupName)!;
         if (!graphGroup) {
@@ -171,7 +169,7 @@ export class GraphGenerator {
 
         // Generate a component ELK node for each component instance.
         compInstances.forEach(e => {
-            const elkNode = this.createElkNodeFromComponentInstance(decl, e);
+            const elkNode = this.createElkNodeFromComponentInstance(decl, options, e);
             if (elkNode) {
                 elkGraph.children?.push(elkNode);
             }
@@ -193,7 +191,7 @@ export class GraphGenerator {
     /* Helper functions for generating ELK / Sprotty components */
     /************************************************************/
 
-    static createElkNodeFromComponentInstance(decl: DeclCollector, componentInstanceDecl: ComponentInstanceDecl): FppElkNode | undefined {
+    static createElkNodeFromComponentInstance(decl: DeclCollector, options: DiagramOptions, componentInstanceDecl: ComponentInstanceDecl): FppElkNode | undefined {
         // For each instance, look up the ComponentDecl.
         const resolved = decl.resolve(
             componentInstanceDecl.fppType.type,
@@ -208,7 +206,7 @@ export class GraphGenerator {
         const componentDecl = decl.get(componentName, SymbolType.component) as ComponentDecl;
 
         // Instantiate a component FppElkNode for the component type.
-        const node = this.createElkNodeComponent(decl, componentInstanceDecl, componentDecl);
+        const node = this.createElkNodeComponent(decl, options, componentInstanceDecl, componentDecl);
         return node;
     }
 
@@ -217,7 +215,7 @@ export class GraphGenerator {
      * @param comp ComponentDecl from decl collector
      * @param uid Component instance name, which is supposed to be unique.
      */
-    static createElkNodeComponent(decl: DeclCollector, instance: ComponentInstanceDecl | undefined, comp: ComponentDecl): FppElkNode {
+    static createElkNodeComponent(decl: DeclCollector, options: DiagramOptions, instance: ComponentInstanceDecl | undefined, comp: ComponentDecl): FppElkNode {
         // Instantiate an SNode for the component.
         const compId = instance ? `${instance.scope.map(e => e.value).join('.')}.${instance.name.value}` : `uninstantiatedComponent`; // DeploymentName.componentInstanceName
         const compClassName = comp.name.value;

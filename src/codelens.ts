@@ -85,7 +85,7 @@ export class CodelensProvider implements vscode.CodeLensProvider {
                 const lens = new vscode.CodeLens(range, {
                     title: `Open in Diagram: ${elemName}`,
                     tooltip: 'Click to visualize this connection group',
-                    command: 'fpp.displayDiagram',
+                    command: 'fpp.diagram.display',
                     arguments: [DiagramType.ConnectionGroup, fullName]
                 });
                 lenses.push(lens);
@@ -108,7 +108,7 @@ export class CodelensProvider implements vscode.CodeLensProvider {
                 const lens = new vscode.CodeLens(range, {
                     title: `Open in Diagram: ${elemName}`,
                     tooltip: 'Click to visualize this component',
-                    command: 'fpp.displayDiagram',
+                    command: 'fpp.diagram.display',
                     arguments: [DiagramType.Component, fullName]
                 });
                 lenses.push(lens);
@@ -131,7 +131,7 @@ export class CodelensProvider implements vscode.CodeLensProvider {
                 const lens = new vscode.CodeLens(range, {
                     title: `Open in Diagram: ${elemName}`,
                     tooltip: 'Click to visualize this topology',
-                    command: 'fpp.displayDiagram',
+                    command: 'fpp.diagram.display',
                     arguments: [DiagramType.Topology, fullName]
                 });
                 lenses.push(lens);

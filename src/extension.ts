@@ -907,12 +907,12 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.workspace.onDidSaveTextDocument((document) => {
             // Re-render diagram on save.
             if (document.languageId === 'fpp') {
-                vscode.commands.executeCommand('fpp.updateDiagram');
+                vscode.commands.executeCommand('fpp.diagram.update');
             }
         })
     );
 
-    // Set up webview panel manager for freestyle webviews.
+    // Set up webview panel manager.
     const webviewPanelManager = new FppWebviewPanelManager({
         extensionUri: context.extensionUri,
         defaultDiagramType: 'fppDiagrams',
@@ -920,11 +920,16 @@ export function activate(context: vscode.ExtensionContext) {
         singleton: true
     }, extension.project);
     registerDefaultCommands(webviewPanelManager, context, { extensionPrefix: 'fpp' });
+    context.subscriptions.push(
+        vscode.commands.registerCommand('fpp.diagram.toggleUnconnectedPorts', () => {
+            webviewPanelManager.toggleUnconnectedPorts();
+        })
+    );
     console.log("Instantiated FPP webview panel manager.");
 
     // Register command to update diagram on save.
     context.subscriptions.push(
-        vscode.commands.registerCommand('fpp.updateDiagram', () => {
+        vscode.commands.registerCommand('fpp.diagram.update', () => {
             webviewPanelManager.updateDiagram();
         })
     );
@@ -933,7 +938,7 @@ export function activate(context: vscode.ExtensionContext) {
     const codelensProvider = new CodelensProvider(extension.project);
     context.subscriptions.push(
         vscode.languages.registerCodeLensProvider("*", codelensProvider),
-        vscode.commands.registerCommand("fpp.displayDiagram",
+        vscode.commands.registerCommand("fpp.diagram.display",
             (diagramType: DiagramType, elemName: string) => webviewPanelManager.displayDiagram(diagramType, elemName)
         ),
     );

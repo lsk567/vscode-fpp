@@ -66,6 +66,12 @@
                 "title": "Export FPP Diagram",
                 "icon": "$(desktop-download)",
                 "category": "FPP Diagram"
+            },
+            {
+                "command": "fpp.diagram.toggleUnconnectedPorts",
+                "title": "Show/Hide Unconnected Ports",
+                "icon": "$(color-mode)",
+                "category": "FPP Diagram"
             }
         ],
         "languages": [
@@ -129,6 +135,11 @@
                 },
                 {
                     "command": "fpp.diagram.export",
+                    "when": "fppDiagrams-focused == true",
+                    "group": "navigation"
+                },
+                {
+                    "command": "fpp.diagram.toggleUnconnectedPorts",
                     "when": "fppDiagrams-focused == true",
                     "group": "navigation"
                 }
