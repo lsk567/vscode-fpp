@@ -7,7 +7,6 @@
             "ES2021"
         ],
         "sourceMap": true,
-        "rootDir": "src",
         "strict": true, /* enable all strict type-checking options */
         "resolveJsonModule": true,
         "esModuleInterop": true,
@@ -15,5 +14,10 @@
         // "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
         // "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
         // "noUnusedParameters": true,  /* Report errors on unused parameters. */
+        /* Important for esbuild.mjs with decorators */
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        // Library modules tend to raise spurious errors. Skip them for now.
+        "skipLibCheck": true,
     }
 }
