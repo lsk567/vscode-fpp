@@ -55,6 +55,12 @@ export class GraphGenerator {
         };
     }
 
+    /**
+     * Generate an SGraph that renders a component definition (not a component instance).
+     * @param decl The DeclCollector with all info about the FPP files
+     * @param fullyQualifiedComponentName The name of the component definition to be rendered
+     * @returns An SGraph to be sent to webview
+     */
     static async component(decl: DeclCollector, fullyQualifiedComponentName: string): Promise<SGraph | undefined> {
         const elkGraph: FppElkNode = this.initElkGraph();
         const compDecl = decl.components.get(fullyQualifiedComponentName)!;
@@ -193,6 +199,11 @@ export class GraphGenerator {
     /* Helper functions for generating ELK / Sprotty components */
     /************************************************************/
 
+    /**
+     * A helper method for building an ELK model for an FPP component instance
+     * @param decl The decl collector
+     * @param componentInstanceDecl A component instance to be rendered
+     */
     static createElkNodeFromComponentInstance(decl: DeclCollector, componentInstanceDecl: ComponentInstanceDecl): FppElkNode | undefined {
         // For each instance, look up the ComponentDecl.
         const resolved = decl.resolve(
@@ -213,9 +224,10 @@ export class GraphGenerator {
     }
 
     /**
-     * A helper method for building an Sprotty model for an FPP component
-     * @param comp ComponentDecl from decl collector
-     * @param uid Component instance name, which is supposed to be unique.
+     * A helper method for building an ELK model for an FPP component
+     * @param decl The decl collector
+     * @param instance A component instance to be rendered (by displaying the instance name). If this is undefined, only the component definition is rendered (without displaying instance names).
+     * @param comp A component definition to be rendered
      */
     static createElkNodeComponent(decl: DeclCollector, instance: ComponentInstanceDecl | undefined, comp: ComponentDecl): FppElkNode {
         // Instantiate an SNode for the component.
@@ -261,14 +273,14 @@ export class GraphGenerator {
         comp.members.forEach((m, i) => {
             if (GraphGenerator.isPortInstanceDecl(m)) {
                 const portId = `${compId}.${m.name.value}`;
-                node.ports!.push(...GraphGenerator.createElkNodePort(m, portId, decl));
+                node.ports!.push(...GraphGenerator.createElkNodePort(decl, m, portId));
             }
             // Handle ports imported from include statememts.
             else if (GraphGenerator.isIncludeStmt(m)) {
                 m.resolved?.members.forEach(member => {
                     if (GraphGenerator.isPortInstanceDecl(member)) {
                         const portId = `${compId}.${member.name.value}`;
-                        node.ports!.push(...GraphGenerator.createElkNodePort(member, portId, decl));
+                        node.ports!.push(...GraphGenerator.createElkNodePort(decl, member, portId));
                     }
                 });
             }
@@ -283,7 +295,7 @@ export class GraphGenerator {
                 interfaceDecl?.members.forEach(member => {
                     if (GraphGenerator.isPortInstanceDecl(member)) {
                         const portId = `${compId}.${member.name.value}`;
-                        node.ports!.push(...GraphGenerator.createElkNodePort(member, portId, decl));
+                        node.ports!.push(...GraphGenerator.createElkNodePort(decl, member, portId));
                     }
                 });
             }
@@ -292,7 +304,13 @@ export class GraphGenerator {
         return node;
     }
 
-    static createElkNodePort(port: PortInstanceDecl, portIdPrefix: string, decl: DeclCollector): FppElkPort[] {
+    /**
+     * A helper method for building an ELK model for an FPP port
+     * @param decl The decl collector
+     * @param port A port instance to be rendered
+     * @param portIdPrefix A prefix string for making the port's ELK id unique
+     */
+    static createElkNodePort(decl: DeclCollector, port: PortInstanceDecl, portIdPrefix: string): FppElkPort[] {
         // Extract the name and the kind of the port.
         // If portKind is empty, then special colors will not be applied.
         const portName = port.name.value;
@@ -348,6 +366,13 @@ export class GraphGenerator {
         return portNodes;
     }
 
+    /**
+     * A helper method for building an ELK model for an FPP connection
+     * @param decl The decl collector
+     * @param directGraphDecl A connection group this connection belongs to
+     * @param conn The connection to be rendered
+     * @param idx The connection index for creating a unique ELK id
+     */
     static createElkEdge(decl: DeclCollector, directGraphDecl: DirectGraphDecl, conn: Connection, idx: number): FppElkEdge {
         const annotator = new FppAnnotator(decl);
         const scope = directGraphDecl.scope;
@@ -361,10 +386,10 @@ export class GraphGenerator {
         let sourceFullyQualifiedName = sourceResolve
             ? `${MemberTraverser.flat(scope)}.${MemberTraverser.flat(sourceId)}`
             : MemberTraverser.flat(sourceId);
-        // Resolve source index from expression.
+        // Resolve an integer source port index from expression.
         let sourceIndex = 0;
         if (conn.source.index) {
-            const sourceIndexExpr = annotator.exprTrav.traverse(conn.source.index, directGraphDecl.scope, ExprTraverser.intValidator);
+            const sourceIndexExpr = annotator.exprTrav.traverse(conn.source.index, scope, ExprTraverser.intValidator);
             sourceIndex = (sourceIndexExpr as IntExprValue).value;
         }
 
@@ -374,10 +399,10 @@ export class GraphGenerator {
         let destFullyQualifiedName = destResolve
             ? `${MemberTraverser.flat(scope)}.${MemberTraverser.flat(destId)}`
             : MemberTraverser.flat(destId);
-        // Resolve dest index from expression.
+        // Resolve an integer destination port index from expression.
         let destIndex = 0;
         if (conn.destination.index) {
-            const destIndexExpr = annotator.exprTrav.traverse(conn.destination.index, directGraphDecl.scope, ExprTraverser.intValidator);
+            const destIndexExpr = annotator.exprTrav.traverse(conn.destination.index, scope, ExprTraverser.intValidator);
             destIndex = (destIndexExpr as IntExprValue).value;
         }
 
