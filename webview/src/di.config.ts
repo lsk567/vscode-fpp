@@ -18,6 +18,7 @@ const myModule = new ContainerModule((bind, unbind, isBound, rebind) => {
     configureModelElement(context, 'volatile-routing-point', SRoutingHandleImpl, SRoutingHandleView);
     // State machine
     configureModelElement(context, 'node:smState', SNodeImpl, ComponentNodeView, { enable: [layoutableChildFeature], disable: [moveFeature] });
+    configureModelElement(context, 'edge:smTransition', SEdgeImpl, ArrowEdgeView, { disable: [editFeature] });
     // Viewer options
     configureViewerOptions(context, {
         needsClientLayout: false, // Whether client-side micro-layout is needed. We set it to false here because all layout is done by ELK.

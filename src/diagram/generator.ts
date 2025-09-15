@@ -1,7 +1,7 @@
 import { SGraph, SEdge, SNode, SPort, Point, SLabel, Dimension } from 'sprotty-protocol';
 import { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { DeclCollector, SymbolType } from "../passes/decl";
-import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, InterfaceImportStmt, IntExprValue, PortInstanceDecl, PrimExprType, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind, StateDef, StateMachineDecl, TopologyDecl } from "../parser/ast";
+import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, Identifier, IncludeStmt, InterfaceImportStmt, IntExprValue, PortInstanceDecl, PrimExprType, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind, StateDef, StateMachineDecl, TopologyDecl } from "../parser/ast";
 import { MemberTraverser } from "../passes/traverser";
 import type { ComponentSNode, PortSNode } from '../../common/models';
 import { getInterfaceFullnameFromImport } from '../util';
@@ -208,7 +208,19 @@ export class GraphGenerator {
         // Find stateDef
         const stateDefs = sm.members.filter(m => m.type === 'StateDef') ?? [];
         stateDefs.forEach(stateDef => {
+            // Push the state ELK node into children.
             elkGraph.children?.push(this.createElkSMState(decl, diagramConfig, stateDef));
+
+            // Push all transitions from this state into edges.
+            const transitions = stateDef.members.filter(m => m.type === 'StateTransition');
+            transitions.forEach(transition => {
+                const sourceId = `${MemberTraverser.flat(stateDef.scope)}.${stateDef.name.value}`;
+                const destId = transition.transition.type === 'TransitionExpr' ? 
+                    `${MemberTraverser.flat(stateDef.scope)}.${MemberTraverser.flat(transition.transition.state)}` : undefined;
+                const signal = transition.signal.value;
+                if (destId === undefined) return;
+                elkGraph.edges?.push(this.createElkSMTransition(sourceId, destId, signal));
+            });
         });
         console.log("Elk:");
         console.log(elkGraph);
@@ -477,6 +489,27 @@ export class GraphGenerator {
             }
         };
         return node;
+    }
+
+    static createElkSMTransition(sourceId: string, destId: string, signal: string): FppElkEdge {
+        const edge: FppElkEdge = {
+            id: `transition.${sourceId}.${destId}`,
+            sources: [
+                sourceId
+            ],
+            targets: [
+                destId
+            ],
+            labels: [
+                <ElkLabel>{
+                    text: signal,
+                },
+            ],
+            data: {
+                SNodeType: 'edge:smTransition',
+            }
+        };
+        return edge;
     }
 
     /*********************/
