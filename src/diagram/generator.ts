@@ -1,7 +1,7 @@
 import { SGraph, SEdge, SNode, SPort, Point, SLabel, Dimension } from 'sprotty-protocol';
 import { ElkExtendedEdge, ElkGraphElement, ElkLabel, ElkNode, ElkPort } from 'elkjs/lib/elk.bundled.js';
 import { DeclCollector, SymbolType } from "../passes/decl";
-import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, InterfaceImportStmt, IntExprValue, PortInstanceDecl, PrimExprType, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind, TopologyDecl } from "../parser/ast";
+import { ComponentDecl, ComponentInstanceDecl, Connection, DirectGraphDecl, GeneralInputPortInstance, GeneralPortKind, IncludeStmt, InterfaceImportStmt, IntExprValue, PortInstanceDecl, PrimExprType, QualifiedIdentifier, SpecialOutputPortInstance, SpecialPortKind, StateDef, StateMachineDecl, TopologyDecl } from "../parser/ast";
 import { MemberTraverser } from "../passes/traverser";
 import type { ComponentSNode, PortSNode } from '../../common/models';
 import { getInterfaceFullnameFromImport } from '../util';
@@ -193,9 +193,37 @@ export class GraphGenerator {
         return sGraph;
     }
 
-    /************************************************************/
-    /* Helper functions for generating ELK / Sprotty components */
-    /************************************************************/
+    /**
+     * Generate an SGraph that renders a state machine.
+     * @param decl The DeclCollector with all info about the FPP files
+     * @param diagramConfig Configuration object for the diagram
+     * @param fullyQualifiedName Fully qualified name of the state machine
+     * @returns An SGraph to be sent to webview
+     */
+    static async stateMachine(decl: DeclCollector, diagramConfig: FppDiagramConfig, fullyQualifiedName: string): Promise<SGraph | undefined> {
+        const elkGraph: FppElkNode = this.initElkGraph();
+        const sm: StateMachineDecl = decl.stateMachines.get(fullyQualifiedName)!;
+        console.log(sm);
+
+        // Find stateDef
+        const stateDefs = sm.members.filter(m => m.type === 'StateDef') ?? [];
+        stateDefs.forEach(stateDef => {
+            elkGraph.children?.push(this.createElkSMState(decl, diagramConfig, stateDef));
+        });
+        console.log("Elk:");
+        console.log(elkGraph);
+
+        // Convert to SGraph
+        const sGraph: SGraph = this.convertElkGraphToSGraph(elkGraph);
+        console.log("SGraph:");
+        console.log(sGraph);
+
+        return sGraph;
+    }
+
+    /*************************************************************************************/
+    /* Helper functions for generating ELK nodes for components, topologies, connections */
+    /*************************************************************************************/
 
     /**
      * A helper method for building an ELK model for an FPP component instance
@@ -236,7 +264,7 @@ export class GraphGenerator {
      * unused ports are hidden to simplify the diagram.
      */
     static createElkNodeComponent(decl: DeclCollector, diagramConfig: FppDiagramConfig, instance: ComponentInstanceDecl | undefined, comp: ComponentDecl, connections: ElkExtendedEdge[] | undefined): FppElkNode {
-        // Instantiate an SNode for the component.
+        // Instantiate an Elk node for the component.
         const compId = instance ? `${instance.scope.map(e => e.value).join('.')}.${instance.name.value}` : `uninstantiatedComponent`; // DeploymentName.componentInstanceName
         const compClassName = comp.name.value;
         const compInstanceName = instance ? instance.name.value : "";
@@ -423,6 +451,38 @@ export class GraphGenerator {
         return edge;
     }
 
+    /*********************************************************************/
+    /* Helper functions for generating ELK nodes for state machines (SM) */
+    /*********************************************************************/
+
+    static createElkSMState(decl: DeclCollector, diagramConfig: FppDiagramConfig, stateDef: StateDef): FppElkNode {
+        const stateName = stateDef.name.value;
+        const compId = `${stateDef.scope.map(e => e.value).join('.')}.${stateName}`;
+        var node: FppElkNode = {
+            id: compId,
+            // IMPORTANT: x, y must be set, otherwise mysterious runtime errors could occur during ELK layout.
+            // Set x, y both to 0, since layout will set them later.
+            // But we do need to explicitly set them for the Sprotty front-end
+            // to correctly perform measurement.
+            x: 0, y: 0,
+            children: [],
+            ports: [],
+            labels: [
+                <ElkLabel>{
+                    text: stateName,
+                },
+            ],
+            data: {
+                SNodeType: 'node:smState',
+            }
+        };
+        return node;
+    }
+
+    /*********************/
+    /* Helper predicates */
+    /*********************/
+
     /**
      * A type guard function for checking whether an object can be
      * safely treated as a certain type.
@@ -452,6 +512,10 @@ export class GraphGenerator {
         return obj && (obj.type === 'InterfaceImportStmt');
     }
 
+    /**********************************/
+    /* Converting Elk graph to SGraph */
+    /**********************************/
+
     /**
      * Convert an ELK graph into a Sprotty SGraph.
      * @param elkGraph 
@@ -469,9 +533,9 @@ export class GraphGenerator {
     }
 
     /**
-     * 
-     * @param sRoot 
-     * @param eRoot 
+     * Helper function to recursively convert an Elk graph into an SGraph
+     * @param sRoot Root node of the output SGraph
+     * @param eRoot Root node of the input Elk graph
      */
     static convertElkGraphToSGraphRecursive(sNode: SNode, eNode: FppElkNode): void {
         // At the current layer of the tree, instantiate a component SNode for each elk child.

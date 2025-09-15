@@ -24,7 +24,8 @@ import { FppDiagramConfig } from "./layout-config";
 export enum DiagramType {
     Component,
     ConnectionGroup,
-    Topology
+    Topology,
+    StateMachine,
 }
 
 export class FppWebviewPanelManager extends WebviewPanelManager {
@@ -174,6 +175,9 @@ export class FppWebviewPanelManager extends WebviewPanelManager {
                 break;
             case DiagramType.Topology:
                 this.sGraph = await GraphGenerator.topology(this.fppProject.decl, this.diagramConfig, fullyQualifiedName);
+                break;
+            case DiagramType.StateMachine:
+                this.sGraph = await GraphGenerator.stateMachine(this.fppProject.decl, this.diagramConfig, fullyQualifiedName);
                 break;
             default:
                 vscode.window.showErrorMessage('Unsupport diagram type: ', diagramType);
