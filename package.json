@@ -11,7 +11,7 @@
         "url": "https://github.com/fprime-community/vscode-fpp",
         "type": "git"
     },
-    "version": "1.0.28",
+    "version": "1.0.29",
     "icon": "fprime-logo.png",
     "engines": {
         "vscode": "^1.78.0"
@@ -170,7 +170,7 @@
     "scripts": {
         "vscode:prepublish": "rm -rf dist && yarn package",
         "package": "webpack --mode production",
-        "compile": "webpack --mode development",
+        "build": "webpack --mode development",
         "watch": "webpack --mode development --watch",
         "antlr": "antlr4ts -visitor src/grammar/Fpp.g4 && node ./scripts/update-signatures.js src/signatures.json src/grammar/FppParser.ts"
     },
